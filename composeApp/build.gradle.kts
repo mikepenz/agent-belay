@@ -7,6 +7,12 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
+configurations.all {
+    resolutionStrategy {
+        force(libs.kotlinx.datetime)
+    }
+}
+
 kotlin {
     jvm()
 
@@ -24,6 +30,9 @@ kotlin {
             implementation(libs.kermit)
         }
         commonTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
+        jvmTest.dependencies {
             implementation(libs.kotlin.test)
         }
         jvmMain.dependencies {
