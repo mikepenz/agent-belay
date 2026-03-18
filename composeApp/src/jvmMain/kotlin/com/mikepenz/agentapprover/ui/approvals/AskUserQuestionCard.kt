@@ -1,9 +1,11 @@
 package com.mikepenz.agentapprover.ui.approvals
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -20,7 +22,9 @@ fun AskUserQuestionCard(
     onSendResponse: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var response by remember { mutableStateOf("") }
+    var selectedOption by remember { mutableStateOf<String?>(null) }
+    var customMode by remember { mutableStateOf(false) }
+    var customResponse by remember { mutableStateOf("") }
 
     val question = request.toolInput["question"]?.jsonPrimitive?.contentOrNull
         ?: request.toolInput.toString()
@@ -29,50 +33,81 @@ fun AskUserQuestionCard(
     } ?: emptyList()
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // No timeout label
         Text("No timeout", fontSize = 10.sp, color = Color.Gray)
-
         Spacer(Modifier.height(8.dp))
 
-        // Question
+        // Question (markdown rendered)
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color(0xFF1E1E1E),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             shape = MaterialTheme.shapes.small,
         ) {
-            Box(modifier = Modifier.padding(8.dp)) {
+            Box(modifier = Modifier.padding(10.dp)) {
                 Markdown(content = question)
             }
         }
 
-        // Options
-        if (options.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                options.forEach { option ->
-                    AssistChip(
-                        onClick = { response = option },
-                        label = { Text(option, fontSize = 11.sp) },
+        Spacer(Modifier.height(8.dp))
+
+        // Option selection (radio buttons)
+        if (options.isNotEmpty() && !customMode) {
+            options.forEach { option ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedOption = option }
+                        .padding(vertical = 4.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = selectedOption == option,
+                        onClick = { selectedOption = option },
+                    )
+                    Text(
+                        option,
+                        modifier = Modifier.padding(start = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        // "or" divider + custom toggle
+        if (options.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text("or", modifier = Modifier.padding(horizontal = 8.dp), fontSize = 11.sp, color = Color.Gray)
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(4.dp))
 
-        // Response input
-        OutlinedTextField(
-            value = response,
-            onValueChange = { response = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Type your response...", fontSize = 12.sp) },
-            singleLine = true,
-            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
-        )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { customMode = !customMode; if (!customMode) customResponse = "" },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(checked = customMode, onCheckedChange = { customMode = it; if (!it) customResponse = "" })
+                Text("Custom response", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        // Custom input (shown when custom mode or no options)
+        if (customMode || options.isEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            OutlinedTextField(
+                value = customResponse,
+                onValueChange = { customResponse = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Type your response...", fontSize = 12.sp) },
+                textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                minLines = 2,
+            )
+        }
 
         Spacer(Modifier.height(8.dp))
 
@@ -81,16 +116,16 @@ fun AskUserQuestionCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f),
-            ) {
+            OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
                 Text("Dismiss")
             }
             Button(
-                onClick = { onSendResponse(response) },
+                onClick = {
+                    val response = if (customMode || options.isEmpty()) customResponse else selectedOption ?: ""
+                    onSendResponse(response)
+                },
                 modifier = Modifier.weight(1f),
-                enabled = response.isNotBlank(),
+                enabled = if (customMode || options.isEmpty()) customResponse.isNotBlank() else selectedOption != null,
             ) {
                 Text("Send Response")
             }
@@ -100,7 +135,7 @@ fun AskUserQuestionCard(
 
 @Preview
 @Composable
-private fun PreviewAskUserQuestion() {
+private fun PreviewAskUserQuestionWithOptions() {
     AgentApproverTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
@@ -110,15 +145,49 @@ private fun PreviewAskUserQuestion() {
                         source = Source.CLAUDE_CODE,
                         toolName = "AskUserQuestion",
                         toolType = ToolType.ASK_USER_QUESTION,
-                        toolInput = JsonObject(mapOf(
-                            "question" to JsonPrimitive("Which database backend should I use for this project?"),
-                            "options" to JsonArray(listOf(
-                                JsonPrimitive("PostgreSQL"),
-                                JsonPrimitive("SQLite"),
-                                JsonPrimitive("MySQL"),
-                            )),
-                        )),
+                        toolInput = JsonObject(
+                            mapOf(
+                                "question" to JsonPrimitive("Which database backend should I use for this project?"),
+                                "options" to JsonArray(
+                                    listOf(
+                                        JsonPrimitive("PostgreSQL"),
+                                        JsonPrimitive("SQLite"),
+                                        JsonPrimitive("MySQL"),
+                                    )
+                                ),
+                            )
+                        ),
                         sessionId = "sess-abc123",
+                        cwd = "/home/user/project",
+                        timestamp = Clock.System.now(),
+                        rawRequestJson = "{}",
+                    ),
+                    onSendResponse = {},
+                    onDismiss = {},
+                )
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun PreviewAskUserQuestionCustomOnly() {
+    AgentApproverTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+                AskUserQuestionCard(
+                    request = ApprovalRequest(
+                        id = "preview-ask-custom",
+                        source = Source.CLAUDE_CODE,
+                        toolName = "AskUserQuestion",
+                        toolType = ToolType.ASK_USER_QUESTION,
+                        toolInput = JsonObject(
+                            mapOf(
+                                "question" to JsonPrimitive("What name would you like for the new module?"),
+                            )
+                        ),
+                        sessionId = "sess-def456",
                         cwd = "/home/user/project",
                         timestamp = Clock.System.now(),
                         rawRequestJson = "{}",

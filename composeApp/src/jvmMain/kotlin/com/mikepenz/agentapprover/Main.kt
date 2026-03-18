@@ -10,9 +10,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.window.Tray
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import io.github.kdroidfilter.nucleus.window.material.MaterialDecoratedWindow
+import io.github.kdroidfilter.nucleus.window.material.MaterialTitleBar
 import com.mikepenz.agentapprover.hook.HookRegistrar
 import com.mikepenz.agentapprover.risk.RiskAnalyzer
 import com.mikepenz.agentapprover.server.ApprovalServer
@@ -130,19 +135,29 @@ fun main() {
         )
 
         val settings = stateManager.state.value.settings
+        val windowState = rememberWindowState()
 
-        // TODO: Replace Window with Nucleus MaterialDecoratedWindow for native-looking window decoration.
-        //  Nucleus library (io.github.kdroidfilter:nucleus-desktop) is not yet added as a dependency.
-        //  Once added, use MaterialDecoratedWindow { ... } instead of Window { ... } and apply
-        //  the Nucleus Gradle plugin (io.github.kdroidfilter.nucleus) in build.gradle.kts.
-        Window(
-            onCloseRequest = { isVisible = false },
-            visible = isVisible,
-            title = "Agent Approver",
-            alwaysOnTop = settings.alwaysOnTop,
-        ) {
-            AgentApproverTheme {
-                App(stateManager, hookRegistrar, riskAnalyzer, coroutineScope)
+        if (isVisible) {
+            MaterialTheme {
+                MaterialDecoratedWindow(
+                    onCloseRequest = { isVisible = false },
+                    title = "Agent Approver",
+                    state = windowState,
+                ) {
+                    LaunchedEffect(settings.alwaysOnTop) {
+                        window.isAlwaysOnTop = settings.alwaysOnTop
+                    }
+                    MaterialTitleBar {
+                        Text(
+                            "Agent Approver",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
+                    AgentApproverTheme {
+                        App(stateManager, hookRegistrar, riskAnalyzer, coroutineScope)
+                    }
+                }
             }
         }
     }

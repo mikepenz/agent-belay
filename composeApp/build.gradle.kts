@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.nucleus)
 }
 
 configurations.all {
@@ -43,6 +44,8 @@ kotlin {
             implementation(libs.ktor.server.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.markdown.renderer)
+            implementation(libs.nucleus.decorated.window.core)
+            implementation(libs.nucleus.decorated.window.material)
         }
     }
 }
