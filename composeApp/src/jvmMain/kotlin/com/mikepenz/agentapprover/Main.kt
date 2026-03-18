@@ -1,6 +1,8 @@
 package com.mikepenz.agentapprover
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.DisposableEffect
@@ -138,7 +140,7 @@ fun main() {
         val windowState = rememberWindowState()
 
         if (isVisible) {
-            MaterialTheme {
+            AgentApproverTheme {
                 MaterialDecoratedWindow(
                     onCloseRequest = { isVisible = false },
                     title = "Agent Approver",
@@ -154,7 +156,10 @@ fun main() {
                             style = MaterialTheme.typography.titleSmall,
                         )
                     }
-                    AgentApproverTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background,
+                    ) {
                         App(stateManager, hookRegistrar, riskAnalyzer, coroutineScope)
                     }
                 }
