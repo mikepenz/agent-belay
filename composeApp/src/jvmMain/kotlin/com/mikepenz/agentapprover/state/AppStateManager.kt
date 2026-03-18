@@ -69,6 +69,16 @@ class AppStateManager(
         }
     }
 
+    fun updateHistoryRawResponse(requestId: String, rawResponseJson: String) {
+        _state.update { current ->
+            val updatedHistory = current.history.map { result ->
+                if (result.request.id == requestId) result.copy(rawResponseJson = rawResponseJson) else result
+            }
+            historyStorage?.save(updatedHistory)
+            current.copy(history = updatedHistory)
+        }
+    }
+
     fun updateRiskResult(requestId: String, analysis: RiskAnalysis) {
         _state.update { it.copy(riskResults = it.riskResults + (requestId to analysis)) }
     }

@@ -44,38 +44,28 @@ fun Route.approvalRoute(
 
             if (result == null) {
                 // Timeout
+                val responseJson = buildDenyResponse("Request timed out").toString()
                 stateManager.resolve(
                     requestId = request.id,
                     decision = Decision.TIMEOUT,
                     feedback = "Request timed out",
                     riskAnalysis = null,
-                    rawResponseJson = null,
+                    rawResponseJson = responseJson,
                 )
-                call.respondText(
-                    buildDenyResponse("Request timed out").toString(),
-                    contentType = ContentType.Application.Json,
-                )
+                call.respondText(responseJson, contentType = ContentType.Application.Json)
                 return@post
             }
 
-            when (result.decision) {
-                Decision.APPROVED, Decision.AUTO_APPROVED -> {
-                    call.respondText(
-                        buildAllowResponse().toString(),
-                        contentType = ContentType.Application.Json,
-                    )
-                }
+            val responseJson = when (result.decision) {
+                Decision.APPROVED, Decision.AUTO_APPROVED -> buildAllowResponse().toString()
+                Decision.DENIED, Decision.AUTO_DENIED, Decision.TIMEOUT ->
+                    buildDenyResponse(result.feedback ?: "Request denied").toString()
+                Decision.CANCELLED_BY_CLIENT -> null
+            }
 
-                Decision.DENIED, Decision.AUTO_DENIED, Decision.TIMEOUT -> {
-                    call.respondText(
-                        buildDenyResponse(result.feedback ?: "Request denied").toString(),
-                        contentType = ContentType.Application.Json,
-                    )
-                }
-
-                Decision.CANCELLED_BY_CLIENT -> {
-                    // Do not respond
-                }
+            if (responseJson != null) {
+                stateManager.updateHistoryRawResponse(request.id, responseJson)
+                call.respondText(responseJson, contentType = ContentType.Application.Json)
             }
         } catch (_: CancellationException) {
             // Client disconnected
