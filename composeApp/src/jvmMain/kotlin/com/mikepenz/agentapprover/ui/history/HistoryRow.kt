@@ -133,7 +133,7 @@ fun HistoryRow(
                         color = rColor.copy(alpha = 0.2f),
                     ) {
                         Text(
-                            text = "Risk ${result.riskAnalysis.risk} — ${result.riskAnalysis.message}",
+                            text = "Risk ${result.riskAnalysis.risk}",
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             color = rColor,
                             fontSize = 10.sp,
