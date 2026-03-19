@@ -4,6 +4,7 @@ import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -19,16 +20,33 @@ fun DefaultCard(
     request: ApprovalRequest,
     onApprove: (String?) -> Unit,
     onDeny: (String) -> Unit,
+    onPopOut: ((title: String, content: String) -> Unit)? = null,
 ) {
     var denyFeedback by remember { mutableStateOf("") }
 
+    val content = remember(request) { formatContent(request) }
+
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Session ID
-        Text(
-            text = "Session: ${request.hookInput.sessionId}",
-            fontSize = 10.sp,
-            color = Color.Gray,
-        )
+        // Session ID + pop-out button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Session: ${request.hookInput.sessionId}",
+                fontSize = 10.sp,
+                color = Color.Gray,
+            )
+            if (onPopOut != null) {
+                IconButton(
+                    onClick = { onPopOut(request.hookInput.toolName, content) },
+                    modifier = Modifier.size(20.dp),
+                ) {
+                    Text("↗", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
 
         Spacer(Modifier.height(8.dp))
 
@@ -39,7 +57,6 @@ fun DefaultCard(
             shape = MaterialTheme.shapes.small,
         ) {
             Box(modifier = Modifier.padding(8.dp)) {
-                val content = formatContent(request)
                 Markdown(content = content)
             }
         }

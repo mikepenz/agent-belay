@@ -44,6 +44,7 @@ kotlin {
             implementation(libs.ktor.server.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.markdown.renderer)
+            implementation(libs.markdown.renderer.code)
             implementation(libs.nucleus.decorated.window.core)
             implementation(libs.nucleus.decorated.window.jni)
             implementation(libs.nucleus.decorated.window.material)

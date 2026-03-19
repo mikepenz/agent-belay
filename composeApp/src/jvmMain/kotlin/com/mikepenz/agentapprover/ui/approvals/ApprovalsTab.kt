@@ -31,6 +31,7 @@ fun ApprovalsTab(
     onDismiss: (requestId: String) -> Unit,
     autoDenyRequests: Set<String>,
     onCancelAutoDeny: (requestId: String) -> Unit,
+    onPopOut: ((title: String, content: String) -> Unit)? = null,
 ) {
     if (pendingApprovals.isEmpty()) {
         EmptyApprovalsState()
@@ -62,6 +63,7 @@ fun ApprovalsTab(
                     onDismiss = { onDismiss(request.id) },
                     autoDenyActive = request.id in autoDenyRequests,
                     onCancelAutoDeny = { onCancelAutoDeny(request.id) },
+                    onPopOut = onPopOut,
                 )
             }
         }

@@ -39,6 +39,7 @@ fun App(
     stateManager: AppStateManager,
     hookRegistrar: HookRegistrar,
     riskAnalyzer: RiskAnalyzer,
+    onPopOut: ((title: String, content: String) -> Unit)? = null,
 ) {
     val state by stateManager.state.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -179,6 +180,7 @@ fun App(
                 },
                 autoDenyRequests = autoDenyRequests,
                 onCancelAutoDeny = { requestId -> autoDenyRequests.remove(requestId) },
+                onPopOut = onPopOut,
             )
 
             1 -> HistoryTab(history = state.history)

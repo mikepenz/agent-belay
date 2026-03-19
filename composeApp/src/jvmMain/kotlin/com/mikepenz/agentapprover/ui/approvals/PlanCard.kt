@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -25,6 +26,7 @@ fun PlanCard(
     planData: PlanReviewData,
     onApprove: (String?) -> Unit,
     onDeny: (String) -> Unit,
+    onPopOut: ((title: String, content: String) -> Unit)? = null,
 ) {
     var feedback by remember { mutableStateOf("") }
     var planExpanded by remember { mutableStateOf(false) }
@@ -34,8 +36,22 @@ fun PlanCard(
     val canExpand = lineCount > 3
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // No timeout label
-        Text("No timeout", fontSize = 10.sp, color = Color.Gray)
+        // No timeout label + pop-out
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("No timeout", fontSize = 10.sp, color = Color.Gray)
+            if (onPopOut != null) {
+                IconButton(
+                    onClick = { onPopOut("Plan Review", trimmedPlan) },
+                    modifier = Modifier.size(20.dp),
+                ) {
+                    Text("↗", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
 
         if (request.hookInput.cwd.isNotBlank()) {
             Text(

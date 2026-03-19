@@ -37,6 +37,7 @@ fun ApprovalCard(
     onDismiss: () -> Unit,
     autoDenyActive: Boolean,
     onCancelAutoDeny: () -> Unit,
+    onPopOut: ((title: String, content: String) -> Unit)? = null,
 ) {
     val borderColor by animateColorAsState(
         targetValue = when {
@@ -116,11 +117,13 @@ fun ApprovalCard(
                                 planData = planData,
                                 onApprove = onApprove,
                                 onDeny = onDeny,
+                                onPopOut = onPopOut,
                             )
                         else -> DefaultCard(
                             request = request,
                             onApprove = onApprove,
                             onDeny = onDeny,
+                            onPopOut = onPopOut,
                         )
                     }
                 }

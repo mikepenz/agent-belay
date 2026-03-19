@@ -36,6 +36,7 @@ import com.mikepenz.agentapprover.state.AppStateManager
 import com.mikepenz.agentapprover.storage.HistoryStorage
 import com.mikepenz.agentapprover.storage.SettingsStorage
 import com.mikepenz.agentapprover.ui.App
+import com.mikepenz.agentapprover.ui.detail.ContentDetailWindow
 import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
 import com.mikepenz.agentapprover.ui.theme.configureLogging
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -92,6 +93,7 @@ fun main() {
     application {
         var isVisible by remember { mutableStateOf(true) }
         var showPortError by remember { mutableStateOf(false) }
+        var popOutState by remember { mutableStateOf<Pair<String, String>?>(null) }
 
         val riskAnalyzer = remember {
             RiskAnalyzer(
@@ -224,10 +226,22 @@ fun main() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background,
                     ) {
-                        App(stateManager, hookRegistrar, riskAnalyzer)
+                        App(
+                            stateManager, hookRegistrar, riskAnalyzer,
+                            onPopOut = { title, content -> popOutState = title to content },
+                        )
                     }
                 }
             }
+        }
+
+        // Pop-out detail window
+        popOutState?.let { (title, content) ->
+            ContentDetailWindow(
+                title = title,
+                content = content,
+                onClose = { popOutState = null },
+            )
         }
     }
 }
