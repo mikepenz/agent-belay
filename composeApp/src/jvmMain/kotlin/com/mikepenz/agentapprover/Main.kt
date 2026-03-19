@@ -83,6 +83,17 @@ fun main() {
         var popOutState by remember { mutableStateOf<Pair<String, String>?>(null) }
         var showLicenses by remember { mutableStateOf(false) }
 
+        // Handle macOS Quit (dock right-click → Quit, Cmd+Q)
+        val exitApp = ::exitApplication
+        LaunchedEffect(Unit) {
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().setQuitHandler { _, response ->
+                    exitApp()
+                    response.performQuit()
+                }
+            }
+        }
+
         val riskAnalyzer = remember {
             RiskAnalyzer(
                 model = stateManager.state.value.settings.riskAnalysisModel,
@@ -155,7 +166,6 @@ fun main() {
         val pendingCount = state.pendingApprovals.size
 
         // Use AWT SystemTray directly for proper MultiResolutionImage HiDPI support
-        val exitApp = ::exitApplication
         DisposableEffect(Unit) {
             val systemTray = if (java.awt.SystemTray.isSupported()) java.awt.SystemTray.getSystemTray() else null
             val trayIcon = if (systemTray != null) {
