@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.mikepenz.agentapprover.model.*
 import com.mikepenz.agentapprover.ui.approvals.ToolBadge
 import com.mikepenz.agentapprover.ui.theme.*
+import kotlinx.serialization.json.Json
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.json.JsonObject
@@ -31,6 +32,17 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+
+private val prettyJson = Json { prettyPrint = true }
+
+private fun prettyPrintJson(raw: String): String {
+    return try {
+        val element = prettyJson.parseToJsonElement(raw)
+        prettyJson.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), element)
+    } catch (_: Exception) {
+        raw
+    }
+}
 
 fun decisionColor(decision: Decision): Color = when (decision) {
     Decision.APPROVED -> Color(0xFF4CAF50)
@@ -203,7 +215,7 @@ fun HistoryRow(
                                 style = MaterialTheme.typography.labelSmall,
                             )
                             Text(
-                                text = result.request.rawRequestJson,
+                                text = prettyPrintJson(result.request.rawRequestJson),
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp,
                                 color = Color(0xFFCCCCCC),
@@ -217,7 +229,7 @@ fun HistoryRow(
                                     style = MaterialTheme.typography.labelSmall,
                                 )
                                 Text(
-                                    text = result.rawResponseJson,
+                                    text = prettyPrintJson(result.rawResponseJson),
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 10.sp,
                                     color = Color(0xFFCCCCCC),
