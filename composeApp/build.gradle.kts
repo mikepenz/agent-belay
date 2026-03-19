@@ -40,19 +40,19 @@ configurations.all {
 
 val appVersion = providers.gradleProperty("app.version").get()
 
-val generateVersion by tasks.registering(VersionTask::class) {
+val generateVersion = project.tasks.register<VersionTask>("generateVersion") {
     packageString.set("com.mikepenz.agentapprover")
     version.set(appVersion)
     store(resources)
-    into(layout.buildDirectory.dir("generated/version"))
+    into(layout.buildDirectory.dir("generated-version/kotlin/"))
 }
 
 kotlin {
     jvm()
 
     sourceSets {
-        jvmMain {
-            kotlin.srcDir(generateVersion.map { it.destinationDir })
+        commonMain {
+            kotlin.srcDir(generateVersion)
         }
         @Suppress("DEPRECATION")
         commonMain.dependencies {
@@ -87,6 +87,7 @@ kotlin {
         }
     }
 }
+
 
 compose.desktop {
     application {
