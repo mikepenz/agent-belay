@@ -104,22 +104,10 @@ fun SettingsTab(
         // -- General Section --
         SectionHeader("General")
 
-        SettingsTextField(
-            label = "Server port",
-            value = settings.serverPort.toString(),
-            onValueChange = { it.toIntOrNull()?.let { port -> onSettingsChange(settings.copy(serverPort = port)) } },
-        )
-
         SettingsSwitch(
             label = "Always on top",
             checked = settings.alwaysOnTop,
             onCheckedChange = { onSettingsChange(settings.copy(alwaysOnTop = it)) },
-        )
-
-        SettingsTextField(
-            label = "Default timeout (seconds)",
-            value = settings.defaultTimeoutSeconds.toString(),
-            onValueChange = { it.toIntOrNull()?.let { timeout -> onSettingsChange(settings.copy(defaultTimeoutSeconds = timeout)) } },
         )
 
         SettingsSwitch(
@@ -169,6 +157,21 @@ fun SettingsTab(
         ) {
             Text("Clear History")
         }
+
+        // -- Server Section --
+        SectionHeader("Server")
+
+        SettingsTextField(
+            label = "Server port",
+            value = settings.serverPort.toString(),
+            onValueChange = { it.toIntOrNull()?.let { port -> onSettingsChange(settings.copy(serverPort = port)) } },
+        )
+
+        SettingsTextField(
+            label = "Default timeout (seconds)",
+            value = settings.defaultTimeoutSeconds.toString(),
+            onValueChange = { it.toIntOrNull()?.let { timeout -> onSettingsChange(settings.copy(defaultTimeoutSeconds = timeout)) } },
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
     }
