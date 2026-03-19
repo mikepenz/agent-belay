@@ -117,6 +117,23 @@ fun HistoryRow(
                 )
             }
 
+            // Agent + cwd info
+            val agentType = result.request.hookInput.agentType
+            val cwd = result.request.hookInput.cwd
+            if (agentType != null || cwd.isNotBlank()) {
+                Text(
+                    text = buildString {
+                        if (agentType != null) append("Agent: $agentType")
+                        if (agentType != null && cwd.isNotBlank()) append(" · ")
+                        if (cwd.isNotBlank()) append(cwd)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
             Spacer(Modifier.height(4.dp))
 
             // Bottom line: decision badge, risk badge, timestamp
@@ -190,6 +207,21 @@ fun HistoryRow(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 10.sp,
                                     color = riskColor(result.riskAnalysis.risk),
+                                )
+                                Spacer(Modifier.height(8.dp))
+                            }
+                            if (result.request.hookInput.cwd.isNotBlank()) {
+                                Text(
+                                    text = "Working Directory:",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                                Text(
+                                    text = result.request.hookInput.cwd,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 10.sp,
+                                    color = Color(0xFFCCCCCC),
                                 )
                                 Spacer(Modifier.height(8.dp))
                             }
