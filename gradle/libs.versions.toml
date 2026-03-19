@@ -25,6 +25,7 @@ aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref
 aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
 markdown-renderer = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "markdown-renderer" }
 markdown-renderer-code = { module = "com.mikepenz:multiplatform-markdown-renderer-code", version.ref = "markdown-renderer" }
+nucleus-darkmode-detector = { module = "io.github.kdroidfilter:nucleus.darkmode-detector", version.ref = "nucleus" }
 nucleus-decorated-window-core = { module = "io.github.kdroidfilter:nucleus.decorated-window-core", version.ref = "nucleus" }
 nucleus-decorated-window-jni = { module = "io.github.kdroidfilter:nucleus.decorated-window-jni", version.ref = "nucleus" }
 nucleus-decorated-window-material = { module = "io.github.kdroidfilter:nucleus.decorated-window-material", version.ref = "nucleus" }

@@ -3,7 +3,11 @@ package com.mikepenz.agentapprover.model
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class ThemeMode { SYSTEM, DARK, LIGHT }
+
+@Serializable
 data class AppSettings(
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val serverPort: Int = 19532,
     val alwaysOnTop: Boolean = true,
     val defaultTimeoutSeconds: Int = 240,

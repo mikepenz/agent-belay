@@ -110,6 +110,33 @@ fun SettingsTab(
         // -- General Section --
         SectionHeader("General")
 
+        // Theme mode selector
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Theme", style = MaterialTheme.typography.bodyMedium)
+            val modes = com.mikepenz.agentapprover.model.ThemeMode.entries
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                modes.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = settings.themeMode == mode,
+                        onClick = { onSettingsChange(settings.copy(themeMode = mode)) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
+                    ) {
+                        Text(
+                            when (mode) {
+                                com.mikepenz.agentapprover.model.ThemeMode.SYSTEM -> "System"
+                                com.mikepenz.agentapprover.model.ThemeMode.DARK -> "Dark"
+                                com.mikepenz.agentapprover.model.ThemeMode.LIGHT -> "Light"
+                            },
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+            }
+        }
+
         SettingsSwitch(
             label = "Always on top",
             checked = settings.alwaysOnTop,

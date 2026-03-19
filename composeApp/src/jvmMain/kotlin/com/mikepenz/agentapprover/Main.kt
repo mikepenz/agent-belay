@@ -214,7 +214,7 @@ fun main() {
         }
 
         if (isVisible) {
-            AgentApproverTheme {
+            AgentApproverTheme(themeMode = settings.themeMode) {
                 MaterialDecoratedWindow(
                     onCloseRequest = { isVisible = false },
                     title = "Agent Approver",
