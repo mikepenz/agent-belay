@@ -14,6 +14,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentapprover.model.AppSettings
+import com.mikepenz.agentapprover.platform.StartupManager
 import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
 
 @Composable
@@ -124,7 +125,10 @@ fun SettingsTab(
         SettingsSwitch(
             label = "Start on boot",
             checked = settings.startOnBoot,
-            onCheckedChange = { onSettingsChange(settings.copy(startOnBoot = it)) },
+            onCheckedChange = {
+                StartupManager.setStartOnBoot(it)
+                onSettingsChange(settings.copy(startOnBoot = it))
+            },
         )
 
         // -- Risk Analysis Section --
