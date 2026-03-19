@@ -25,11 +25,9 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.withContext
 import io.github.kdroidfilter.nucleus.window.material.MaterialDecoratedWindow
 import io.github.kdroidfilter.nucleus.window.material.MaterialTitleBar
 import com.mikepenz.agentapprover.hook.HookRegistrar
@@ -70,8 +68,9 @@ fun main() {
     val dataDir = getAppDataDir()
     File(dataDir).mkdirs()
 
+    val appScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     val settingsStorage = SettingsStorage(dataDir)
-    val historyStorage = HistoryStorage(dataDir)
+    val historyStorage = HistoryStorage(dataDir, appScope)
     val stateManager = AppStateManager(historyStorage, settingsStorage)
     stateManager.initialize()
 
@@ -134,6 +133,8 @@ fun main() {
         DisposableEffect(Unit) {
             onDispose {
                 server.stop()
+                historyStorage.shutdown()
+                appScope.cancel()
             }
         }
 
