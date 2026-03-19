@@ -2,7 +2,6 @@ package com.mikepenz.agentapprover.ui.approvals
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -96,10 +95,10 @@ fun PlanCard(
         // Plan content (collapsed/expanded)
         if (planExpanded && canExpand) {
             Surface(
+                onClick = { planExpanded = false },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 300.dp)
-                    .clickable { planExpanded = false },
+                    .heightIn(max = 300.dp),
                 color = Color(0xFF1E1E1E),
                 shape = MaterialTheme.shapes.small,
             ) {
@@ -117,9 +116,9 @@ fun PlanCard(
             }
         } else {
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(if (canExpand) Modifier.clickable { planExpanded = true } else Modifier),
+                onClick = { planExpanded = true },
+                enabled = canExpand,
+                modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFF1E1E1E),
                 shape = MaterialTheme.shapes.small,
             ) {
