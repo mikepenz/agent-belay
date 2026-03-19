@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mikepenz.agentapprover.hook.HookRegistrar
 import com.mikepenz.agentapprover.model.Decision
+import com.mikepenz.agentapprover.model.ToolType
 import com.mikepenz.agentapprover.risk.RiskAnalyzer
 import com.mikepenz.agentapprover.state.AppStateManager
 import com.mikepenz.agentapprover.ui.approvals.ApprovalsTab
@@ -62,8 +63,9 @@ fun App(
                             riskStatuses[approval.id] = RiskStatus.COMPLETED
                             stateManager.updateRiskResult(approval.id, analysis)
 
-                            // Auto-actions based on risk level
-                            if (analysis.risk == 1 && state.settings.autoApproveRisk1) {
+                            // Auto-actions based on risk level (never for Plan or AskUserQuestion)
+                            val skipAutoActions = approval.toolType == ToolType.PLAN || approval.toolType == ToolType.ASK_USER_QUESTION
+                            if (!skipAutoActions && analysis.risk == 1 && state.settings.autoApproveRisk1) {
                                 delay(500)
                                 stateManager.resolve(
                                     requestId = approval.id,
@@ -72,7 +74,7 @@ fun App(
                                     riskAnalysis = analysis,
                                     rawResponseJson = null,
                                 )
-                            } else if (analysis.risk == 5 && state.settings.autoDenyRisk5) {
+                            } else if (!skipAutoActions && analysis.risk == 5 && state.settings.autoDenyRisk5) {
                                 autoDenyRequests.add(approval.id)
                                 delay(15_000)
                                 if (approval.id in autoDenyRequests) {

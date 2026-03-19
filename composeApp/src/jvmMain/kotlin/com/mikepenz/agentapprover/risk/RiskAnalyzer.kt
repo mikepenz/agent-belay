@@ -16,11 +16,12 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.util.concurrent.TimeUnit
 
 class RiskAnalyzer(
-    private val model: String = "haiku",
+    model: String = "haiku",
     customSystemPrompt: String = "",
 ) {
     private val log = Logger.withTag("RiskAnalyzer")
-    private val systemPrompt = customSystemPrompt.ifBlank { DEFAULT_SYSTEM_PROMPT }
+    var model: String = model
+    var systemPrompt: String = customSystemPrompt.ifBlank { DEFAULT_SYSTEM_PROMPT }
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun analyze(hookInput: HookInput): Result<RiskAnalysis> = withContext(Dispatchers.IO) {

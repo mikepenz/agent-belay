@@ -93,7 +93,12 @@ fun main() {
         var isVisible by remember { mutableStateOf(true) }
         var showPortError by remember { mutableStateOf(false) }
 
-        val riskAnalyzer = remember { RiskAnalyzer() }
+        val riskAnalyzer = remember {
+            RiskAnalyzer(
+                model = stateManager.state.value.settings.riskAnalysisModel,
+                customSystemPrompt = stateManager.state.value.settings.riskAnalysisCustomPrompt,
+            )
+        }
 
         val server = remember {
             ApprovalServer(stateManager, onNewApproval = {
@@ -156,6 +161,12 @@ fun main() {
 
         val state by stateManager.state.collectAsState()
         val settings = state.settings
+
+        // Keep risk analyzer in sync with settings
+        LaunchedEffect(settings.riskAnalysisModel, settings.riskAnalysisCustomPrompt) {
+            riskAnalyzer.model = settings.riskAnalysisModel
+            riskAnalyzer.systemPrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskAnalyzer.DEFAULT_SYSTEM_PROMPT }
+        }
 
         val windowState = remember {
             val position = if (settings.windowX != null && settings.windowY != null) {

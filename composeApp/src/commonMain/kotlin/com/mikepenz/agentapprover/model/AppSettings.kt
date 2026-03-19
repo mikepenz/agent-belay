@@ -9,6 +9,8 @@ data class AppSettings(
     val defaultTimeoutSeconds: Int = 240,
     val startOnBoot: Boolean = false,
     val riskAnalysisEnabled: Boolean = true,
+    val riskAnalysisModel: String = "haiku",
+    val riskAnalysisCustomPrompt: String = "",
     val autoApproveRisk1: Boolean = false,
     val autoDenyRisk5: Boolean = false,
     val windowX: Int? = null,

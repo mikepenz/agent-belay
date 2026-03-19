@@ -1,5 +1,6 @@
 package com.mikepenz.agentapprover.ui.settings
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,11 +11,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentapprover.model.AppSettings
 import com.mikepenz.agentapprover.platform.StartupManager
+import com.mikepenz.agentapprover.risk.RiskAnalyzer
 import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
 
 @Composable
@@ -127,6 +131,87 @@ fun SettingsTab(
             checked = settings.riskAnalysisEnabled,
             onCheckedChange = { onSettingsChange(settings.copy(riskAnalysisEnabled = it)) },
         )
+
+        // Model selector
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Model", style = MaterialTheme.typography.bodyMedium)
+            val models = listOf("haiku", "sonnet", "opus")
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                models.forEachIndexed { index, model ->
+                    SegmentedButton(
+                        selected = settings.riskAnalysisModel == model,
+                        onClick = { onSettingsChange(settings.copy(riskAnalysisModel = model)) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = models.size),
+                        enabled = settings.riskAnalysisEnabled,
+                    ) {
+                        Text(model.replaceFirstChar { it.uppercase() }, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        // System prompt viewer
+        var showSystemPrompt by remember { mutableStateOf(false) }
+        val clipboardManager = LocalClipboardManager.current
+        val effectivePrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskAnalyzer.DEFAULT_SYSTEM_PROMPT }
+
+        OutlinedButton(
+            onClick = { showSystemPrompt = !showSystemPrompt },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = settings.riskAnalysisEnabled,
+        ) {
+            Text(if (showSystemPrompt) "Hide System Prompt" else "View System Prompt", fontSize = 12.sp)
+        }
+
+        AnimatedVisibility(visible = showSystemPrompt) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        Text(
+                            text = effectivePrompt,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+                OutlinedButton(
+                    onClick = { clipboardManager.setText(AnnotatedString(effectivePrompt)) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Copy to Clipboard", fontSize = 12.sp)
+                }
+            }
+        }
+
+        // Custom system prompt
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Custom system prompt (leave empty for default)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (settings.riskAnalysisEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            )
+            OutlinedTextField(
+                value = settings.riskAnalysisCustomPrompt,
+                onValueChange = { onSettingsChange(settings.copy(riskAnalysisCustomPrompt = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Uses default prompt if empty", fontSize = 12.sp) },
+                textStyle = MaterialTheme.typography.bodySmall,
+                minLines = 3,
+                maxLines = 6,
+                enabled = settings.riskAnalysisEnabled,
+            )
+        }
 
         SettingsSwitch(
             label = "Auto-approve risk 1",
