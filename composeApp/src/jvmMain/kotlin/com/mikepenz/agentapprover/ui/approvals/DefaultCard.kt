@@ -58,23 +58,35 @@ fun DefaultCard(
 
         Spacer(Modifier.height(8.dp))
 
-        // Buttons
+        // Buttons: hide Approve when denial reason is entered
+        val hasDenyText = denyFeedback.isNotBlank()
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(
-                onClick = { onDeny(denyFeedback) },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            ) {
-                Text("Deny")
-            }
-            Button(
-                onClick = { onApprove(denyFeedback.ifBlank { null }) },
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("Approve")
+            if (hasDenyText) {
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(
+                    onClick = { onDeny(denyFeedback) },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text("Deny")
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { onDeny("") },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text("Deny")
+                }
+                Button(
+                    onClick = { onApprove(null) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Approve")
+                }
             }
         }
     }
