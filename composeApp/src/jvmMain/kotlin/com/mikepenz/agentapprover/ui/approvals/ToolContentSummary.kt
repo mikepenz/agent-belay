@@ -1,10 +1,12 @@
 package com.mikepenz.agentapprover.ui.approvals
 
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import kotlinx.serialization.json.JsonElement
 
 @Composable
 fun ToolContentSummary(toolName: String, toolInput: Map<String, JsonElement>, cwd: String = "") {
+    SelectionContainer {
     when {
         toolName.equals("Bash", ignoreCase = true) -> BashContent(toolInput, cwd)
         toolName.equals("Read", ignoreCase = true) ||
@@ -16,6 +18,7 @@ fun ToolContentSummary(toolName: String, toolInput: Map<String, JsonElement>, cw
 
         toolName.equals("WebFetch", ignoreCase = true) -> WebFetchContent(toolInput)
         else -> FallbackContent(toolInput)
+    }
     }
 }
 
