@@ -39,17 +39,21 @@ fun Route.approvalRoute(
         onNewApproval()
 
         val settings = stateManager.state.value.settings
-        val timeoutMs = when {
-            settings.awayMode -> Long.MAX_VALUE
-            request.toolType == ToolType.PLAN || request.toolType == ToolType.ASK_USER_QUESTION -> Long.MAX_VALUE
-            else -> settings.defaultTimeoutSeconds * 1000L
-        }
+        val hasInfiniteTimeout = settings.awayMode ||
+            request.toolType == ToolType.PLAN ||
+            request.toolType == ToolType.ASK_USER_QUESTION
+        val timeoutMs = if (hasInfiniteTimeout) Long.MAX_VALUE else settings.defaultTimeoutSeconds * 1000L
 
         try {
-            val result = withTimeoutOrNull(timeoutMs) { deferred.await() }
+            val result = if (hasInfiniteTimeout) {
+                // Infinite wait — rely on CancellationException when client disconnects
+                deferred.await()
+            } else {
+                withTimeoutOrNull(timeoutMs) { deferred.await() }
+            }
 
             if (result == null) {
-                // Timeout
+                // Timeout (only reachable for finite-timeout requests)
                 val responseJson = buildDenyResponse("Request timed out").toString()
                 stateManager.resolve(
                     requestId = request.id,
@@ -72,22 +76,30 @@ fun Route.approvalRoute(
                 }
                 Decision.DENIED, Decision.AUTO_DENIED, Decision.TIMEOUT ->
                     buildDenyResponse(result.feedback ?: "Request denied").toString()
-                Decision.CANCELLED_BY_CLIENT -> null
+                Decision.CANCELLED_BY_CLIENT, Decision.RESOLVED_EXTERNALLY -> null
             }
 
             if (responseJson != null) {
                 stateManager.updateHistoryRawResponse(request.id, responseJson)
-                call.respondText(responseJson, contentType = ContentType.Application.Json)
+                try {
+                    call.respondText(responseJson, contentType = ContentType.Application.Json)
+                } catch (_: Exception) {
+                    logger.w { "Failed to send response for ${request.id} — connection already closed" }
+                }
             }
         } catch (_: CancellationException) {
-            // Client disconnected
-            stateManager.resolve(
-                requestId = request.id,
-                decision = Decision.CANCELLED_BY_CLIENT,
-                feedback = null,
-                riskAnalysis = null,
-                rawResponseJson = null,
-            )
+            // Client disconnected or server shutting down
+            if (!deferred.isCompleted) {
+                logger.i { "Connection closed for request ${request.id} — resolved externally" }
+                stateManager.resolve(
+                    requestId = request.id,
+                    decision = Decision.RESOLVED_EXTERNALLY,
+                    feedback = "Resolved externally (approved/denied in Claude)",
+                    riskAnalysis = null,
+                    rawResponseJson = null,
+                )
+                deferred.cancel()
+            }
         }
     }
 }

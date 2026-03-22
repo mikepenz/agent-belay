@@ -19,9 +19,6 @@ class ApprovalServer(
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
 
     fun start(port: Int) {
-        val settings = stateManager.state.value.settings
-        val writeTimeoutSeconds = maxOf((settings.defaultTimeoutSeconds + 30) * 1000L, 600_000L) / 1000
-
         val env = applicationEnvironment()
 
         server = embeddedServer(
@@ -29,7 +26,7 @@ class ApprovalServer(
             environment = env,
             configure = {
                 connector { this.port = port }
-                responseWriteTimeoutSeconds = writeTimeoutSeconds.toInt()
+                responseWriteTimeoutSeconds = 0
             },
             module = {
                 install(ContentNegotiation) {
@@ -41,7 +38,7 @@ class ApprovalServer(
             },
         ).start(wait = false)
 
-        logger.i { "Approval server started on port $port (write timeout: ${writeTimeoutSeconds}s)" }
+        logger.i { "Approval server started on port $port (write timeout: disabled)" }
     }
 
     fun stop() {

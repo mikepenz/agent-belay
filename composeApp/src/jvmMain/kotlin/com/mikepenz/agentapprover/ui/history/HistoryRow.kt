@@ -72,6 +72,7 @@ fun decisionColor(decision: Decision): Color = when (decision) {
     Decision.AUTO_DENIED -> Color(0xFFB71C1C)
     Decision.ALWAYS_ALLOWED -> Color(0xFF00ACC1)
     Decision.CANCELLED_BY_CLIENT -> Color(0xFF9E9E9E)
+    Decision.RESOLVED_EXTERNALLY -> Color(0xFF78909C)
 }
 
 private fun decisionLabel(decision: Decision): String = when (decision) {
@@ -82,6 +83,7 @@ private fun decisionLabel(decision: Decision): String = when (decision) {
     Decision.AUTO_DENIED -> "Auto-Denied"
     Decision.ALWAYS_ALLOWED -> "Always Allowed"
     Decision.CANCELLED_BY_CLIENT -> "Cancelled"
+    Decision.RESOLVED_EXTERNALLY -> "Resolved Externally"
 }
 
 private fun summaryText(request: ApprovalRequest): String = when {
