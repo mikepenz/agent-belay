@@ -170,11 +170,9 @@ fun SettingsTab(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Dock Badge", style = MaterialTheme.typography.titleSmall)
-                    }
+                    Text("Dock Badge", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "macOS requires badge notifications to be enabled for dock icon badges to appear.",
+                        "Enable \"Badge application icon\" in macOS notification settings for dock icon badges to appear.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

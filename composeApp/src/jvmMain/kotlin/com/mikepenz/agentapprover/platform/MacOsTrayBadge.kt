@@ -207,19 +207,19 @@ object MacOsTrayBadge {
     }
 
     /**
-     * Opens System Settings → Notifications for this app so the user can enable "Badge application icon".
+     * Opens System Settings → Notifications so the user can enable "Badge application icon".
      */
     fun openNotificationSettings() {
         if (!isMacOs) return
         try {
-            val bundleId = "com.mikepenz.agentapprover"
-            // x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=<bundleId>
-            val url = "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=$bundleId"
-            java.awt.Desktop.getDesktop().browse(java.net.URI(url))
+            Runtime.getRuntime().exec(
+                arrayOf("open", "x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+            )
         } catch (e: Exception) {
             Logger.w("MacOsTrayBadge", e) { "Failed to open notification settings" }
         }
     }
+
 
     // --- Internal helpers ---
 
