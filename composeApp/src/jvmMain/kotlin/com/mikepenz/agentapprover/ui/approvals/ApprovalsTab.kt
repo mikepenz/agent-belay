@@ -4,10 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +28,7 @@ import com.mikepenz.agentapprover.model.HookInput
 import com.mikepenz.agentapprover.model.RiskAnalysis
 import com.mikepenz.agentapprover.model.Source
 import com.mikepenz.agentapprover.model.ToolType
+import com.mikepenz.agentapprover.ui.icons.TablerArrowsSort
 import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.JsonElement
@@ -43,25 +49,44 @@ fun ApprovalsTab(
     autoDenyRequests: Set<String>,
     onCancelAutoDeny: (requestId: String) -> Unit,
     onPopOut: ((title: String, content: String) -> Unit)? = null,
+    onSettingsChange: (AppSettings) -> Unit = {},
 ) {
     if (pendingApprovals.isEmpty()) {
         EmptyApprovalsState()
     } else {
+        val sortedApprovals = if (settings.newestApprovalFirst) pendingApprovals else pendingApprovals.asReversed()
+
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
             contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                Text(
-                    text = "${pendingApprovals.size} pending approval${if (pendingApprovals.size != 1) "s" else ""}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "${pendingApprovals.size} pending approval${if (pendingApprovals.size != 1) "s" else ""}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    IconButton(
+                        onClick = { onSettingsChange(settings.copy(newestApprovalFirst = !settings.newestApprovalFirst)) },
+                        modifier = Modifier.size(28.dp),
+                    ) {
+                        Icon(
+                            imageVector = TablerArrowsSort,
+                            contentDescription = if (settings.newestApprovalFirst) "Showing newest first" else "Showing oldest first",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
             }
 
-            items(pendingApprovals, key = { it.id }) { request ->
+            items(sortedApprovals, key = { it.id }) { request ->
                 ApprovalCard(
                     request = request,
                     riskResult = riskResults[request.id],

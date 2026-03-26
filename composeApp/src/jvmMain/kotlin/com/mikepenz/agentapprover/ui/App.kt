@@ -207,6 +207,7 @@ fun App(
                 autoDenyRequests = autoDenyRequests,
                 onCancelAutoDeny = { requestId -> autoDenyRequests.remove(requestId) },
                 onPopOut = onPopOut,
+                onSettingsChange = { stateManager.updateSettings(it) },
             )
 
             1 -> HistoryTab(

@@ -88,7 +88,7 @@ kotlin {
             implementation(libs.nucleus.darkmode.detector)
             implementation(libs.nucleus.decorated.window.core)
             implementation(libs.nucleus.decorated.window.jni)
-            implementation(libs.nucleus.decorated.window.material)
+            implementation(libs.nucleus.decorated.window.material3)
         }
     }
 }
