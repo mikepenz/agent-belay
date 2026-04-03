@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentapprover.model.AppSettings
 import com.mikepenz.agentapprover.platform.StartupManager
-import com.mikepenz.agentapprover.risk.RiskAnalyzer
+import com.mikepenz.agentapprover.risk.RiskMessageBuilder
 import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
 
 @Composable
@@ -302,7 +302,7 @@ fun SettingsTab(
         // System prompt viewer
         var showSystemPrompt by remember { mutableStateOf(false) }
         val clipboardManager = LocalClipboardManager.current
-        val effectivePrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskAnalyzer.DEFAULT_SYSTEM_PROMPT }
+        val effectivePrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskMessageBuilder.DEFAULT_SYSTEM_PROMPT }
 
         OutlinedButton(
             onClick = { showSystemPrompt = !showSystemPrompt },

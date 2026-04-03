@@ -114,6 +114,43 @@ class ModelSerializationTest {
     }
 
     @Test
+    fun riskAnalysisSourceFieldRoundTrip() {
+        val analysis = RiskAnalysis(risk = 2, label = "Low", message = "Minor edit", source = "copilot")
+        val encoded = json.encodeToString(RiskAnalysis.serializer(), analysis)
+        val decoded = json.decodeFromString(RiskAnalysis.serializer(), encoded)
+        assertEquals("copilot", decoded.source)
+    }
+
+    @Test
+    fun riskAnalysisSourceDefaultsToEmpty() {
+        val oldJson = """{"risk":3,"label":"Moderate","message":"Medium risk"}"""
+        val lenientJson = Json { ignoreUnknownKeys = true }
+        val decoded = lenientJson.decodeFromString(RiskAnalysis.serializer(), oldJson)
+        assertEquals("", decoded.source)
+    }
+
+    @Test
+    fun appSettingsWithCopilotBackend() {
+        val settings = AppSettings(
+            riskAnalysisBackend = RiskAnalysisBackend.COPILOT,
+            riskAnalysisCopilotModel = "gpt-4.1",
+        )
+        val encoded = json.encodeToString(AppSettings.serializer(), settings)
+        val decoded = json.decodeFromString(AppSettings.serializer(), encoded)
+        assertEquals(RiskAnalysisBackend.COPILOT, decoded.riskAnalysisBackend)
+        assertEquals("gpt-4.1", decoded.riskAnalysisCopilotModel)
+    }
+
+    @Test
+    fun appSettingsBackwardCompatDefaultsClaude() {
+        val oldJson = """{"themeMode":"SYSTEM","serverPort":19532,"alwaysOnTop":true,"defaultTimeoutSeconds":240,"startOnBoot":false,"riskAnalysisEnabled":true,"riskAnalysisModel":"haiku","riskAnalysisCustomPrompt":"","autoApproveRisk1":false,"autoDenyRisk5":false,"awayMode":false,"newestApprovalFirst":false,"windowX":null,"windowY":null,"windowWidth":null,"windowHeight":null}"""
+        val lenientJson = Json { ignoreUnknownKeys = true }
+        val decoded = lenientJson.decodeFromString(AppSettings.serializer(), oldJson)
+        assertEquals(RiskAnalysisBackend.CLAUDE, decoded.riskAnalysisBackend)
+        assertEquals("gpt-4.1-mini", decoded.riskAnalysisCopilotModel)
+    }
+
+    @Test
     fun appSettingsRoundTrip() {
         val settings = AppSettings()
         val encoded = json.encodeToString(AppSettings.serializer(), settings)

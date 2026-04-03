@@ -32,7 +32,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import io.github.kdroidfilter.nucleus.window.material.MaterialDecoratedWindow
 import io.github.kdroidfilter.nucleus.window.material.MaterialTitleBar
 import com.mikepenz.agentapprover.hook.HookRegistrar
-import com.mikepenz.agentapprover.risk.RiskAnalyzer
+import com.mikepenz.agentapprover.risk.ClaudeCliRiskAnalyzer
+import com.mikepenz.agentapprover.risk.RiskMessageBuilder
 import com.mikepenz.agentapprover.server.ApprovalServer
 import com.mikepenz.agentapprover.state.AppStateManager
 import com.mikepenz.agentapprover.storage.HistoryStorage
@@ -105,7 +106,7 @@ fun main(args: Array<String>) {
         }
 
         val riskAnalyzer = remember {
-            RiskAnalyzer(
+            ClaudeCliRiskAnalyzer(
                 model = stateManager.state.value.settings.riskAnalysisModel,
                 customSystemPrompt = stateManager.state.value.settings.riskAnalysisCustomPrompt,
             )
@@ -240,7 +241,7 @@ fun main(args: Array<String>) {
         // Keep risk analyzer in sync with settings
         LaunchedEffect(settings.riskAnalysisModel, settings.riskAnalysisCustomPrompt) {
             riskAnalyzer.model = settings.riskAnalysisModel
-            riskAnalyzer.systemPrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskAnalyzer.DEFAULT_SYSTEM_PROMPT }
+            riskAnalyzer.systemPrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskMessageBuilder.DEFAULT_SYSTEM_PROMPT }
         }
 
         val windowState = remember {
