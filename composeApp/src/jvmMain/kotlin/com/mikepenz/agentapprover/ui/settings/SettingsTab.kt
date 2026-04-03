@@ -383,20 +383,28 @@ fun SettingsTab(
                             )
                         }
                     }
-                    Text(
-                        "Requires GitHub CLI (gh) and a Copilot subscription.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OutlinedButton(
-                        onClick = {
-                            java.awt.Desktop.getDesktop().browse(
-                                java.net.URI("https://cli.github.com/")
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Install GitHub CLI", fontSize = 12.sp)
+                    if (ghAuthOk == true) {
+                        Text(
+                            "GitHub CLI authenticated. Copilot subscription required.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            "Requires GitHub CLI (gh) and a Copilot subscription.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                java.awt.Desktop.getDesktop().browse(
+                                    java.net.URI("https://cli.github.com/")
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Install GitHub CLI", fontSize = 12.sp)
+                        }
                     }
                     if (ghAuthOk != true) {
                         OutlinedButton(
