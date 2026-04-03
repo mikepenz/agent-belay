@@ -116,6 +116,7 @@ fun main(args: Array<String>) {
         }
         var copilotAnalyzer by remember { mutableStateOf<CopilotRiskAnalyzer?>(null) }
         var activeRiskAnalyzer by remember { mutableStateOf<RiskAnalyzer>(claudeAnalyzer) }
+        var copilotModels by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
         val server = remember {
             ApprovalServer(stateManager, onNewApproval = {
@@ -269,6 +270,10 @@ fun main(args: Array<String>) {
                         try {
                             analyzer.start()
                             copilotAnalyzer = analyzer
+                            // Fetch available models
+                            analyzer.listModels().onSuccess { models ->
+                                copilotModels = models
+                            }
                         } catch (e: Exception) {
                             co.touchlab.kermit.Logger.withTag("Main").e(e) { "Failed to start Copilot client" }
                             activeRiskAnalyzer = claudeAnalyzer
@@ -364,6 +369,7 @@ fun main(args: Array<String>) {
                     ) {
                         App(
                             stateManager, hookRegistrar, activeRiskAnalyzer,
+                            copilotModels = copilotModels,
                             devMode = devMode,
                             onPopOut = { title, content -> popOutState = title to content },
                             onShowLicenses = { showLicenses = true },

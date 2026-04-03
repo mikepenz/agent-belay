@@ -43,6 +43,7 @@ fun App(
     stateManager: AppStateManager,
     hookRegistrar: HookRegistrar,
     riskAnalyzer: RiskAnalyzer,
+    copilotModels: List<Pair<String, String>> = emptyList(),
     devMode: Boolean = false,
     onPopOut: ((title: String, content: String) -> Unit)? = null,
     onShowLicenses: () -> Unit = {},
@@ -234,6 +235,7 @@ fun App(
                     settings = state.settings,
                     isHookRegistered = isHookRegistered,
                     historyCount = state.history.size,
+                    copilotModels = copilotModels,
                     onSettingsChange = { stateManager.updateSettings(it) },
                     onRegisterHook = {
                         hookRegistrar.register(state.settings.serverPort)

@@ -54,6 +54,7 @@ fun SettingsTab(
     settings: AppSettings,
     isHookRegistered: Boolean,
     historyCount: Int,
+    copilotModels: List<Pair<String, String>> = emptyList(),
     onSettingsChange: (AppSettings) -> Unit,
     onRegisterHook: () -> Unit,
     onUnregisterHook: () -> Unit,
@@ -327,20 +328,33 @@ fun SettingsTab(
                     }
                 }
             } else {
-                val copilotModels = listOf(
-                    "gpt-4.1-mini" to "GPT-4.1 Mini",
-                    "gpt-4.1" to "GPT-4.1",
-                    "claude-sonnet-4.5" to "Sonnet 4.5",
-                )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    copilotModels.forEachIndexed { index, (id, label) ->
-                        SegmentedButton(
-                            selected = settings.riskAnalysisCopilotModel == id,
-                            onClick = { onSettingsChange(settings.copy(riskAnalysisCopilotModel = id)) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = copilotModels.size),
-                            enabled = settings.riskAnalysisEnabled,
-                        ) {
-                            Text(label, fontSize = 12.sp)
+                val models = copilotModels.ifEmpty {
+                    listOf("gpt-4.1-mini" to "GPT-4.1 Mini", "gpt-4.1" to "GPT-4.1", "claude-sonnet-4.5" to "Sonnet 4.5")
+                }
+                val selectedLabel = models.find { it.first == settings.riskAnalysisCopilotModel }?.second
+                    ?: settings.riskAnalysisCopilotModel
+                var expanded by remember { mutableStateOf(false) }
+                androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { expanded = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = settings.riskAnalysisEnabled,
+                    ) {
+                        Text(selectedLabel, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
+                        Text("\u25BE", fontSize = 12.sp)
+                    }
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                    ) {
+                        models.forEach { (id, label) ->
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(label, fontSize = 12.sp) },
+                                onClick = {
+                                    onSettingsChange(settings.copy(riskAnalysisCopilotModel = id))
+                                    expanded = false
+                                },
+                            )
                         }
                     }
                 }

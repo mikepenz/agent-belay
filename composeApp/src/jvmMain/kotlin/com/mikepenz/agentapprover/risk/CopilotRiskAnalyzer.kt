@@ -7,6 +7,7 @@ import com.github.copilot.sdk.json.MessageOptions
 import com.github.copilot.sdk.json.PermissionHandler
 import com.github.copilot.sdk.json.SessionConfig
 import com.github.copilot.sdk.json.SystemMessageConfig
+import com.github.copilot.sdk.json.ModelInfo
 import com.mikepenz.agentapprover.model.HookInput
 import com.mikepenz.agentapprover.model.RiskAnalysis
 import kotlinx.coroutines.Dispatchers
@@ -104,6 +105,20 @@ class CopilotRiskAnalyzer(
             message = response.explanation,
             source = "copilot",
         )
+    }
+
+    /** Query available models from the Copilot API. Returns model id to display name pairs. */
+    suspend fun listModels(): Result<List<Pair<String, String>>> = withContext(Dispatchers.IO) {
+        try {
+            val c = client ?: return@withContext Result.failure(RuntimeException("Copilot client not started"))
+            val models: List<ModelInfo> = c.listModels().await()
+            val result = models.map { it.id to (it.name ?: it.id) }
+            log.i { "Available models: ${result.map { it.first }}" }
+            Result.success(result)
+        } catch (e: Exception) {
+            log.e(e) { "Failed to list models" }
+            Result.failure(e)
+        }
     }
 
     override fun shutdown() {
