@@ -16,6 +16,7 @@ class ApprovalServer(
 ) {
     private val logger = Logger.withTag("ApprovalServer")
     private val adapter = ClaudeCodeAdapter()
+    private val copilotAdapter = CopilotAdapter()
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
 
     fun start(port: Int) {
@@ -34,6 +35,7 @@ class ApprovalServer(
                 }
                 routing {
                     approvalRoute(stateManager, adapter, onNewApproval)
+                    copilotApprovalRoute(stateManager, copilotAdapter, onNewApproval)
                 }
             },
         ).start(wait = false)
