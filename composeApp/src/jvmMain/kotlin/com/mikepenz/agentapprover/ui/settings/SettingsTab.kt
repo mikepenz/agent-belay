@@ -369,8 +369,17 @@ fun SettingsTab(
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     try {
-                        val process = ProcessBuilder("gh", "auth", "status").apply {
+                        val home = System.getProperty("user.home")
+                        val process = ProcessBuilder("/bin/sh", "-c", "gh auth status").apply {
                             redirectErrorStream(true)
+                            val path = environment()["PATH"] ?: ""
+                            val extraPaths = listOf(
+                                "/usr/local/bin",
+                                "/opt/homebrew/bin",
+                                "$home/.local/bin",
+                                "$home/bin",
+                            )
+                            environment()["PATH"] = (extraPaths + path.split(":")).distinct().joinToString(":")
                         }.start()
                         val output = process.inputStream.bufferedReader().readText().trim()
                         val exitCode = process.waitFor()
