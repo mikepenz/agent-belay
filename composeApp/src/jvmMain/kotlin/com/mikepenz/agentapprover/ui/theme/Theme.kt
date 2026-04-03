@@ -38,6 +38,20 @@ val ToolFileColor = Color(0xFFC792EA)   // Soft purple for file ops
 val ToolSearchColor = Color(0xFF82AAFF) // Soft blue for search
 val ToolWebColor = Color(0xFFFF9E64)    // Warm orange for web
 
+// Source badge colors
+val SourceClaudeColor = Color(0xFFD97757)   // Claude orange/terracotta
+val SourceCopilotColor = Color(0xFF6E40C9)  // GitHub Copilot purple
+
+fun sourceColor(source: com.mikepenz.agentapprover.model.Source): Color = when (source) {
+    com.mikepenz.agentapprover.model.Source.CLAUDE_CODE -> SourceClaudeColor
+    com.mikepenz.agentapprover.model.Source.COPILOT -> SourceCopilotColor
+}
+
+fun sourceLabel(source: com.mikepenz.agentapprover.model.Source): String = when (source) {
+    com.mikepenz.agentapprover.model.Source.CLAUDE_CODE -> "Claude Code"
+    com.mikepenz.agentapprover.model.Source.COPILOT -> "Copilot"
+}
+
 fun riskColor(risk: Int): Color = when (risk) {
     1 -> RiskSafe
     2 -> RiskLow
