@@ -38,17 +38,24 @@ class CopilotRiskAnalyzer(
     private val json = Json { ignoreUnknownKeys = true }
     private var client: CopilotClient? = null
 
+    /** Optional explicit path to the copilot CLI binary, from settings. */
+    var cliPath: String = ""
+
     fun start() {
         log.i { "Starting CopilotClient" }
         val options = CopilotClientOptions()
             .setLogLevel("error")
         // Resolve copilot CLI path — packaged apps don't inherit the user's shell PATH
-        val cliPath = findCopilotCli()
-        if (cliPath != null) {
-            log.i { "Found Copilot CLI at: $cliPath" }
-            options.setCliPath(cliPath)
+        val resolvedPath = if (cliPath.isNotBlank() && File(cliPath).canExecute()) {
+            cliPath
         } else {
-            log.w { "Copilot CLI not found in common paths, relying on SDK default" }
+            findCopilotCli()
+        }
+        if (resolvedPath != null) {
+            log.i { "Using Copilot CLI at: $resolvedPath" }
+            options.setCliPath(resolvedPath)
+        } else {
+            log.w { "Copilot CLI not found, relying on SDK default" }
         }
         val c = CopilotClient(options)
         client = c
@@ -150,27 +157,36 @@ class CopilotRiskAnalyzer(
         private const val TIMEOUT_MS = 30_000L
         private const val SEND_TIMEOUT_MS = 25_000L
 
-        /** Search common binary paths for the copilot CLI. */
+        /** Search common binary paths for the copilot CLI, including NVM-managed installs. */
         private fun findCopilotCli(): String? {
             val home = System.getProperty("user.home")
-            val candidates = listOf(
+            val candidates = mutableListOf(
                 "/usr/local/bin/copilot",
                 "/opt/homebrew/bin/copilot",
                 "$home/.local/bin/copilot",
                 "$home/bin/copilot",
             )
-            // Also check PATH via `which`
-            return candidates.firstOrNull { File(it).canExecute() }
-                ?: runCatching {
-                    val process = ProcessBuilder("/bin/sh", "-c", "which copilot").apply {
-                        val path = environment()["PATH"] ?: ""
-                        val extraPaths = listOf("/usr/local/bin", "/opt/homebrew/bin", "$home/.local/bin", "$home/bin")
-                        environment()["PATH"] = (extraPaths + path.split(":")).distinct().joinToString(":")
-                    }.start()
-                    val result = process.inputStream.bufferedReader().readText().trim()
-                    process.waitFor()
-                    result.ifBlank { null }
-                }.getOrNull()
+            // Add NVM-managed node bin directories
+            val nvmDir = File("$home/.nvm/versions/node")
+            if (nvmDir.isDirectory) {
+                nvmDir.listFiles()
+                    ?.sortedByDescending { it.name } // newest version first
+                    ?.forEach { candidates.add("${it.absolutePath}/bin/copilot") }
+            }
+            // Check static candidates first
+            val found = candidates.firstOrNull { File(it).canExecute() }
+            if (found != null) return found
+            // Fall back to `which` with extended PATH
+            return runCatching {
+                val extraPaths = candidates.map { File(it).parent }.distinct()
+                val process = ProcessBuilder("/bin/sh", "-c", "which copilot").apply {
+                    val path = environment()["PATH"] ?: ""
+                    environment()["PATH"] = (extraPaths + path.split(":")).distinct().joinToString(":")
+                }.start()
+                val result = process.inputStream.bufferedReader().readText().trim()
+                process.waitFor()
+                result.ifBlank { null }
+            }.getOrNull()
         }
 
         private const val JSON_FORMAT_INSTRUCTION =

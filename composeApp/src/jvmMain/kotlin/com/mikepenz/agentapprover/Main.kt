@@ -267,6 +267,7 @@ fun main(args: Array<String>) {
                             model = settings.riskAnalysisCopilotModel,
                             customSystemPrompt = settings.riskAnalysisCustomPrompt,
                         )
+                        analyzer.cliPath = settings.riskAnalysisCopilotCliPath
                         try {
                             analyzer.start()
                             copilotAnalyzer = analyzer
@@ -282,6 +283,7 @@ fun main(args: Array<String>) {
                     }
                     analyzer.model = settings.riskAnalysisCopilotModel
                     analyzer.systemPrompt = effectivePrompt
+                    analyzer.cliPath = settings.riskAnalysisCopilotCliPath
                     activeRiskAnalyzer = analyzer
                 }
                 RiskAnalysisBackend.CLAUDE -> {

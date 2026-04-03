@@ -441,6 +441,16 @@ fun SettingsTab(
                             Text("Login with GitHub (gh auth login)", fontSize = 12.sp)
                         }
                     }
+                    // Copilot CLI path override
+                    OutlinedTextField(
+                        value = settings.riskAnalysisCopilotCliPath,
+                        onValueChange = { onSettingsChange(settings.copy(riskAnalysisCopilotCliPath = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Copilot CLI path", fontSize = 12.sp) },
+                        placeholder = { Text("Auto-detect", fontSize = 12.sp) },
+                        textStyle = MaterialTheme.typography.bodySmall,
+                        singleLine = true,
+                    )
                 }
             }
         }

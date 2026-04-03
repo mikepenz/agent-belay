@@ -19,6 +19,7 @@ data class AppSettings(
     val riskAnalysisBackend: RiskAnalysisBackend = RiskAnalysisBackend.CLAUDE,
     val riskAnalysisModel: String = "haiku",
     val riskAnalysisCopilotModel: String = "gpt-4.1-mini",
+    val riskAnalysisCopilotCliPath: String = "",
     val riskAnalysisCustomPrompt: String = "",
     val autoApproveRisk1: Boolean = false,
     val autoDenyRisk5: Boolean = false,
