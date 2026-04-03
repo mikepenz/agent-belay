@@ -39,6 +39,7 @@ import com.mikepenz.agentapprover.model.HookInput
 import com.mikepenz.agentapprover.model.RiskAnalysis
 import com.mikepenz.agentapprover.model.Source
 import com.mikepenz.agentapprover.model.ToolType
+import com.mikepenz.agentapprover.ui.approvals.SourceBadge
 import com.mikepenz.agentapprover.ui.approvals.ToolBadge
 import com.mikepenz.agentapprover.ui.approvals.ToolContentSummary
 import com.mikepenz.agentapprover.ui.icons.LucideCopy
@@ -148,12 +149,14 @@ fun HistoryRow(
                     )
                     .padding(8.dp),
             ) {
-            // Top line: tool badge + summary
+            // Top line: tool badge + source badge + summary
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 ToolBadge(toolName = result.request.hookInput.toolName, toolType = result.request.toolType)
+                Spacer(Modifier.width(4.dp))
+                SourceBadge(source = result.request.source)
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = summaryText(result.request),
