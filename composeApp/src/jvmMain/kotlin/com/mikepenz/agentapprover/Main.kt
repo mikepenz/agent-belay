@@ -32,7 +32,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import io.github.kdroidfilter.nucleus.window.material.MaterialDecoratedWindow
 import io.github.kdroidfilter.nucleus.window.material.MaterialTitleBar
 import com.mikepenz.agentapprover.hook.HookRegistrar
+import com.mikepenz.agentapprover.model.RiskAnalysisBackend
 import com.mikepenz.agentapprover.risk.ClaudeCliRiskAnalyzer
+import com.mikepenz.agentapprover.risk.CopilotRiskAnalyzer
+import com.mikepenz.agentapprover.risk.RiskAnalyzer
 import com.mikepenz.agentapprover.risk.RiskMessageBuilder
 import com.mikepenz.agentapprover.server.ApprovalServer
 import com.mikepenz.agentapprover.state.AppStateManager
@@ -105,12 +108,14 @@ fun main(args: Array<String>) {
             }
         }
 
-        val riskAnalyzer = remember {
+        val claudeAnalyzer = remember {
             ClaudeCliRiskAnalyzer(
                 model = stateManager.state.value.settings.riskAnalysisModel,
                 customSystemPrompt = stateManager.state.value.settings.riskAnalysisCustomPrompt,
             )
         }
+        var copilotAnalyzer by remember { mutableStateOf<CopilotRiskAnalyzer?>(null) }
+        var activeRiskAnalyzer by remember { mutableStateOf<RiskAnalyzer>(claudeAnalyzer) }
 
         val server = remember {
             ApprovalServer(stateManager, onNewApproval = {
@@ -145,6 +150,7 @@ fun main(args: Array<String>) {
         DisposableEffect(Unit) {
             onDispose {
                 server.stop()
+                copilotAnalyzer?.shutdown()
                 historyStorage.shutdown()
                 appScope.cancel()
             }
@@ -239,9 +245,46 @@ fun main(args: Array<String>) {
         val settings = state.settings
 
         // Keep risk analyzer in sync with settings
-        LaunchedEffect(settings.riskAnalysisModel, settings.riskAnalysisCustomPrompt) {
-            riskAnalyzer.model = settings.riskAnalysisModel
-            riskAnalyzer.systemPrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskMessageBuilder.DEFAULT_SYSTEM_PROMPT }
+        LaunchedEffect(
+            settings.riskAnalysisBackend,
+            settings.riskAnalysisModel,
+            settings.riskAnalysisCopilotModel,
+            settings.riskAnalysisCustomPrompt,
+        ) {
+            val effectivePrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskMessageBuilder.DEFAULT_SYSTEM_PROMPT }
+
+            // Update Claude analyzer settings
+            claudeAnalyzer.model = settings.riskAnalysisModel
+            claudeAnalyzer.systemPrompt = effectivePrompt
+
+            // Manage Copilot analyzer lifecycle
+            when (settings.riskAnalysisBackend) {
+                RiskAnalysisBackend.COPILOT -> {
+                    var analyzer = copilotAnalyzer
+                    if (analyzer == null) {
+                        analyzer = CopilotRiskAnalyzer(
+                            model = settings.riskAnalysisCopilotModel,
+                            customSystemPrompt = settings.riskAnalysisCustomPrompt,
+                        )
+                        try {
+                            analyzer.start()
+                            copilotAnalyzer = analyzer
+                        } catch (e: Exception) {
+                            co.touchlab.kermit.Logger.withTag("Main").e(e) { "Failed to start Copilot client" }
+                            activeRiskAnalyzer = claudeAnalyzer
+                            return@LaunchedEffect
+                        }
+                    }
+                    analyzer.model = settings.riskAnalysisCopilotModel
+                    analyzer.systemPrompt = effectivePrompt
+                    activeRiskAnalyzer = analyzer
+                }
+                RiskAnalysisBackend.CLAUDE -> {
+                    copilotAnalyzer?.shutdown()
+                    copilotAnalyzer = null
+                    activeRiskAnalyzer = claudeAnalyzer
+                }
+            }
         }
 
         val windowState = remember {
@@ -320,7 +363,7 @@ fun main(args: Array<String>) {
                         color = MaterialTheme.colorScheme.background,
                     ) {
                         App(
-                            stateManager, hookRegistrar, riskAnalyzer,
+                            stateManager, hookRegistrar, activeRiskAnalyzer,
                             devMode = devMode,
                             onPopOut = { title, content -> popOutState = title to content },
                             onShowLicenses = { showLicenses = true },
