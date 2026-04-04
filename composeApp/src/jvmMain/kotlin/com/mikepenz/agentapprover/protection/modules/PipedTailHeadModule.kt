@@ -33,7 +33,7 @@ object PipedTailHeadModule : ProtectionModule {
         override val name = "tail on piped input"
         override val description = "Detects tail receiving output via a pipe instead of operating on a file."
         override val correctiveHint =
-            "Instead of piping to tail, redirect output to a temp file first: `command > /tmp/out_\$(date +%s).txt && tail -n 20 /tmp/out_\$(date +%s).txt`"
+            "Instead of piping to tail, redirect output to a temp file first: `_out=/tmp/out_\$(date +%s).txt && command > \$_out && tail -n 20 \$_out`"
         private val pattern = Regex("""\|\s*tail\b""")
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
@@ -41,7 +41,7 @@ object PipedTailHeadModule : ProtectionModule {
             if (!pattern.containsMatchIn(cmd)) return null
             return hit(
                 id,
-                "tail on piped input detected. Redirect output to a temp file first: `command > /tmp/out_\$(date +%s).txt && tail -n 20 /tmp/out_\$(date +%s).txt`",
+                "tail on piped input detected. Redirect output to a temp file first: `_out=/tmp/out_\$(date +%s).txt && command > \$_out && tail -n 20 \$_out`",
             )
         }
     }
@@ -51,7 +51,7 @@ object PipedTailHeadModule : ProtectionModule {
         override val name = "head on piped input"
         override val description = "Detects head receiving output via a pipe instead of operating on a file."
         override val correctiveHint =
-            "Instead of piping to head, redirect output to a temp file first: `command > /tmp/out_\$(date +%s).txt && head -n 20 /tmp/out_\$(date +%s).txt`"
+            "Instead of piping to head, redirect output to a temp file first: `_out=/tmp/out_\$(date +%s).txt && command > \$_out && head -n 20 \$_out`"
         private val pattern = Regex("""\|\s*head\b""")
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
@@ -59,7 +59,7 @@ object PipedTailHeadModule : ProtectionModule {
             if (!pattern.containsMatchIn(cmd)) return null
             return hit(
                 id,
-                "head on piped input detected. Redirect output to a temp file first: `command > /tmp/out_\$(date +%s).txt && head -n 20 /tmp/out_\$(date +%s).txt`",
+                "head on piped input detected. Redirect output to a temp file first: `_out=/tmp/out_\$(date +%s).txt && command > \$_out && head -n 20 \$_out`",
             )
         }
     }
