@@ -75,9 +75,9 @@ fun decisionColor(decision: Decision): Color = when (decision) {
     Decision.ALWAYS_ALLOWED -> Color(0xFF00ACC1)
     Decision.CANCELLED_BY_CLIENT -> Color(0xFF9E9E9E)
     Decision.RESOLVED_EXTERNALLY -> Color(0xFF78909C)
-    Decision.PROTECTION_BLOCKED -> Color(0xFFD32F2F)
-    Decision.PROTECTION_LOGGED -> Color(0xFFFF9800)
-    Decision.PROTECTION_OVERRIDDEN -> Color(0xFF7B1FA2)
+    Decision.PROTECTION_BLOCKED -> Color(0xFFF44336)
+    Decision.PROTECTION_LOGGED -> Color(0xFF2196F3)
+    Decision.PROTECTION_OVERRIDDEN -> Color(0xFFFF9800)
 }
 
 private fun decisionLabel(decision: Decision): String = when (decision) {
@@ -163,6 +163,21 @@ fun HistoryRow(
                 ToolBadge(toolName = result.request.hookInput.toolName, toolType = result.request.toolType)
                 Spacer(Modifier.width(4.dp))
                 SourceBadge(source = result.request.source)
+                result.protectionModule?.let { module ->
+                    Spacer(Modifier.width(4.dp))
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = Color(0xFFF44336).copy(alpha = 0.15f),
+                    ) {
+                        Text(
+                            text = module.replace('_', ' '),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFF44336),
+                            fontSize = 9.sp,
+                        )
+                    }
+                }
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = summaryText(result.request),
@@ -323,6 +338,14 @@ fun HistoryRow(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,
                                         color = Color(0xFFCCCCCC),
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                }
+                                result.protectionDetail?.let { detail ->
+                                    Text(
+                                        text = "Protection: $detail",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     Spacer(Modifier.height(8.dp))
                                 }

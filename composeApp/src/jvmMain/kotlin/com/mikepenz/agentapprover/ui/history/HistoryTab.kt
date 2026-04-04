@@ -11,6 +11,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,23 +42,44 @@ import kotlin.time.Duration.Companion.minutes
 @Composable
 fun HistoryTab(history: List<ApprovalResult>, onReplay: ((ApprovalResult) -> Unit)? = null) {
     var filterText by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf("all") }
     var expandedId by remember { mutableStateOf<String?>(null) }
 
-    val filtered = remember(history, filterText) {
-        if (filterText.isBlank()) {
-            history
-        } else {
-            val query = filterText.trim().lowercase()
-            history.filter { result ->
-                result.request.hookInput.toolName.lowercase().contains(query) ||
-                        result.request.hookInput.sessionId.lowercase().contains(query) ||
-                        result.decision.name.lowercase().contains(query) ||
-                        (result.riskAnalysis?.risk?.toString() == query)
+    val filterOptions = listOf("all" to "All", "approvals" to "Approvals", "protections" to "Protections")
+
+    val filtered = remember(history, filterText, filter) {
+        val query = filterText.trim().lowercase()
+        history.filter { result ->
+            val typeMatch = when (filter) {
+                "approvals" -> result.protectionModule == null
+                "protections" -> result.protectionModule != null
+                else -> true
             }
+            val textMatch = query.isBlank() || result.request.hookInput.toolName.lowercase().contains(query) ||
+                    result.request.hookInput.sessionId.lowercase().contains(query) ||
+                    result.decision.name.lowercase().contains(query) ||
+                    (result.riskAnalysis?.risk?.toString() == query) ||
+                    (result.protectionModule?.lowercase()?.contains(query) == true) ||
+                    (result.protectionRule?.lowercase()?.contains(query) == true)
+            typeMatch && textMatch
         }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        ) {
+            filterOptions.forEachIndexed { index, (key, label) ->
+                SegmentedButton(
+                    selected = filter == key,
+                    onClick = { filter = key },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = filterOptions.size),
+                ) {
+                    Text(label, fontSize = 12.sp)
+                }
+            }
+        }
+
         OutlinedTextField(
             value = filterText,
             onValueChange = { filterText = it },
