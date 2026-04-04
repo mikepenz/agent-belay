@@ -45,8 +45,9 @@ fun Route.preToolUseRoute(
 
         when (severity) {
             ProtectionMode.AUTO_BLOCK -> {
-                logProtectionHit(stateManager, request, Decision.PROTECTION_BLOCKED, primaryHit, combinedMessage)
-                call.respondText(buildDenyResponse(combinedMessage), contentType = ContentType.Application.Json)
+                val responseJson = buildDenyResponse(combinedMessage)
+                logProtectionHit(stateManager, request, Decision.PROTECTION_BLOCKED, primaryHit, combinedMessage, responseJson)
+                call.respondText(responseJson, contentType = ContentType.Application.Json)
             }
 
             ProtectionMode.ASK_AUTO_BLOCK -> {
@@ -72,8 +73,9 @@ fun Route.preToolUseRoute(
             }
 
             ProtectionMode.LOG_ONLY -> {
-                logProtectionHit(stateManager, request, Decision.PROTECTION_LOGGED, primaryHit, combinedMessage)
-                call.respondText("{}", contentType = ContentType.Application.Json)
+                val responseJson = buildAllowResponse()
+                logProtectionHit(stateManager, request, Decision.PROTECTION_LOGGED, primaryHit, combinedMessage, responseJson)
+                call.respondText(responseJson, contentType = ContentType.Application.Json)
             }
 
             ProtectionMode.DISABLED -> {
@@ -193,13 +195,14 @@ private fun logProtectionHit(
     decision: Decision,
     hit: ProtectionHit,
     message: String,
+    rawResponseJson: String,
 ) {
     val result = ApprovalResult(
         request = request,
         decision = decision,
         feedback = message,
         riskAnalysis = null,
-        rawResponseJson = null,
+        rawResponseJson = rawResponseJson,
         decidedAt = Clock.System.now(),
         protectionModule = hit.moduleId,
         protectionRule = hit.ruleId,
