@@ -79,15 +79,19 @@ object CopilotBridgeInstaller {
         }
     }
 
+    private const val HOOK_EVENT_KEY = "preToolUse"
+
     fun isHookRegistered(projectPath: String): Boolean {
         val hooksFile = File(projectPath, ".github/hooks/hooks.json")
         if (!hooksFile.exists()) return false
         return try {
             val root = json.parseToJsonElement(hooksFile.readText()).jsonObject
             val hooks = root["hooks"]?.jsonObject ?: return false
-            val preToolUse = hooks["preToolUse"]?.jsonArray ?: return false
+            val preToolUse = hooks[HOOK_EVENT_KEY]?.jsonArray ?: return false
             preToolUse.any { entry ->
-                entry.jsonObject["bash"]?.jsonPrimitive?.content == HOOK_BASH_PATH
+                val bash = entry.jsonObject["bash"]?.jsonPrimitive?.content
+                val command = entry.jsonObject["command"]?.jsonPrimitive?.content
+                bash == HOOK_BASH_PATH || command == HOOK_BASH_PATH
             }
         } catch (e: Exception) {
             logger.w(e) { "Failed to read hooks.json at $projectPath" }
@@ -116,20 +120,27 @@ object CopilotBridgeInstaller {
 
         val newEntry = buildJsonObject {
             put("type", "command")
+            put("command", HOOK_BASH_PATH)
             put("bash", HOOK_BASH_PATH)
+            put("timeout", 300)
             put("timeoutSec", 300)
             put("comment", "Agent Approver — approval workflow")
         }
 
         val existingHooks = root["hooks"]?.jsonObject ?: JsonObject(emptyMap())
-        val existingPreToolUse = existingHooks["preToolUse"]?.jsonArray?.toMutableList() ?: mutableListOf()
-        existingPreToolUse.add(newEntry)
+        val existing = existingHooks[HOOK_EVENT_KEY]?.jsonArray?.toMutableList() ?: mutableListOf()
+        val alreadyPresent = existing.any { entry ->
+            val bash = entry.jsonObject["bash"]?.jsonPrimitive?.content
+            val command = entry.jsonObject["command"]?.jsonPrimitive?.content
+            bash == HOOK_BASH_PATH || command == HOOK_BASH_PATH
+        }
+        if (!alreadyPresent) existing.add(newEntry)
 
         val updatedHooks = buildJsonObject {
             existingHooks.forEach { (key, value) ->
-                if (key != "preToolUse") put(key, value)
+                if (key != HOOK_EVENT_KEY) put(key, value)
             }
-            put("preToolUse", buildJsonArray { existingPreToolUse.forEach { add(it) } })
+            put(HOOK_EVENT_KEY, buildJsonArray { existing.forEach { add(it) } })
         }
 
         val updatedRoot = buildJsonObject {
@@ -157,18 +168,21 @@ object CopilotBridgeInstaller {
         }
 
         val existingHooks = root["hooks"]?.jsonObject ?: return
-        val existingPreToolUse = existingHooks["preToolUse"]?.jsonArray ?: return
-
-        val filtered = existingPreToolUse.filter { entry ->
-            entry.jsonObject["bash"]?.jsonPrimitive?.content != HOOK_BASH_PATH
-        }
 
         val updatedHooks = buildJsonObject {
             existingHooks.forEach { (key, value) ->
-                if (key != "preToolUse") put(key, value)
-            }
-            if (filtered.isNotEmpty()) {
-                put("preToolUse", buildJsonArray { filtered.forEach { add(it) } })
+                if (key == HOOK_EVENT_KEY) {
+                    val filtered = value.jsonArray.filter { entry ->
+                        val bash = entry.jsonObject["bash"]?.jsonPrimitive?.content
+                        val command = entry.jsonObject["command"]?.jsonPrimitive?.content
+                        bash != HOOK_BASH_PATH && command != HOOK_BASH_PATH
+                    }
+                    if (filtered.isNotEmpty()) {
+                        put(key, buildJsonArray { filtered.forEach { add(it) } })
+                    }
+                } else {
+                    put(key, value)
+                }
             }
         }
 
@@ -192,7 +206,9 @@ object CopilotBridgeInstaller {
             "preToolUse": [
               {
                 "type": "command",
+                "command": "$HOOK_BASH_PATH",
                 "bash": "$HOOK_BASH_PATH",
+                "timeout": 300,
                 "timeoutSec": 300,
                 "comment": "Agent Approver — approval workflow"
               }

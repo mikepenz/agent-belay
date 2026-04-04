@@ -2,7 +2,6 @@ package com.mikepenz.agentapprover.server
 
 import co.touchlab.kermit.Logger
 import com.mikepenz.agentapprover.model.Decision
-import com.mikepenz.agentapprover.model.ToolType
 import com.mikepenz.agentapprover.state.AppStateManager
 import io.ktor.http.*
 import io.ktor.server.request.*
@@ -102,10 +101,14 @@ fun Route.copilotApprovalRoute(
 }
 
 private fun copilotAllowResponse() = buildJsonObject {
-    put("permissionDecision", "allow")
+    put("hookSpecificOutput", buildJsonObject {
+        put("permissionDecision", "allow")
+    })
 }
 
 private fun copilotDenyResponse(reason: String) = buildJsonObject {
-    put("permissionDecision", "deny")
-    put("permissionDecisionReason", reason)
+    put("hookSpecificOutput", buildJsonObject {
+        put("permissionDecision", "deny")
+        put("permissionDecisionReason", reason)
+    })
 }
