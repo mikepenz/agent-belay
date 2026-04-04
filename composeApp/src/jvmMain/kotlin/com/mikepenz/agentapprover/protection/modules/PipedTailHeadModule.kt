@@ -33,7 +33,7 @@ object PipedTailHeadModule : ProtectionModule {
         override val name = "tail on piped input"
         override val description = "Detects tail receiving output via a pipe instead of operating on a file."
         override val correctiveHint =
-            "Instead of piping to tail, redirect output to a uniquely named temp file first: `OUT=\$(mktemp /tmp/out_XXXXXX.txt) && command > \"\$OUT\" && tail -n 20 \"\$OUT\"`"
+            "Instead of piping to tail, redirect output to a temp file first: `command > /tmp/out_\$(date +%s).txt && tail -n 20 /tmp/out_\$(date +%s).txt`"
         private val pattern = Regex("""\|\s*tail\b""")
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
@@ -41,7 +41,7 @@ object PipedTailHeadModule : ProtectionModule {
             if (!pattern.containsMatchIn(cmd)) return null
             return hit(
                 id,
-                "tail on piped input detected. Use a unique temp file: `OUT=\$(mktemp /tmp/out_XXXXXX.txt) && command > \"\$OUT\" && tail -n 20 \"\$OUT\"`",
+                "tail on piped input detected. Redirect output to a temp file first: `command > /tmp/out_\$(date +%s).txt && tail -n 20 /tmp/out_\$(date +%s).txt`",
             )
         }
     }
@@ -51,7 +51,7 @@ object PipedTailHeadModule : ProtectionModule {
         override val name = "head on piped input"
         override val description = "Detects head receiving output via a pipe instead of operating on a file."
         override val correctiveHint =
-            "Instead of piping to head, redirect output to a uniquely named temp file first: `OUT=\$(mktemp /tmp/out_XXXXXX.txt) && command > \"\$OUT\" && head -n 20 \"\$OUT\"`"
+            "Instead of piping to head, redirect output to a temp file first: `command > /tmp/out_\$(date +%s).txt && head -n 20 /tmp/out_\$(date +%s).txt`"
         private val pattern = Regex("""\|\s*head\b""")
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
@@ -59,7 +59,7 @@ object PipedTailHeadModule : ProtectionModule {
             if (!pattern.containsMatchIn(cmd)) return null
             return hit(
                 id,
-                "head on piped input detected. Use a unique temp file: `OUT=\$(mktemp /tmp/out_XXXXXX.txt) && command > \"\$OUT\" && head -n 20 \"\$OUT\"`",
+                "head on piped input detected. Redirect output to a temp file first: `command > /tmp/out_\$(date +%s).txt && head -n 20 /tmp/out_\$(date +%s).txt`",
             )
         }
     }
