@@ -1,0 +1,72 @@
+# Contributing to Agent Approver
+
+Thank you for your interest in contributing! This guide will help you get started.
+
+## Development Setup
+
+### Prerequisites
+
+- JDK 17 or later
+- Git
+
+### Building
+
+```bash
+# Clone the repository
+git clone https://github.com/mikepenz/agent-approver.git
+cd agent-approver
+
+# Build the project
+./gradlew build
+
+# Run the application
+./gradlew :composeApp:jvmRun
+
+# Run tests
+./gradlew :composeApp:jvmTest
+```
+
+## How to Contribute
+
+### Reporting Bugs
+
+- Use the [GitHub Issues](https://github.com/mikepenz/agent-approver/issues) page
+- Include steps to reproduce, expected behavior, and actual behavior
+- Include your OS and Java version
+
+### Suggesting Features
+
+- Open a [GitHub Issue](https://github.com/mikepenz/agent-approver/issues) describing the feature
+- Explain the use case and why it would be valuable
+
+### Submitting Changes
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Make your changes
+4. Run tests (`./gradlew :composeApp:jvmTest`)
+5. Commit your changes with a descriptive message
+6. Push to your fork and open a Pull Request
+
+## Code Guidelines
+
+- Follow Kotlin coding conventions
+- Write tests for new functionality
+- Keep commits focused and atomic
+- Use conventional commit messages (`feat:`, `fix:`, `chore:`, `docs:`)
+
+## Data Model Compatibility
+
+When modifying serializable data models (in `model/`), you **must** maintain backward and forward compatibility. See [AGENTS.md](AGENTS.md) for the full rules:
+
+- New fields must have default values
+- Fields cannot be removed or renamed
+- Enum values can be added but not removed
+
+## Project Structure
+
+See [CLAUDE.md](CLAUDE.md) for a detailed architecture overview including module structure, core flow, and key packages.
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
