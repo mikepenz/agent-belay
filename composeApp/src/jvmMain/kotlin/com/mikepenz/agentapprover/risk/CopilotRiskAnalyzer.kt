@@ -57,6 +57,12 @@ class CopilotRiskAnalyzer(
         } else {
             log.w { "Copilot CLI not found, relying on SDK default" }
         }
+        // Ensure node is on the PATH — the copilot CLI is a #!/usr/bin/env node script,
+        // and packaged apps don't inherit the user's shell PATH.
+        val env = buildEnvWithNode()
+        if (env != null) {
+            options.setEnvironment(env)
+        }
         val c = CopilotClient(options)
         client = c
         c.start()
@@ -156,6 +162,44 @@ class CopilotRiskAnalyzer(
     companion object {
         private const val TIMEOUT_MS = 30_000L
         private const val SEND_TIMEOUT_MS = 25_000L
+
+        /**
+         * Build an environment map that ensures `node` is on the PATH.
+         * Returns null if node is already on PATH or cannot be found.
+         */
+        private fun buildEnvWithNode(): Map<String, String>? {
+            // Check if node is already reachable
+            val alreadyAvailable = runCatching {
+                val p = ProcessBuilder("which", "node").start()
+                val result = p.inputStream.bufferedReader().readText().trim()
+                p.waitFor()
+                result.isNotBlank() && p.exitValue() == 0
+            }.getOrDefault(false)
+            if (alreadyAvailable) return null
+
+            val nodeDir = findNodeBinDir() ?: return null
+            val currentPath = System.getenv("PATH") ?: ""
+            return mapOf("PATH" to "$nodeDir:$currentPath")
+        }
+
+        /** Find the directory containing the `node` binary. */
+        private fun findNodeBinDir(): String? {
+            val home = System.getProperty("user.home")
+            val candidates = mutableListOf(
+                "/usr/local/bin/node",
+                "/opt/homebrew/bin/node",
+                "$home/.local/bin/node",
+            )
+            // NVM-managed installs
+            val nvmDir = File("$home/.nvm/versions/node")
+            if (nvmDir.isDirectory) {
+                nvmDir.listFiles()
+                    ?.sortedByDescending { it.name }
+                    ?.forEach { candidates.add("${it.absolutePath}/bin/node") }
+            }
+            val found = candidates.firstOrNull { File(it).canExecute() }
+            return found?.let { File(it).parent }
+        }
 
         /** Search common binary paths for the copilot CLI, including NVM-managed installs. */
         private fun findCopilotCli(): String? {
