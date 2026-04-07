@@ -172,6 +172,35 @@ class PipedTailHeadModuleTest {
         assertNull(evaluateRule("piped_head", "head -20 README.md"))
     }
 
+    // --- Edge cases: multiple occurrences and command chains ---
+
+    @Test
+    fun multipleTailFirstFastSecondExpensiveBlocked() {
+        // Second tail is from an expensive command — should still block
+        assertNotNull(evaluateRule("piped_tail", "cat file | tail -5 ; curl https://example.com | tail -5"))
+    }
+
+    @Test
+    fun multipleTailAllFastAllowed() {
+        assertNull(evaluateRule("piped_tail", "cat file | tail -5 ; grep foo bar | tail -5"))
+    }
+
+    @Test
+    fun logicalOrBeforePipeBlocked() {
+        // || should not be treated as a pipe separator
+        assertNotNull(evaluateRule("piped_tail", "test -f file || curl https://example.com | tail -5"))
+    }
+
+    @Test
+    fun logicalAndBeforeFastPipeAllowed() {
+        assertNull(evaluateRule("piped_head", "cd /tmp && cat file.txt | head -5"))
+    }
+
+    @Test
+    fun logicalOrBeforeFastPipeAllowed() {
+        assertNull(evaluateRule("piped_tail", "test -f file || cat fallback.txt | tail -5"))
+    }
+
     // --- Non-Bash tool ---
 
     @Test

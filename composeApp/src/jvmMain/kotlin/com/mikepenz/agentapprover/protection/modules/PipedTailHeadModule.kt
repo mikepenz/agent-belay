@@ -22,7 +22,7 @@ object PipedTailHeadModule : ProtectionModule {
     )
 
     /** Commands that read/transform files quickly and don't need the temp-file workaround. */
-    private val FAST_COMMANDS = setOf(
+    private val fastCommands = setOf(
         "cat", "grep", "egrep", "fgrep", "rg", "ag",
         "awk", "sed", "cut", "tr", "sort", "uniq", "wc",
         "head", "tail", "tee",
@@ -31,38 +31,30 @@ object PipedTailHeadModule : ProtectionModule {
         "xargs", "jq", "yq",
     )
 
-    /**
-     * Extracts the base command name (without path) from the first segment of a pipeline.
-     * For example, from `grep foo bar.log | tail -5` extracts `grep`.
-     */
-    private fun firstPipelineCommand(fullCmd: String, pipeMatch: MatchResult): String? {
-        val beforePipe = fullCmd.substring(0, pipeMatch.range.first).trimEnd()
-        // Walk backwards to find the start of the current pipeline segment
-        // (could be preceded by ; && || or start of string)
-        val segmentStart = maxOf(
-            beforePipe.lastIndexOf(';'),
-            beforePipe.lastIndexOf("&&").let { if (it >= 0) it + 1 else -1 },
-            beforePipe.lastIndexOf("||").let { if (it >= 0) it + 1 else -1 },
-        ) + 1
-        val segment = beforePipe.substring(segmentStart).trimStart()
-        // The first token is the command (strip any leading env assignments like VAR=val)
-        val tokens = segment.split(Regex("""\s+"""))
-        val cmdToken = tokens.firstOrNull { !it.contains('=') } ?: return null
-        // Strip path: /usr/bin/grep -> grep
-        return cmdToken.substringAfterLast('/')
-    }
+    /** Splits on single pipe `|` but not logical OR `||` or pipe-stderr `|&`. */
+    private val singlePipePattern = Regex("""(?<!\|)\|(?!\||&)""")
+
+    /** Matches command chain separators: `;`, `&&`, `||`. */
+    private val chainSeparator = Regex(""";|&&|\|\|""")
 
     /** Returns true if every command in the pipeline (before tail/head) is a fast command. */
     private fun allPipeSegmentsFast(fullCmd: String, pipeMatch: MatchResult): Boolean {
         val beforeFinalPipe = fullCmd.substring(0, pipeMatch.range.first)
-        // Split by pipes to get all segments
-        val segments = beforeFinalPipe.split('|')
+        // Isolate the command chain segment containing this pipe by finding the last chain separator
+        val lastSep = chainSeparator.findAll(beforeFinalPipe).lastOrNull()
+        val pipelineStr = if (lastSep != null) {
+            beforeFinalPipe.substring(lastSep.range.last + 1)
+        } else {
+            beforeFinalPipe
+        }
+        val segments = singlePipePattern.split(pipelineStr)
         return segments.all { segment ->
             val trimmed = segment.trim()
+            if (trimmed.isEmpty()) return@all false
             val tokens = trimmed.split(Regex("""\s+"""))
             val cmdToken = tokens.firstOrNull { !it.contains('=') } ?: return@all false
             val cmd = cmdToken.substringAfterLast('/')
-            cmd in FAST_COMMANDS
+            cmd in fastCommands
         }
     }
 
@@ -83,8 +75,10 @@ object PipedTailHeadModule : ProtectionModule {
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
             val cmd = CommandParser.bashCommand(hookInput) ?: return null
-            val match = pattern.find(cmd) ?: return null
-            if (allPipeSegmentsFast(cmd, match)) return null
+            val hasNonFastPipeline = pattern.findAll(cmd).any { match ->
+                !allPipeSegmentsFast(cmd, match)
+            }
+            if (!hasNonFastPipeline) return null
             return hit(
                 id,
                 "tail on piped input detected. Use a temp file: `_out=\$(mktemp) && command > \$_out 2>&1 && tail -n 20 \$_out`",
@@ -102,8 +96,10 @@ object PipedTailHeadModule : ProtectionModule {
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
             val cmd = CommandParser.bashCommand(hookInput) ?: return null
-            val match = pattern.find(cmd) ?: return null
-            if (allPipeSegmentsFast(cmd, match)) return null
+            val hasNonFastPipeline = pattern.findAll(cmd).any { match ->
+                !allPipeSegmentsFast(cmd, match)
+            }
+            if (!hasNonFastPipeline) return null
             return hit(
                 id,
                 "head on piped input detected. Use a temp file: `_out=\$(mktemp) && command > \$_out 2>&1 && head -n 20 \$_out`",
