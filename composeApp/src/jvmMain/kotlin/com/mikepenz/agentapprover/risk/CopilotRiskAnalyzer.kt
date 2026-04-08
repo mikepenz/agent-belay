@@ -12,8 +12,11 @@ import com.github.copilot.sdk.json.SystemMessageConfig
 import java.io.File
 import com.mikepenz.agentapprover.model.HookInput
 import com.mikepenz.agentapprover.model.RiskAnalysis
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.SerialName
@@ -37,6 +40,9 @@ class CopilotRiskAnalyzer(
 
     private val json = Json { ignoreUnknownKeys = true }
     private var client: CopilotClient? = null
+
+    /** Serializes analyze calls — the copilot CLI JSON-RPC pipe cannot handle concurrent sessions. */
+    private val analyzeMutex = Mutex()
 
     /** Optional explicit path to the copilot CLI binary, from settings. */
     var cliPath: String = ""
@@ -70,44 +76,94 @@ class CopilotRiskAnalyzer(
     }
 
     override suspend fun analyze(hookInput: HookInput): Result<RiskAnalysis> = withContext(Dispatchers.IO) {
+        // Serialize requests — the copilot CLI pipe cannot handle concurrent sessions.
+        // Timeout is applied inside the lock so queued requests don't time out while waiting.
         try {
-            withTimeout(TIMEOUT_MS) {
-                val c = client ?: run {
-                    log.w { "CopilotClient not started, starting now" }
-                    start()
-                    client ?: throw RuntimeException("CopilotClient failed to start")
-                }
-
-                val userMessage = RiskMessageBuilder.buildUserMessage(hookInput)
-                log.i { "Analyzing ${hookInput.toolName} with model=$model" }
-
-                val sessionConfig = SessionConfig()
-                    .setModel(model)
-                    .setStreaming(false)
-                    .setTools(emptyList())
-                    .setOnPermissionRequest(PermissionHandler.APPROVE_ALL)
-                    .setSystemMessage(
-                        SystemMessageConfig()
-                            .setMode(SystemMessageMode.REPLACE)
-                            .setContent(effectiveSystemPrompt)
-                    )
-
-                val session = c.createSession(sessionConfig).await()
-                try {
-                    val messageOptions = MessageOptions().setPrompt(userMessage)
-                    val event = session.sendAndWait(messageOptions, SEND_TIMEOUT_MS).await()
-                    val rawContent = event.data?.content
-                        ?: throw RuntimeException("No content in Copilot response")
-                    log.d { "Raw response: ${rawContent.take(200)}" }
-                    Result.success(parseResult(rawContent))
-                } finally {
-                    session.close()
+            analyzeMutex.withLock {
+                withTimeout(TIMEOUT_MS) {
+                    analyzeOnce(hookInput, retried = false)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log.e(e) { "Analysis failed" }
             Result.failure(e)
         }
+    }
+
+    private suspend fun analyzeOnce(hookInput: HookInput, retried: Boolean): Result<RiskAnalysis> {
+        try {
+            val c = client ?: run {
+                log.w { "CopilotClient not started, starting now" }
+                start()
+                client ?: throw RuntimeException("CopilotClient failed to start")
+            }
+
+            val userMessage = RiskMessageBuilder.buildUserMessage(hookInput)
+            log.i { "Analyzing ${hookInput.toolName} with model=$model" }
+
+            val sessionConfig = SessionConfig()
+                .setModel(model)
+                .setStreaming(false)
+                .setTools(emptyList())
+                .setOnPermissionRequest(PermissionHandler.APPROVE_ALL)
+                .setSystemMessage(
+                    SystemMessageConfig()
+                        .setMode(SystemMessageMode.REPLACE)
+                        .setContent(effectiveSystemPrompt)
+                )
+
+            val session = c.createSession(sessionConfig).await()
+            try {
+                val messageOptions = MessageOptions().setPrompt(userMessage)
+                val event = session.sendAndWait(messageOptions, SEND_TIMEOUT_MS).await()
+                val rawContent = event.data?.content
+                    ?: throw RuntimeException("No content in Copilot response")
+                log.d { "Raw response: ${rawContent.take(200)}" }
+                return Result.success(parseResult(rawContent))
+            } finally {
+                session.close()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // If the CLI process died (stream closed / broken pipe), restart and retry once
+            if (!retried && isStreamError(e)) {
+                log.w { "Copilot CLI stream broken, restarting client and retrying..." }
+                val restartResult = runCatching { restartClient() }
+                restartResult.exceptionOrNull()?.let { restartError ->
+                    restartError.addSuppressed(e)
+                    log.e(restartError) { "Failed to restart Copilot client after stream error" }
+                    return Result.failure(restartError)
+                }
+                return analyzeOnce(hookInput, retried = true)
+            }
+            return Result.failure(e)
+        }
+    }
+
+    /** Detect errors that indicate the underlying CLI process has died. */
+    private fun isStreamError(e: Throwable): Boolean {
+        var current: Throwable? = e
+        val visited = mutableSetOf<Throwable>()
+        while (current != null && visited.add(current)) {
+            val msg = current.message.orEmpty().lowercase()
+            if ("stream closed" in msg || "broken pipe" in msg) return true
+            current = current.cause
+        }
+        return false
+    }
+
+    /** Stop the broken client and start a fresh one. */
+    private fun restartClient() {
+        try {
+            client?.stop()
+        } catch (e: Exception) {
+            log.w(e) { "Error stopping broken client" }
+        }
+        client = null
+        start()
     }
 
     private fun parseResult(rawContent: String): RiskAnalysis {
