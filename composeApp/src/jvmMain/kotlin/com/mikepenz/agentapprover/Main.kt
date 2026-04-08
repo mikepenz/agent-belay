@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,6 +54,16 @@ import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
 import com.mikepenz.agentapprover.ui.theme.configureLogging
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import co.touchlab.kermit.Logger
+import io.github.kdroidfilter.nucleus.notification.linux.LinuxNotificationCenter
+import io.github.kdroidfilter.nucleus.notification.linux.Notification
+import java.awt.CheckboxMenuItem
+import java.awt.Desktop
+import java.awt.MenuItem
+import java.awt.PopupMenu
+import java.awt.SystemTray
+import java.awt.TrayIcon
+import java.awt.desktop.AppReopenedListener
 import java.io.File
 import java.net.BindException
 
@@ -117,15 +128,21 @@ fun main(args: Array<String>) {
         // Handle macOS dock icon click and Quit
         val exitApp = ::exitApplication
         LaunchedEffect(Unit) {
-            if (java.awt.Desktop.isDesktopSupported()) {
-                val desktop = java.awt.Desktop.getDesktop()
-                desktop.setQuitHandler { _, response ->
-                    exitApp()
-                    response.performQuit()
+            if (Desktop.isDesktopSupported()) {
+                val desktop = Desktop.getDesktop()
+                if (desktop.isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
+                    desktop.setQuitHandler { _, response ->
+                        exitApp()
+                        response.performQuit()
+                    }
                 }
-                desktop.addAppEventListener(java.awt.desktop.AppReopenedListener {
-                    isVisible = true
-                })
+                try {
+                    desktop.addAppEventListener(AppReopenedListener {
+                        isVisible = true
+                    })
+                } catch (_: UnsupportedOperationException) {
+                    // APP_REOPENED not supported on this platform
+                }
             }
         }
 
@@ -147,7 +164,7 @@ fun main(args: Array<String>) {
                 if (System.getProperty("os.name").lowercase().contains("mac")) {
                     try {
                         @Suppress("DEPRECATION")
-                        java.awt.Desktop.getDesktop()
+                        Desktop.getDesktop()
                     } catch (_: Exception) {
                         // ignore
                     }
@@ -209,19 +226,19 @@ fun main(args: Array<String>) {
 
         // Use AWT SystemTray directly for proper MultiResolutionImage HiDPI support
         val isMacOs = remember { System.getProperty("os.name", "").contains("Mac", ignoreCase = true) }
-        val showHideItem = remember { java.awt.MenuItem(if (isVisible) "Hide" else "Show") }
-        val awayModeItem = remember { java.awt.CheckboxMenuItem("Away Mode", stateManager.state.value.settings.awayMode) }
+        val showHideItem = remember { MenuItem(if (isVisible) "Hide" else "Show") }
+        val awayModeItem = remember { CheckboxMenuItem("Away Mode", stateManager.state.value.settings.awayMode) }
         DisposableEffect(Unit) {
-            val systemTray = if (java.awt.SystemTray.isSupported()) java.awt.SystemTray.getSystemTray() else null
+            val systemTray = if (SystemTray.isSupported()) SystemTray.getSystemTray() else null
             val trayIcon = if (systemTray != null) {
                 // On macOS: template image (logo only) + native colored badge overlay
                 // On other platforms: full icon with badge baked in
-                val icon = java.awt.TrayIcon(AppIcon.createTrayIconMultiRes(0, drawBadge = !isMacOs))
+                val icon = TrayIcon(AppIcon.createTrayIconMultiRes(0, drawBadge = !isMacOs))
                 icon.isImageAutoSize = false
                 icon.toolTip = "Agent Approver"
                 icon.addActionListener { isVisible = !isVisible }
 
-                val popup = java.awt.PopupMenu()
+                val popup = PopupMenu()
                 showHideItem.addActionListener { isVisible = !isVisible }
                 popup.add(showHideItem)
 
@@ -231,7 +248,7 @@ fun main(args: Array<String>) {
                 }
                 popup.add(awayModeItem)
 
-                popup.add(java.awt.MenuItem("Quit").apply { addActionListener { exitApp() } })
+                popup.add(MenuItem("Quit").apply { addActionListener { exitApp() } })
                 icon.popupMenu = popup
 
                 systemTray.add(icon)
@@ -250,8 +267,8 @@ fun main(args: Array<String>) {
             awayModeItem.state = state.settings.awayMode
         }
         LaunchedEffect(pendingCount, state.settings.awayMode) {
-            if (java.awt.SystemTray.isSupported()) {
-                val systemTray = java.awt.SystemTray.getSystemTray()
+            if (SystemTray.isSupported()) {
+                val systemTray = SystemTray.getSystemTray()
                 systemTray.trayIcons.firstOrNull()?.let { icon ->
                     icon.image = AppIcon.createTrayIconMultiRes(pendingCount, drawBadge = !isMacOs)
                     if (isMacOs) MacOsTrayBadge.update(icon, pendingCount)
@@ -263,7 +280,18 @@ fun main(args: Array<String>) {
                 }
             }
             // macOS dock badge via Nucleus notification API
-            io.github.kdroidfilter.nucleus.notification.NotificationCenter.setBadgeCount(pendingCount)
+            if (isMacOs) {
+                io.github.kdroidfilter.nucleus.notification.NotificationCenter.setBadgeCount(pendingCount)
+            } else {
+                if (pendingCount > 0) {
+                    LinuxNotificationCenter.notify(
+                        Notification(
+                            summary = "Agent Approver",
+                            body = "$pendingCount pending approval requests"
+                        )
+                    )
+                }
+            }
         }
         val settings = state.settings
 
@@ -300,7 +328,7 @@ fun main(args: Array<String>) {
                             }
                             copilotInitState = CopilotInitState.READY
                         } catch (e: Exception) {
-                            co.touchlab.kermit.Logger.withTag("Main").e(e) { "Failed to start Copilot client" }
+                            Logger.withTag("Main").e(e) { "Failed to start Copilot client" }
                             copilotInitState = CopilotInitState.ERROR
                             activeRiskAnalyzer = claudeAnalyzer
                             return@LaunchedEffect
@@ -378,7 +406,7 @@ fun main(args: Array<String>) {
                             )
                             if (devMode) {
                                 Surface(
-                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                                    shape = RoundedCornerShape(4.dp),
                                     color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
                                 ) {
                                     Text(
