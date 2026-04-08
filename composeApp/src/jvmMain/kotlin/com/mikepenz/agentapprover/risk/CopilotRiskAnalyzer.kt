@@ -77,10 +77,10 @@ class CopilotRiskAnalyzer(
 
     override suspend fun analyze(hookInput: HookInput): Result<RiskAnalysis> = withContext(Dispatchers.IO) {
         // Serialize requests — the copilot CLI pipe cannot handle concurrent sessions.
-        // Single outer timeout covers both the initial attempt and a potential retry.
+        // Timeout is applied inside the lock so queued requests don't time out while waiting.
         try {
-            withTimeout(TIMEOUT_MS) {
-                analyzeMutex.withLock {
+            analyzeMutex.withLock {
+                withTimeout(TIMEOUT_MS) {
                     analyzeOnce(hookInput, retried = false)
                 }
             }
