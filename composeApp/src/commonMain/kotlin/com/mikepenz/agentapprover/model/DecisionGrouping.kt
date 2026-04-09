@@ -14,6 +14,15 @@ enum class DecisionGroup {
     PROTECTION_BLOCK,
     PROTECTION_LOG,
     TIMEOUT,
+    /**
+     * Resolved outside of agent-approver — either the harness's TUI made the
+     * decision before our user did (FIN detected on the in-flight hook
+     * connection) or a Claude Code PostToolUse event arrived for a tool whose
+     * permission request was still parked because of the upstream canUseTool
+     * race. Distinct from [OTHER] so the Statistics tab can surface how often
+     * we're being bypassed.
+     */
+    EXTERNAL,
     OTHER,
 }
 
@@ -25,7 +34,8 @@ fun Decision.group(): DecisionGroup = when (this) {
     Decision.PROTECTION_BLOCKED -> DecisionGroup.PROTECTION_BLOCK
     Decision.PROTECTION_LOGGED -> DecisionGroup.PROTECTION_LOG
     Decision.TIMEOUT -> DecisionGroup.TIMEOUT
-    Decision.CANCELLED_BY_CLIENT, Decision.RESOLVED_EXTERNALLY -> DecisionGroup.OTHER
+    Decision.RESOLVED_EXTERNALLY -> DecisionGroup.EXTERNAL
+    Decision.CANCELLED_BY_CLIENT -> DecisionGroup.OTHER
 }
 
 /** True for groups where time-to-decision is meaningful (a human or analyzer deliberated). */

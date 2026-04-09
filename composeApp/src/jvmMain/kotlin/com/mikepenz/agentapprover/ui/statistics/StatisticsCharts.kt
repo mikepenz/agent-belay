@@ -37,6 +37,7 @@ internal val DAILY_STACK_ORDER: List<DecisionGroup> = listOf(
     DecisionGroup.RISK_DENY,
     DecisionGroup.PROTECTION_BLOCK,
     DecisionGroup.TIMEOUT,
+    DecisionGroup.EXTERNAL,
 )
 
 /** Stable color mapping shared by chart fills and legend chips. */
@@ -49,6 +50,7 @@ internal fun decisionGroupColor(group: DecisionGroup): Color = when (group) {
     DecisionGroup.PROTECTION_BLOCK -> MaterialTheme.colorScheme.secondary
     DecisionGroup.PROTECTION_LOG -> MaterialTheme.colorScheme.outline
     DecisionGroup.TIMEOUT -> MaterialTheme.colorScheme.onSurfaceVariant
+    DecisionGroup.EXTERNAL -> MaterialTheme.colorScheme.tertiaryContainer
     DecisionGroup.OTHER -> MaterialTheme.colorScheme.surfaceVariant
 }
 
@@ -60,6 +62,7 @@ internal fun decisionGroupLabel(group: DecisionGroup): String = when (group) {
     DecisionGroup.PROTECTION_BLOCK -> "Protection"
     DecisionGroup.PROTECTION_LOG -> "Protection log"
     DecisionGroup.TIMEOUT -> "Timeout"
+    DecisionGroup.EXTERNAL -> "Externally resolved"
     DecisionGroup.OTHER -> "Other"
 }
 

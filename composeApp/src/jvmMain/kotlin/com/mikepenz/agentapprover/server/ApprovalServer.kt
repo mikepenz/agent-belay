@@ -7,6 +7,7 @@ import com.mikepenz.agentapprover.storage.DatabaseStorage
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
+import io.ktor.server.http.HttpRequestLifecycle
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
@@ -38,10 +39,21 @@ class ApprovalServer(
                     json(Json { ignoreUnknownKeys = true })
                 }
                 routing {
+                    // HttpRequestLifecycle is a route-scoped plugin: install it
+                    // inside routing so it properly applies per-call. Propagates
+                    // client TCP FIN into call.coroutineContext so suspended
+                    // handlers (waiting on CompletableDeferred) get a
+                    // CancellationException when the harness drops the
+                    // connection — e.g. user approved/denied directly inside
+                    // Claude Code or Copilot CLI's TUI. Available since Ktor 3.4.0.
+                    install(HttpRequestLifecycle) {
+                        cancelCallOnClose = true
+                    }
                     approvalRoute(stateManager, adapter, onNewApproval)
                     copilotApprovalRoute(stateManager, copilotAdapter, onNewApproval)
                     copilotPreToolUseRoute(stateManager, copilotAdapter, protectionEngine, onNewApproval)
                     preToolUseRoute(stateManager, adapter, protectionEngine, onNewApproval)
+                    postToolUseRoute(stateManager)
                 }
             },
         ).start(wait = false)

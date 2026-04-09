@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,6 +54,7 @@ fun StatisticsTab(
         (summary.byGroup[DecisionGroup.RISK_DENY] ?: 0) +
         (summary.byGroup[DecisionGroup.PROTECTION_BLOCK] ?: 0)
     val totalTimeouts = summary.byGroup[DecisionGroup.TIMEOUT] ?: 0
+    val totalExternal = summary.byGroup[DecisionGroup.EXTERNAL] ?: 0
 
     Column(
         modifier = Modifier
@@ -73,6 +75,7 @@ fun StatisticsTab(
             approvals = totalApprovals,
             denials = totalDenials,
             timeouts = totalTimeouts,
+            external = totalExternal,
         )
 
         SectionTitle("Decisions per day")
@@ -143,7 +146,7 @@ private fun EmptyState() {
 }
 
 @Composable
-private fun SummaryGrid(total: Int, approvals: Int, denials: Int, timeouts: Int) {
+private fun SummaryGrid(total: Int, approvals: Int, denials: Int, timeouts: Int, external: Int) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         SummaryCard("Total", total.toString(), Modifier.weight(1f))
         SummaryCard("Approved", approvals.toString(), Modifier.weight(1f))
@@ -151,6 +154,14 @@ private fun SummaryGrid(total: Int, approvals: Int, denials: Int, timeouts: Int)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         SummaryCard("Denied", denials.toString(), Modifier.weight(1f))
         SummaryCard("Timeout", timeouts.toString(), Modifier.weight(1f))
+    }
+    // Only surface the External card when at least one entry exists, so users
+    // who never hit the harness-side decision path don't see a noisy 0.
+    if (external > 0) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SummaryCard("External", external.toString(), Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(1f))
+        }
     }
 }
 

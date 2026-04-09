@@ -89,12 +89,18 @@ fun Route.copilotApprovalRoute(
                 }
             }
         } catch (_: CancellationException) {
+            // Client disconnected (HttpRequestLifecycle propagates Netty
+            // channelInactive into call.coroutineContext) or server shutting
+            // down. The harness either decided in its own TUI, timed out, or
+            // exited. Swallow the cancellation here: rethrowing would
+            // propagate into Ktor's shared pipeline parent scope and cause
+            // every subsequent call to be cancelled on arrival.
             if (!deferred.isCompleted) {
                 logger.i { "Connection closed for Copilot request ${request.id} — resolved externally" }
                 stateManager.resolve(
                     requestId = request.id,
                     decision = Decision.RESOLVED_EXTERNALLY,
-                    feedback = "Resolved externally",
+                    feedback = "Resolved externally (decided in harness or harness exited)",
                     riskAnalysis = null,
                     rawResponseJson = null,
                 )

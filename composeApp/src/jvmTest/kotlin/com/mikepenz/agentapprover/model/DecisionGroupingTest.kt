@@ -32,9 +32,13 @@ class DecisionGroupingTest {
     }
 
     @Test
+    fun externalBucket() {
+        assertEquals(DecisionGroup.EXTERNAL, Decision.RESOLVED_EXTERNALLY.group())
+    }
+
+    @Test
     fun otherBucket() {
         assertEquals(DecisionGroup.OTHER, Decision.CANCELLED_BY_CLIENT.group())
-        assertEquals(DecisionGroup.OTHER, Decision.RESOLVED_EXTERNALLY.group())
     }
 
     @Test

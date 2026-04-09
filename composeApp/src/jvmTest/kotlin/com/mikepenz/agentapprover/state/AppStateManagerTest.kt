@@ -11,6 +11,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -55,6 +56,51 @@ class AppStateManagerTest {
         manager.removePending("1")
         assertEquals(1, manager.state.value.pendingApprovals.size)
         assertEquals("2", manager.state.value.pendingApprovals.first().id)
+    }
+
+    @Test
+    fun resolveByCorrelationKeyMatchesAndResolves() {
+        val manager = AppStateManager()
+        val request = makeRequest("1") // session=s1, tool=Bash, input={command=ls}
+        manager.addPending(request)
+
+        val matched = manager.resolveByCorrelationKey(
+            sessionId = "s1",
+            toolName = "Bash",
+            toolInput = mapOf("command" to JsonPrimitive("ls")),
+        )
+
+        assertTrue(matched)
+        assertTrue(manager.state.value.pendingApprovals.isEmpty())
+        assertEquals(Decision.RESOLVED_EXTERNALLY, manager.state.value.history.first().decision)
+    }
+
+    @Test
+    fun resolveByCorrelationKeyReturnsFalseWhenNoMatch() {
+        val manager = AppStateManager()
+        manager.addPending(makeRequest("1"))
+
+        val matchedDifferentSession = manager.resolveByCorrelationKey(
+            sessionId = "other",
+            toolName = "Bash",
+            toolInput = mapOf("command" to JsonPrimitive("ls")),
+        )
+        val matchedDifferentTool = manager.resolveByCorrelationKey(
+            sessionId = "s1",
+            toolName = "Edit",
+            toolInput = mapOf("command" to JsonPrimitive("ls")),
+        )
+        val matchedDifferentInput = manager.resolveByCorrelationKey(
+            sessionId = "s1",
+            toolName = "Bash",
+            toolInput = mapOf("command" to JsonPrimitive("rm -rf /")),
+        )
+
+        assertFalse(matchedDifferentSession)
+        assertFalse(matchedDifferentTool)
+        assertFalse(matchedDifferentInput)
+        assertEquals(1, manager.state.value.pendingApprovals.size)
+        assertTrue(manager.state.value.history.isEmpty())
     }
 
     @Test

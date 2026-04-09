@@ -47,7 +47,7 @@ class HookRegistrarTest {
     }
 
     @Test
-    fun registerCreatesSettingsWithBothHooks() {
+    fun registerCreatesSettingsWithAllThreeHooks() {
         HookRegistrar.register(port)
 
         assertTrue(settingsFile.exists())
@@ -65,6 +65,12 @@ class HookRegistrarTest {
         assertTrue(ptuEntries.isNotEmpty())
         val ptuHook = ptuEntries[0].jsonObject["hooks"]!!.jsonArray[0].jsonObject
         assertTrue(ptuHook["url"].toString().contains("/pre-tool-use"))
+
+        // PostToolUse hook should exist (correlation channel for stale entries)
+        val postEntries = hooks["PostToolUse"]!!.jsonArray
+        assertTrue(postEntries.isNotEmpty())
+        val postHook = postEntries[0].jsonObject["hooks"]!!.jsonArray[0].jsonObject
+        assertTrue(postHook["url"].toString().contains("/post-tool-use"))
     }
 
     @Test

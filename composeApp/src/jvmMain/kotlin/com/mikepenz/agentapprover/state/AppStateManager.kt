@@ -122,6 +122,41 @@ class AppStateManager(
         return pendingUpdatedInputs.remove(requestId)
     }
 
+    /**
+     * Resolves a pending approval that matches an external "tool already
+     * ran" signal — typically a Claude Code PostToolUse hook event arriving
+     * for a tool whose original PermissionRequest is still parked because
+     * the harness never closed the connection (a known canUseTool race in
+     * claude-code).
+     *
+     * Matches by `(sessionId, toolName, toolInput)`. The PermissionRequest
+     * payload has no `tool_use_id` (anthropics/claude-code#13938), so this
+     * triple is the strongest correlation key available; collisions only
+     * happen when the same tool is invoked with byte-identical inputs in
+     * the same session, which is rare in practice.
+     *
+     * Returns true if a pending entry was found and resolved.
+     */
+    fun resolveByCorrelationKey(
+        sessionId: String,
+        toolName: String,
+        toolInput: Map<String, JsonElement>,
+    ): Boolean {
+        val match = _state.value.pendingApprovals.firstOrNull { req ->
+            req.hookInput.sessionId == sessionId &&
+                req.hookInput.toolName == toolName &&
+                req.hookInput.toolInput == toolInput
+        } ?: return false
+        resolve(
+            requestId = match.id,
+            decision = Decision.RESOLVED_EXTERNALLY,
+            feedback = "Resolved externally (PostToolUse received — tool ran)",
+            riskAnalysis = null,
+            rawResponseJson = null,
+        )
+        return true
+    }
+
     fun updateHistoryRawResponse(requestId: String, rawResponseJson: String) {
         synchronized(persistLock) {
             databaseStorage?.updateRawResponse(requestId, rawResponseJson)

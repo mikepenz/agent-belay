@@ -45,6 +45,8 @@ object HookRegistrar {
 
     private fun preToolUseUrl(port: Int): String = "http://localhost:$port/pre-tool-use"
 
+    private fun postToolUseUrl(port: Int): String = "http://localhost:$port/post-tool-use"
+
     private fun hasHook(hooks: JsonObject, event: String, url: String): Boolean {
         val entries = hooks[event]?.jsonArray ?: return false
         return entries.any { entry ->
@@ -65,7 +67,8 @@ object HookRegistrar {
             val root = json.parseToJsonElement(file.readText()).jsonObject
             val hooks = root["hooks"]?.jsonObject ?: return false
             hasHook(hooks, "PermissionRequest", hookUrl(port)) &&
-                hasHook(hooks, "PreToolUse", preToolUseUrl(port))
+                hasHook(hooks, "PreToolUse", preToolUseUrl(port)) &&
+                hasHook(hooks, "PostToolUse", postToolUseUrl(port))
         } catch (e: Exception) {
             logger.w(e) { "Failed to read settings.json" }
             false
@@ -90,11 +93,13 @@ object HookRegistrar {
 
         val permUrl = hookUrl(port)
         val ptuUrl = preToolUseUrl(port)
+        val postUrl = postToolUseUrl(port)
 
         val hasPermHook = hasHook(existingHooks, "PermissionRequest", permUrl)
         val hasPtuHook = hasHook(existingHooks, "PreToolUse", ptuUrl)
+        val hasPostHook = hasHook(existingHooks, "PostToolUse", postUrl)
 
-        if (hasPermHook && hasPtuHook) {
+        if (hasPermHook && hasPtuHook && hasPostHook) {
             logger.i { "Hooks already registered for port $port" }
             return
         }
@@ -119,12 +124,25 @@ object HookRegistrar {
             )
         }
 
+        // Build PostToolUse array — secondary correlation channel that lets
+        // us clear pending entries whose original PermissionRequest hung
+        // (canUseTool race in claude-code).
+        val postList = existingHooks["PostToolUse"]?.jsonArray?.toMutableList() ?: mutableListOf()
+        if (!hasPostHook) {
+            postList.add(
+                json.encodeToJsonElement(
+                    HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = postUrl, timeout = 5)))
+                )
+            )
+        }
+
         val updatedHooks = buildJsonObject {
             existingHooks.forEach { (key, value) ->
-                if (key != "PermissionRequest" && key != "PreToolUse") put(key, value)
+                if (key != "PermissionRequest" && key != "PreToolUse" && key != "PostToolUse") put(key, value)
             }
             put("PermissionRequest", Json.encodeToJsonElement(permList))
             put("PreToolUse", Json.encodeToJsonElement(ptuList))
+            put("PostToolUse", Json.encodeToJsonElement(postList))
         }
 
         val updatedRoot = buildJsonObject {
@@ -168,16 +186,20 @@ object HookRegistrar {
 
         val filteredPerm = filterHooks("PermissionRequest", hookUrl(port))
         val filteredPtu = filterHooks("PreToolUse", preToolUseUrl(port))
+        val filteredPost = filterHooks("PostToolUse", postToolUseUrl(port))
 
         val updatedHooks = buildJsonObject {
             existingHooks.forEach { (key, value) ->
-                if (key != "PermissionRequest" && key != "PreToolUse") put(key, value)
+                if (key != "PermissionRequest" && key != "PreToolUse" && key != "PostToolUse") put(key, value)
             }
             if (filteredPerm.isNotEmpty()) {
                 put("PermissionRequest", Json.encodeToJsonElement(filteredPerm))
             }
             if (filteredPtu.isNotEmpty()) {
                 put("PreToolUse", Json.encodeToJsonElement(filteredPtu))
+            }
+            if (filteredPost.isNotEmpty()) {
+                put("PostToolUse", Json.encodeToJsonElement(filteredPost))
             }
         }
 
