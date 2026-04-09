@@ -16,6 +16,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -30,7 +35,9 @@ import com.mikepenz.agentapprover.model.Source
 import com.mikepenz.agentapprover.model.ToolType
 import com.mikepenz.agentapprover.ui.icons.TablerArrowsSort
 import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -54,6 +61,17 @@ fun ApprovalsTab(
     if (pendingApprovals.isEmpty()) {
         EmptyApprovalsState()
     } else {
+        // Shared ticker for elapsed time badges — one coroutine drives all cards
+        var now by remember { mutableStateOf(Clock.System.now()) }
+        if (settings.awayMode) {
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(1000)
+                    now = Clock.System.now()
+                }
+            }
+        }
+
         val sortedApprovals = if (settings.newestApprovalFirst) pendingApprovals else pendingApprovals.asReversed()
 
         LazyColumn(
@@ -101,6 +119,7 @@ fun ApprovalsTab(
                     autoDenyActive = request.id in autoDenyRequests,
                     onCancelAutoDeny = { onCancelAutoDeny(request.id) },
                     awayMode = settings.awayMode,
+                    now = now,
                     onPopOut = onPopOut,
                 )
             }

@@ -80,6 +80,7 @@ fun ApprovalCard(
     autoDenyActive: Boolean,
     onCancelAutoDeny: () -> Unit,
     awayMode: Boolean = false,
+    now: Instant = Clock.System.now(),
     onPopOut: ((title: String, content: String) -> Unit)? = null,
 ) {
     val borderColor by animateColorAsState(
@@ -161,7 +162,7 @@ fun ApprovalCard(
                             RiskBadge(riskResult = riskResult, riskStatus = riskStatus, riskError = riskError)
                             if (request.toolType == ToolType.DEFAULT) {
                                 if (awayMode) {
-                                    ElapsedTimeBadge(request.timestamp)
+                                    ElapsedTimeBadge(request.timestamp, now)
                                 } else {
                                     val fraction = remainingSeconds.toFloat() / timeoutSeconds
                                     val color = if (fraction < 0.2f) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -262,15 +263,8 @@ fun TimerProgressBar(
 }
 
 @Composable
-fun ElapsedTimeBadge(timestamp: Instant) {
-    var elapsedSeconds by remember { mutableIntStateOf((Clock.System.now() - timestamp).inWholeSeconds.toInt().coerceAtLeast(0)) }
-
-    LaunchedEffect(timestamp) {
-        while (true) {
-            delay(1000)
-            elapsedSeconds = (Clock.System.now() - timestamp).inWholeSeconds.toInt().coerceAtLeast(0)
-        }
-    }
+fun ElapsedTimeBadge(timestamp: Instant, now: Instant) {
+    val elapsedSeconds = (now - timestamp).inWholeSeconds.toInt().coerceAtLeast(0)
 
     val text = when {
         elapsedSeconds < 60 -> "${elapsedSeconds}s"
