@@ -50,7 +50,7 @@ import com.mikepenz.agentapprover.model.RiskAnalysis
 import com.mikepenz.agentapprover.model.Source
 import com.mikepenz.agentapprover.model.SpecialToolParser
 import com.mikepenz.agentapprover.model.ToolType
-import com.mikepenz.agentapprover.ui.AUTO_DENY_COUNTDOWN
+import com.mikepenz.agentapprover.risk.RiskAutoActionOrchestrator.Companion.AUTO_DENY_COUNTDOWN
 import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
 import com.mikepenz.agentapprover.ui.theme.RiskCritical
 import com.mikepenz.agentapprover.ui.theme.RiskSafe

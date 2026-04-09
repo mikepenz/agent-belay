@@ -32,9 +32,16 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import io.github.kdroidfilter.nucleus.window.material.MaterialDecoratedWindow
 import io.github.kdroidfilter.nucleus.window.material.MaterialTitleBar
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import com.mikepenz.agentapprover.di.AppEnvironment
 import com.mikepenz.agentapprover.di.AppGraph
 import com.mikepenz.agentapprover.hook.HookRegistrar
+import com.mikepenz.agentapprover.ui.approvals.ApprovalsViewModel
 import com.mikepenz.agentapprover.model.RiskAnalysisBackend
 import com.mikepenz.agentapprover.risk.CopilotInitState
 import com.mikepenz.agentapprover.risk.CopilotRiskAnalyzer
@@ -132,6 +139,34 @@ fun main(args: Array<String>) {
         var activeRiskAnalyzer by remember { mutableStateOf<RiskAnalyzer>(claudeAnalyzer) }
         var copilotModels by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
         var copilotInitState by remember { mutableStateOf(CopilotInitState.IDLE) }
+
+        // Bridge analyzer switching to the DI graph so ApprovalsViewModel can read
+        // the current backend lazily without taking RiskAnalyzer as a constructor arg.
+        LaunchedEffect(activeRiskAnalyzer) {
+            graph.activeRiskAnalyzerHolder.set(activeRiskAnalyzer)
+        }
+
+        // Application-scoped ViewModelStoreOwner — lives for the lifetime of the
+        // process, NOT just while the main window is visible. This is critical:
+        // ViewModels (notably ApprovalsViewModel) must keep running their side
+        // effects (risk analysis, auto-approve / auto-deny, notifications) even
+        // when the user has closed the main window.
+        val viewModelStoreOwner = remember {
+            object : ViewModelStoreOwner {
+                override val viewModelStore: ViewModelStore = ViewModelStore()
+            }
+        }
+        DisposableEffect(viewModelStoreOwner) {
+            onDispose { viewModelStoreOwner.viewModelStore.clear() }
+        }
+
+        // Eagerly instantiate ApprovalsViewModel at app startup so its side effect
+        // (collecting pending approvals → risk analysis → auto-actions) starts
+        // running immediately and survives the main window being hidden/closed.
+        // Without this, the VM would only be created on the first window open.
+        LaunchedEffect(Unit) {
+            ViewModelProvider.create(viewModelStoreOwner, graph.metroViewModelFactory)[ApprovalsViewModel::class]
+        }
 
         val server = remember {
             ApprovalServer(stateManager, protectionEngine = protectionEngine, databaseStorage = databaseStorage, onNewApproval = {
@@ -403,16 +438,21 @@ fun main(args: Array<String>) {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background,
                     ) {
-                        App(
-                            stateManager, hookRegistrar, activeRiskAnalyzer,
-                            copilotModels = copilotModels,
-                            copilotInitState = copilotInitState,
-                            devMode = devMode,
-                            onPopOut = { title, content -> popOutState = title to content },
-                            onShowLicenses = { showLicenses = true },
-                            protectionModules = protectionEngine.modules,
-                            protectionEngine = protectionEngine,
-                        )
+                        CompositionLocalProvider(
+                            LocalViewModelStoreOwner provides viewModelStoreOwner,
+                            LocalMetroViewModelFactory provides graph.metroViewModelFactory,
+                        ) {
+                            App(
+                                stateManager, hookRegistrar,
+                                copilotModels = copilotModels,
+                                copilotInitState = copilotInitState,
+                                devMode = devMode,
+                                onPopOut = { title, content -> popOutState = title to content },
+                                onShowLicenses = { showLicenses = true },
+                                protectionModules = protectionEngine.modules,
+                                protectionEngine = protectionEngine,
+                            )
+                        }
                     }
                 }
             }

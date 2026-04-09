@@ -2,6 +2,8 @@ package com.mikepenz.agentapprover.storage
 
 import com.mikepenz.agentapprover.model.*
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -43,6 +45,7 @@ class DatabaseStorageTest {
         protectionModule: String? = null,
         protectionRule: String? = null,
         protectionDetail: String? = null,
+        toolInput: Map<String, JsonElement> = emptyMap(),
     ): ApprovalResult = ApprovalResult(
         request = ApprovalRequest(
             id = id,
@@ -51,6 +54,7 @@ class DatabaseStorageTest {
             hookInput = HookInput(
                 sessionId = sessionId,
                 toolName = toolName,
+                toolInput = toolInput,
                 cwd = cwd,
             ),
             timestamp = Clock.System.now(),
@@ -199,5 +203,24 @@ class DatabaseStorageTest {
         storage.insert(makeApprovalResult(id = "cnt-1"))
         storage.insert(makeApprovalResult(id = "cnt-2"))
         assertEquals(2, storage.count())
+    }
+
+    @Test
+    fun toolInputRoundTrip() {
+        val grepInput = mapOf<String, JsonElement>(
+            "pattern" to JsonPrimitive("NATIVE_LIB_VERSION\\s*="),
+            "path" to JsonPrimitive("/tmp/project"),
+            "glob" to JsonPrimitive("*.kt"),
+        )
+        storage.insert(
+            makeApprovalResult(
+                id = "grep-1",
+                toolName = "Grep",
+                toolInput = grepInput,
+            ),
+        )
+
+        val loaded = storage.loadAll().single()
+        assertEquals(grepInput, loaded.request.hookInput.toolInput)
     }
 }

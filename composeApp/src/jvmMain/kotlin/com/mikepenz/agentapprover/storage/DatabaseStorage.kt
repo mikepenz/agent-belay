@@ -4,7 +4,10 @@ import co.touchlab.kermit.Logger
 import com.mikepenz.agentapprover.model.*
 import kotlinx.datetime.Instant
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import java.io.File
 import java.sql.Connection
 import java.sql.DriverManager
@@ -22,6 +25,8 @@ class DatabaseStorage(
         prettyPrint = true
         encodeDefaults = true
     }
+
+    private val toolInputSerializer = MapSerializer(String.serializer(), JsonElement.serializer())
 
     init {
         val dir = File(dataDir)
@@ -55,7 +60,8 @@ class DatabaseStorage(
                     raw_request_json  TEXT NOT NULL,
                     raw_response_json TEXT,
                     requested_at      TEXT NOT NULL,
-                    decided_at        TEXT NOT NULL
+                    decided_at        TEXT NOT NULL,
+                    tool_input_json   TEXT NOT NULL DEFAULT '{}'
                 )
                 """.trimIndent()
             )
@@ -63,6 +69,23 @@ class DatabaseStorage(
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_history_type ON history(type)")
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_history_session_id ON history(session_id)")
         }
+        // Migrate older databases that pre-date the tool_input_json column.
+        if (!hasColumn("history", "tool_input_json")) {
+            connection.createStatement().use { stmt ->
+                stmt.executeUpdate("ALTER TABLE history ADD COLUMN tool_input_json TEXT NOT NULL DEFAULT '{}'")
+            }
+        }
+    }
+
+    private fun hasColumn(table: String, column: String): Boolean {
+        connection.createStatement().use { stmt ->
+            stmt.executeQuery("PRAGMA table_info($table)").use { rs ->
+                while (rs.next()) {
+                    if (rs.getString("name") == column) return true
+                }
+            }
+        }
+        return false
     }
 
     fun insert(result: ApprovalResult) {
@@ -74,8 +97,8 @@ class DatabaseStorage(
                 risk_level, risk_label, risk_message, risk_source,
                 protection_module, protection_rule, protection_detail,
                 raw_request_json, raw_response_json,
-                requested_at, decided_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                requested_at, decided_at, tool_input_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.trimIndent()
 
         connection.prepareStatement(sql).use { ps ->
@@ -106,6 +129,7 @@ class DatabaseStorage(
             ps.setString(18, result.rawResponseJson)
             ps.setString(19, result.request.timestamp.toString())
             ps.setString(20, result.decidedAt.toString())
+            ps.setString(21, json.encodeToString(toolInputSerializer, result.request.hookInput.toolInput))
             ps.executeUpdate()
         }
 
@@ -219,9 +243,22 @@ class DatabaseStorage(
             source = rs.getString("risk_source") ?: "",
         )
 
+        val toolInput: Map<String, JsonElement> = rs.getString("tool_input_json")
+            ?.takeIf { it.isNotBlank() }
+            ?.let {
+                try {
+                    json.decodeFromString(toolInputSerializer, it)
+                } catch (e: Exception) {
+                    logger.w { "Failed to decode tool_input_json: ${e.message}" }
+                    emptyMap()
+                }
+            }
+            ?: emptyMap()
+
         val hookInput = HookInput(
             sessionId = rs.getString("session_id"),
             toolName = rs.getString("tool_name"),
+            toolInput = toolInput,
             cwd = rs.getString("cwd"),
         )
 

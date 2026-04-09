@@ -266,7 +266,7 @@ fun HistoryRow(
                     if (result.request.hookInput.cwd.isNotBlank()) {
                         appendLine("Working Directory: ${result.request.hookInput.cwd}")
                     }
-                    if (result.feedback != null) {
+                    if (!result.feedback.isNullOrBlank()) {
                         appendLine("Feedback: ${result.feedback}")
                     }
                     appendLine("Request:\n${prettyPrintJson(result.request.rawRequestJson)}")
@@ -326,7 +326,7 @@ fun HistoryRow(
                                     )
                                     Spacer(Modifier.height(8.dp))
                                 }
-                                if (result.feedback != null) {
+                                if (!result.feedback.isNullOrBlank()) {
                                     Text(
                                         text = "Feedback:",
                                         fontSize = 10.sp,
