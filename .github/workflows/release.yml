@@ -113,7 +113,7 @@ jobs:
           done
 
           echo "Re-signing app bundle with entitlements..."
-          ENTITLEMENTS=$(find "$(pwd)/composeApp/build/compose" -name "default-entitlements.plist" -type f | head -1)
+          ENTITLEMENTS=$(find "$(pwd)/composeApp/build/compose" -type f -name "default-entitlements.plist" -print -quit)
           if [ -n "$ENTITLEMENTS" ]; then
             echo "  Using entitlements: $ENTITLEMENTS"
             codesign --force --options runtime --timestamp \
