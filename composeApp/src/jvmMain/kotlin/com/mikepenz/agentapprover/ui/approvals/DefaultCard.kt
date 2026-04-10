@@ -71,6 +71,7 @@ fun DefaultCard(
     onDeny: (String) -> Unit,
     onAlwaysAllow: () -> Unit = {},
     onUserInteraction: () -> Unit = {},
+    prominentAlwaysAllow: Boolean = false,
     onPopOut: ((title: String, content: String) -> Unit)? = null,
     popOutContent: String = "",
     content: @Composable () -> Unit,
@@ -151,55 +152,83 @@ fun DefaultCard(
                     Text("Deny")
                 }
 
-                // Split button: Approve + dropdown arrow for "Always allow"
-                var showMenu by remember { mutableStateOf(false) }
-                val tooltipText = remember(request) { formatPermissionTooltip(request.hookInput.permissionSuggestions) }
-                Row(modifier = Modifier.weight(1f)) {
+                if (prominentAlwaysAllow) {
+                    // Prominent mode: three equal buttons — Deny | Always | Approve
+                    val tooltipText = remember(request) { formatPermissionTooltip(request.hookInput.permissionSuggestions) }
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text(tooltipText)
+                            }
+                        },
+                        state = rememberTooltipState(isPersistent = true),
+                    ) {
+                        OutlinedButton(
+                            onClick = { onAlwaysAllow() },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00ACC1)),
+                        ) {
+                            Text("Always", fontSize = 11.sp)
+                        }
+                    }
                     Button(
                         onClick = { onApprove(null) },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50, topEndPercent = 0, bottomEndPercent = 0),
-                        contentPadding = PaddingValues(horizontal = 8.dp),
                     ) {
                         Text("Approve")
                     }
-                    Spacer(Modifier.width(1.dp))
-                    Box {
+                } else {
+                    // Split button: Approve + dropdown arrow for "Always allow"
+                    var showMenu by remember { mutableStateOf(false) }
+                    val tooltipText = remember(request) { formatPermissionTooltip(request.hookInput.permissionSuggestions) }
+                    Row(modifier = Modifier.weight(1f)) {
                         Button(
-                            onClick = {
-                                showMenu = true
-                                onUserInteraction()
-                            },
-                            modifier = Modifier.width(40.dp),
-                            shape = RoundedCornerShape(topStartPercent = 0, bottomStartPercent = 0, topEndPercent = 50, bottomEndPercent = 50),
-                            contentPadding = PaddingValues(0.dp),
+                            onClick = { onApprove(null) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50, topEndPercent = 0, bottomEndPercent = 0),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
-                            Icon(
-                                imageVector = FontAwesomeCaretDown,
-                                contentDescription = "More options",
-                                modifier = Modifier.size(12.dp),
-                            )
+                            Text("Approve")
                         }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                        ) {
-                            TooltipBox(
-                                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
-                                tooltip = {
-                                    PlainTooltip {
-                                        Text(tooltipText)
-                                    }
+                        Spacer(Modifier.width(1.dp))
+                        Box {
+                            Button(
+                                onClick = {
+                                    showMenu = true
+                                    onUserInteraction()
                                 },
-                                state = rememberTooltipState(isPersistent = true),
+                                modifier = Modifier.width(40.dp),
+                                shape = RoundedCornerShape(topStartPercent = 0, bottomStartPercent = 0, topEndPercent = 50, bottomEndPercent = 50),
+                                contentPadding = PaddingValues(0.dp),
                             ) {
-                                DropdownMenuItem(
-                                    text = { Text("Always allow") },
-                                    onClick = {
-                                        showMenu = false
-                                        onAlwaysAllow()
-                                    },
+                                Icon(
+                                    imageVector = FontAwesomeCaretDown,
+                                    contentDescription = "More options",
+                                    modifier = Modifier.size(12.dp),
                                 )
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false },
+                            ) {
+                                TooltipBox(
+                                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+                                    tooltip = {
+                                        PlainTooltip {
+                                            Text(tooltipText)
+                                        }
+                                    },
+                                    state = rememberTooltipState(isPersistent = true),
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Always allow") },
+                                        onClick = {
+                                            showMenu = false
+                                            onAlwaysAllow()
+                                        },
+                                    )
+                                }
                             }
                         }
                     }

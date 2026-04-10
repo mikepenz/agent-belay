@@ -27,6 +27,7 @@ data class AppSettings(
     val autoDenyRisk5: Boolean = false,
     val awayMode: Boolean = false,
     val newestApprovalFirst: Boolean = false,
+    val prominentAlwaysAllow: Boolean = false,
     val windowX: Int? = null,
     val windowY: Int? = null,
     val windowWidth: Int? = null,
