@@ -85,16 +85,21 @@ jobs:
 
           echo "Signing native libraries inside JARs..."
           find "$APP_DIR/Contents/app" -name "*.jar" | while read -r jar; do
-            if jar tf "$jar" | grep -qE '\.(dylib|jnilib)$'; then
+            JAR_LIBS=$(jar tf "$jar" | grep -E '\.(dylib|jnilib)$' || true)
+            if [ -n "$JAR_LIBS" ]; then
               echo "  Processing: $(basename "$jar")"
               WORK=$(mktemp -d)
               pushd "$WORK" > /dev/null
-              jar xf "$jar"
-              find . -type f \( -name "*.dylib" -o -name "*.jnilib" \) | while read -r lib; do
+              printf '%s\n' "$JAR_LIBS" | while read -r lib; do
+                [ -n "$lib" ] || continue
+                jar xf "$jar" "$lib"
                 echo "    Signing: $lib"
                 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$lib"
               done
-              jar cf "$jar" .
+              printf '%s\n' "$JAR_LIBS" | while read -r lib; do
+                [ -n "$lib" ] || continue
+                jar uf "$jar" "$lib"
+              done
               popd > /dev/null
               rm -rf "$WORK"
             fi
@@ -108,6 +113,9 @@ jobs:
 
           echo "Re-signing app bundle..."
           codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$APP_DIR"
+
+          echo "Verifying app bundle signature..."
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 
       - name: Package DMG
         env:
