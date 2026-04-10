@@ -67,6 +67,17 @@ Gradle dependency verification is enabled via `gradle/verification-metadata.xml`
 
 Commit the updated `gradle/verification-metadata.xml` alongside dependency changes. Platform-specific artifacts (Compose Desktop, Skiko) and CI-injected dependencies are covered by `<trusted-artifacts>` rules.
 
+### Nucleus Native Binary Audit (April 2026)
+
+Nucleus (`io.github.kdroidfilter:nucleus.*`) ships 14 pre-compiled native binaries (.dylib/.so/.dll) across three JARs. A security audit was performed on v1.9.0 with the following findings:
+
+- **Source**: Open-source (MIT), single maintainer (Elie Gambache / `kdroidFilter`), ~173 stars, created Feb 2026.
+- **Build pipeline**: Natives are compiled from source in GitHub Actions CI (`build-natives.yaml`), not committed to the repo. Standard `clang`/`gcc` invocations.
+- **Binary analysis**: All binaries are small (5–74 KB), contain only expected symbols (Cocoa/AppKit, X11, D-Bus), no network calls, no exec/system, no crypto.
+- **Verification**: SHA-256 checksums pinned in `verification-metadata.xml`.
+
+**When bumping the Nucleus version**: Re-audit the native source code in the [Nucleus repo](https://github.com/kdroidFilter/Nucleus) for changes to `.m`, `.c`, or build scripts. Check that the CI pipeline (`build-natives.yaml`) still compiles from source without injecting additional binaries. Run `strings` on the new `.dylib`/`.so` files to verify no suspicious additions (network URLs, exec calls, credential access). This is necessary because Nucleus is a young, single-maintainer project without reproducible build attestation.
+
 ## Key Technical Details
 
 - **Kotlin 2.3.20**, **Compose Multiplatform 1.10.0**, **Ktor 3.1.3**
