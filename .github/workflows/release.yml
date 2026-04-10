@@ -324,54 +324,46 @@ jobs:
         id: body
         env:
           CHANGELOG: ${{ needs.changelog.outputs.changelog }}
+          REPO: ${{ github.repository }}
         run: |
-          REPO="${GITHUB_REPOSITORY}"
-
           printf '%s\n' "$CHANGELOG" > release-body.md
-
-          cat >> release-body.md << 'STATIC_EOF'
-
----
-
-## Verify your download
-
-### SHA-256 Checksums
-
-```
-STATIC_EOF
+          printf '\n---\n\n' >> release-body.md
+          printf '## Verify your download\n\n' >> release-body.md
+          printf '### SHA-256 Checksums\n\n' >> release-body.md
+          printf '```\n' >> release-body.md
           cat release-assets/CHECKSUMS-SHA256.txt >> release-body.md
-          cat >> release-body.md << REPO_EOF
+          printf '```\n\n' >> release-body.md
+          cat >> release-body.md << 'EOF'
+          <details>
+          <summary>How to verify</summary>
 
-\`\`\`
+          Download `CHECKSUMS-SHA256.txt` and the artifact, then run:
 
-<details>
-<summary>How to verify</summary>
+          **macOS / Linux:**
+          ```bash
+          sha256sum -c CHECKSUMS-SHA256.txt
+          # or on macOS:
+          shasum -a 256 -c CHECKSUMS-SHA256.txt
+          ```
 
-Download \`CHECKSUMS-SHA256.txt\` and the artifact, then run:
+          **Windows (PowerShell):**
+          ```powershell
+          (Get-FileHash <file> -Algorithm SHA256).Hash
+          # Compare the output with the hash listed above
+          ```
 
-**macOS / Linux:**
-\`\`\`bash
-sha256sum -c CHECKSUMS-SHA256.txt
-# or on macOS:
-shasum -a 256 -c CHECKSUMS-SHA256.txt
-\`\`\`
+          ### Artifact Attestations
 
-**Windows (PowerShell):**
-\`\`\`powershell
-(Get-FileHash <file> -Algorithm SHA256).Hash
-# Compare the output with the hash listed above
-\`\`\`
+          All release artifacts include [SLSA build provenance](https://slsa.dev) attestations. Verify with the [GitHub CLI](https://cli.github.com/):
 
-### Artifact Attestations
+          ```bash
+          EOF
+          printf 'gh attestation verify <file> --repo %s\n' "$REPO" >> release-body.md
+          cat >> release-body.md << 'EOF'
+          ```
 
-All release artifacts include [SLSA build provenance](https://slsa.dev) attestations. Verify with the [GitHub CLI](https://cli.github.com/):
-
-\`\`\`bash
-gh attestation verify <file> --repo ${REPO}
-\`\`\`
-
-</details>
-REPO_EOF
+          </details>
+          EOF
 
       - name: Create GitHub Release
         uses: mikepenz/action-gh-release@5c3d16ffbdc3e0fbfe2c8a69a448798f5d9b30c2 # v2.0.0
