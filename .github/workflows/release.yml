@@ -71,20 +71,23 @@ jobs:
           rm -f "$CERTIFICATE_PATH"
 
       - name: Build distributable app
-        env:
-          MACOS_SIGN: 'true'
-          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
         run: ./gradlew :composeApp:createDistributable --stacktrace
 
-      - name: Sign native libraries inside JARs
+      - name: Sign app bundle (inside-out)
         env:
           MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
         run: |
           set -euo pipefail
           APP_DIR="$(pwd)/composeApp/build/compose/binaries/main/app/AgentApprover.app"
           IDENTITY="$MACOS_SIGNING_IDENTITY"
+          ENTITLEMENTS=$(find "$(pwd)/composeApp/build/compose" -type f -name "default-entitlements.plist" -print -quit)
+          if [ -z "$ENTITLEMENTS" ]; then
+            echo "ERROR: No entitlements file found."
+            exit 1
+          fi
 
-          echo "Signing native libraries inside JARs..."
+          # [1/7] Sign native libraries inside JARs
+          echo "[1/7] Signing native libraries inside JARs..."
           find "$APP_DIR/Contents/app" -name "*.jar" | while read -r jar; do
             JAR_LIBS=$(jar tf "$jar" | grep -E '\.(dylib|jnilib)$' || true)
             if [ -n "$JAR_LIBS" ]; then
@@ -106,18 +109,45 @@ jobs:
             fi
           done
 
-          echo "Signing loose native libraries..."
-          find "$APP_DIR" -type f \( -name "*.dylib" -o -name "*.jnilib" \) | while read -r lib; do
-            echo "  Signing: $lib"
+          # [2/7] Sign loose .dylib files
+          echo "[2/7] Signing loose .dylib files..."
+          find "$APP_DIR" -name "*.dylib" -type f | while read -r lib; do
+            echo "  Signing: ${lib#$APP_DIR/}"
             codesign --force --options runtime --timestamp --sign "$IDENTITY" "$lib"
           done
 
-          echo "Re-signing app bundle with entitlements..."
-          ENTITLEMENTS=$(find "$(pwd)/composeApp/build/compose" -type f -name "default-entitlements.plist" -print -quit)
-          if [ -z "$ENTITLEMENTS" ]; then
-            echo "ERROR: No entitlements file found. The app requires JVM entitlements (allow-jit, disable-library-validation) to function."
-            exit 1
+          # [3/7] Sign loose .jnilib files
+          echo "[3/7] Signing loose .jnilib files..."
+          find "$APP_DIR" -name "*.jnilib" -type f | while read -r lib; do
+            echo "  Signing: ${lib#$APP_DIR/}"
+            codesign --force --options runtime --timestamp --sign "$IDENTITY" "$lib"
+          done
+
+          # [4/7] Sign main executables
+          echo "[4/7] Signing main executables..."
+          find "$APP_DIR/Contents/MacOS" -type f | while read -r exe; do
+            echo "  Signing: ${exe#$APP_DIR/}"
+            codesign --force --options runtime --timestamp \
+              --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$exe"
+          done
+
+          # [5/7] Sign runtime executables
+          echo "[5/7] Signing runtime executables..."
+          if [ -d "$APP_DIR/Contents/runtime/Contents/Home/bin" ]; then
+            find "$APP_DIR/Contents/runtime/Contents/Home/bin" -type f | while read -r exe; do
+              echo "  Signing: ${exe#$APP_DIR/}"
+              codesign --force --options runtime --timestamp --sign "$IDENTITY" "$exe"
+            done
           fi
+
+          # [6/7] Sign runtime bundle
+          echo "[6/7] Signing runtime bundle..."
+          if [ -d "$APP_DIR/Contents/runtime" ]; then
+            codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP_DIR/Contents/runtime"
+          fi
+
+          # [7/7] Sign the .app bundle
+          echo "[7/7] Signing app bundle with entitlements..."
           echo "  Using entitlements: $ENTITLEMENTS"
           codesign --force --options runtime --timestamp \
             --entitlements "$ENTITLEMENTS" \

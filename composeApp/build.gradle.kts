@@ -156,15 +156,6 @@ nucleus.application {
                     <string>banner</string>
                 """.trimIndent()
             }
-            signing {
-                sign.set(providers.environmentVariable("MACOS_SIGN").map { it.toBoolean() }.orElse(false))
-                identity.set(providers.environmentVariable("MACOS_SIGNING_IDENTITY").orElse(""))
-            }
-            notarization {
-                appleID.set(providers.environmentVariable("NOTARIZATION_APPLE_ID"))
-                password.set(providers.environmentVariable("NOTARIZATION_PASSWORD"))
-                teamID.set(providers.environmentVariable("NOTARIZATION_TEAM_ID"))
-            }
         }
         windows {
             iconFile.set(project.file("../icons/app.ico"))
