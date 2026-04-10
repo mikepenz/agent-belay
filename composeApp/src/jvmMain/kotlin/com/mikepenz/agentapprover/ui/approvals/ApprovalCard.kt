@@ -82,6 +82,7 @@ fun ApprovalCard(
     onCancelAutoDeny: () -> Unit,
     onUserInteraction: () -> Unit = {},
     awayMode: Boolean = false,
+    prominentAlwaysAllow: Boolean = false,
     now: Instant = Clock.System.now(),
     onPopOut: ((title: String, content: String) -> Unit)? = null,
 ) {
@@ -210,6 +211,7 @@ fun ApprovalCard(
                                 onDeny = onDeny,
                                 onAlwaysAllow = onAlwaysAllow,
                                 onUserInteraction = onUserInteraction,
+                                prominentAlwaysAllow = prominentAlwaysAllow,
                                 onPopOut = onPopOut,
                                 popOutContent = popOut,
                             ) {

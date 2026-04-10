@@ -121,6 +121,7 @@ fun ApprovalsTab(
                     onCancelAutoDeny = { onCancelAutoDeny(request.id) },
                     onUserInteraction = { onUserInteraction(request.id) },
                     awayMode = settings.awayMode,
+                    prominentAlwaysAllow = settings.prominentAlwaysAllow,
                     now = now,
                     onPopOut = onPopOut,
                 )

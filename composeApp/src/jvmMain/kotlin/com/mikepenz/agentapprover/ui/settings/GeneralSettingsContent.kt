@@ -208,6 +208,12 @@ fun GeneralSettingsContent(
             onCheckedChange = { onSettingsChange(settings.copy(awayMode = it)) },
         )
 
+        SettingsSwitch(
+            label = "Prominent always-allow button",
+            checked = settings.prominentAlwaysAllow,
+            onCheckedChange = { onSettingsChange(settings.copy(prominentAlwaysAllow = it)) },
+        )
+
         // -- Server Section --
         SectionHeader("Server")
 
