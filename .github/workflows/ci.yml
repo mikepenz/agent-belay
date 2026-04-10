@@ -1,34 +1,38 @@
 name: CI
 
 on:
-  push:
-    tags:
-      - '*'
   pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
 
 jobs:
   build:
-    name: Build
+    name: Build & Test
     runs-on: macos-latest
-    permissions:
-      contents: write
-      checks: write
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 100
+          persist-credentials: false
 
-      - uses: actions/setup-java@v5
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: 'zulu'
           java-version: '21'
 
-      - name: Validate gradle wrapper
-        uses: gradle/actions/wrapper-validation@v6
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
 
       - name: Build
         run: ./gradlew :composeApp:jvmJar --stacktrace
@@ -37,36 +41,11 @@ jobs:
         run: ./gradlew :composeApp:jvmTest --stacktrace
 
       - name: Publish Test Report
-        if: (failure() || success()) && github.event_name == 'pull_request'
-        uses: mikepenz/action-junit-report@v6
+        if: failure() || success()
+        uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6.4.0
         with:
           report_paths: '**/build/test-results/**/TEST-*.xml'
           github_token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_failure: true
           annotate_only: true
           detailed_summary: true
-
-      - name: Build Changelog
-        id: github_release
-        uses: mikepenz/release-changelog-builder-action@v6
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          ignorePreReleases: ${{ !contains(github.ref, '-') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Collect artifacts
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          mkdir -p artifacts
-          cp composeApp/build/libs/composeApp-jvm.jar artifacts/
-
-      - name: Release
-        uses: mikepenz/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          body: ${{steps.github_release.outputs.changelog}}
-          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-b') || contains(github.ref, '-a') }}
-          files: artifacts/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,383 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ──────────────────────────────────────────────────────
+  # Build macOS DMGs (arm64 + x64 via matrix)
+  # ──────────────────────────────────────────────────────
+  build-macos:
+    name: Build macOS (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            arch: arm64
+          - runner: macos-13
+            arch: x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Import signing certificate
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode -o "$CERTIFICATE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERTIFICATE_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          rm -f "$CERTIFICATE_PATH"
+
+      - name: Build and sign DMG
+        env:
+          MACOS_SIGN: 'true'
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: ./gradlew :composeApp:packageDmg --stacktrace
+
+      - name: Notarize DMG
+        env:
+          NOTARIZATION_APPLE_ID: ${{ secrets.NOTARIZATION_APPLE_ID }}
+          NOTARIZATION_PASSWORD: ${{ secrets.NOTARIZATION_PASSWORD }}
+          NOTARIZATION_TEAM_ID: ${{ secrets.NOTARIZATION_TEAM_ID }}
+        run: ./gradlew :composeApp:notarizeDmg --stacktrace
+
+      - name: Collect artifact
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p artifacts
+          cp composeApp/build/compose/binaries/main/dmg/*.dmg \
+            "artifacts/AgentApprover-${VERSION}-macos-${{ matrix.arch }}.dmg"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: macos-${{ matrix.arch }}-dmg
+          path: artifacts/*.dmg
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+  # ──────────────────────────────────────────────────────
+  # Build Windows MSI (with opt-in signing)
+  # ──────────────────────────────────────────────────────
+  build-windows:
+    name: Build Windows MSI
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      HAS_WINDOWS_CERT: ${{ secrets.WINDOWS_PFX_CERTIFICATE != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Build MSI
+        run: ./gradlew :composeApp:packageMsi --stacktrace
+
+      - name: Sign MSI
+        if: env.HAS_WINDOWS_CERT == 'true'
+        env:
+          WINDOWS_PFX_CERTIFICATE: ${{ secrets.WINDOWS_PFX_CERTIFICATE }}
+          WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+        shell: powershell
+        run: |
+          $certBytes = [Convert]::FromBase64String($env:WINDOWS_PFX_CERTIFICATE)
+          $certPath = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($certPath, $certBytes)
+
+          $msi = Get-ChildItem -Path "composeApp\build\compose\binaries\main\msi\*.msi" | Select-Object -First 1
+          if (-not $msi) { throw "No MSI found" }
+
+          # Find signtool
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found" }
+
+          & $signtool.FullName sign /f $certPath /p $env:WINDOWS_PFX_PASSWORD `
+            /fd SHA256 /tr https://timestamp.digicert.com /td SHA256 $msi.FullName
+
+          Remove-Item -Force $certPath -ErrorAction SilentlyContinue
+
+      - name: Collect artifact
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p artifacts
+          cp composeApp/build/compose/binaries/main/msi/*.msi \
+            "artifacts/AgentApprover-${VERSION}-windows-x64.msi"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: windows-msi
+          path: artifacts/*.msi
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Cleanup certificate
+        if: always()
+        shell: powershell
+        run: Remove-Item -Force (Join-Path $env:RUNNER_TEMP "cert.pfx") -ErrorAction SilentlyContinue
+
+  # ──────────────────────────────────────────────────────
+  # Build Linux DEB + JAR
+  # ──────────────────────────────────────────────────────
+  build-linux:
+    name: Build Linux DEB
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+
+      - name: Install packaging dependencies
+        run: sudo apt-get update && sudo apt-get install -y fakeroot
+
+      - name: Build DEB and JAR
+        run: ./gradlew :composeApp:packageDeb :composeApp:jvmJar --stacktrace
+
+      - name: Collect artifacts
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p artifacts
+          cp composeApp/build/compose/binaries/main/deb/*.deb \
+            "artifacts/AgentApprover-${VERSION}-linux-amd64.deb"
+          cp composeApp/build/libs/composeApp-jvm.jar \
+            "artifacts/AgentApprover-${VERSION}.jar"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: linux-packages
+          path: artifacts/*
+          retention-days: 1
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────
+  # Build changelog
+  # ──────────────────────────────────────────────────────
+  changelog:
+    name: Build Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build Changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@2cb9befdbc05f65b8354cc9873cd506509bd0782 # v6.2.0
+        with:
+          ignorePreReleases: ${{ !contains(github.ref, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ──────────────────────────────────────────────────────
+  # Generate SHA-256 checksums
+  # ──────────────────────────────────────────────────────
+  checksums:
+    name: Generate Checksums
+    runs-on: ubuntu-latest
+    needs: [build-macos, build-windows, build-linux]
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          path: all-artifacts
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        working-directory: all-artifacts
+        run: sha256sum * | tee CHECKSUMS-SHA256.txt
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: checksums
+          path: all-artifacts/CHECKSUMS-SHA256.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────
+  # Artifact attestations (SLSA provenance)
+  # ──────────────────────────────────────────────────────
+  attest:
+    name: Attest Artifacts
+    runs-on: ubuntu-latest
+    needs: [checksums]
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          path: all-artifacts
+          merge-multiple: true
+
+      - name: Attest build artifacts
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: |
+            all-artifacts/*.dmg
+            all-artifacts/*.msi
+            all-artifacts/*.deb
+            all-artifacts/*.jar
+            all-artifacts/CHECKSUMS-SHA256.txt
+
+  # ──────────────────────────────────────────────────────
+  # Create GitHub Release
+  # ──────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [attest, changelog]
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Build release body
+        id: body
+        env:
+          CHANGELOG: ${{ needs.changelog.outputs.changelog }}
+        run: |
+          REPO="${GITHUB_REPOSITORY}"
+
+          printf '%s\n' "$CHANGELOG" > release-body.md
+
+          cat >> release-body.md << 'STATIC_EOF'
+
+---
+
+## Verify your download
+
+### SHA-256 Checksums
+
+```
+STATIC_EOF
+          cat release-assets/CHECKSUMS-SHA256.txt >> release-body.md
+          cat >> release-body.md << REPO_EOF
+
+\`\`\`
+
+<details>
+<summary>How to verify</summary>
+
+Download \`CHECKSUMS-SHA256.txt\` and the artifact, then run:
+
+**macOS / Linux:**
+\`\`\`bash
+sha256sum -c CHECKSUMS-SHA256.txt
+# or on macOS:
+shasum -a 256 -c CHECKSUMS-SHA256.txt
+\`\`\`
+
+**Windows (PowerShell):**
+\`\`\`powershell
+(Get-FileHash <file> -Algorithm SHA256).Hash
+# Compare the output with the hash listed above
+\`\`\`
+
+### Artifact Attestations
+
+All release artifacts include [SLSA build provenance](https://slsa.dev) attestations. Verify with the [GitHub CLI](https://cli.github.com/):
+
+\`\`\`bash
+gh attestation verify <file> --repo ${REPO}
+\`\`\`
+
+</details>
+REPO_EOF
+
+      - name: Create GitHub Release
+        uses: mikepenz/action-gh-release@5c3d16ffbdc3e0fbfe2c8a69a448798f5d9b30c2 # v2.0.0
+        with:
+          body-path: release-body.md
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-b') || contains(github.ref, '-a') }}
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
