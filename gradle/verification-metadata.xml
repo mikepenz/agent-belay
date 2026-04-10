@@ -3,6 +3,11 @@
    <configuration>
       <verify-metadata>true</verify-metadata>
       <verify-signatures>false</verify-signatures>
+      <trusted-artifacts>
+         <!-- Artifacts injected by gradle/actions/setup-gradle (Develocity init script) -->
+         <trust group="org.junit" name="junit-bom" regex="true"/>
+         <trust group="org.jetbrains.kotlinx" name="kotlinx-coroutines-bom" regex="true"/>
+      </trusted-artifacts>
    </configuration>
    <components>
       <component group="androidx.annotation" name="annotation" version="1.9.1">
