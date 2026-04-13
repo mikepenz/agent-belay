@@ -44,7 +44,7 @@ class DisconnectDetectionTest {
             onNewApproval = {},
         )
         port = freePort()
-        server.start(port)
+        server.start(port = port, host = "127.0.0.1")
         // Give Netty a moment to bind
         Thread.sleep(200)
     }

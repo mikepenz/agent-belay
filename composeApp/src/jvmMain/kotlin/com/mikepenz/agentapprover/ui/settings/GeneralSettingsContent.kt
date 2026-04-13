@@ -223,6 +223,35 @@ fun GeneralSettingsContent(
             onValueChange = { it.toIntOrNull()?.let { port -> onSettingsChange(settings.copy(serverPort = port)) } },
         )
 
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Bind address", style = MaterialTheme.typography.bodyMedium)
+            val hostOptions = listOf(
+                "127.0.0.1" to "Loopback",
+                "0.0.0.0" to "All interfaces",
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                hostOptions.forEachIndexed { index, (host, label) ->
+                    SegmentedButton(
+                        selected = settings.serverHost == host,
+                        onClick = { onSettingsChange(settings.copy(serverHost = host)) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = hostOptions.size),
+                    ) {
+                        Text(label, fontSize = 12.sp)
+                    }
+                }
+            }
+            Text(
+                "\"All interfaces\" exposes the approval server to your local network. " +
+                    "There is currently no authentication — only enable on trusted networks. " +
+                    "Restart the app to apply.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         SettingsTextField(
             label = "Default timeout (seconds)",
             value = settings.defaultTimeoutSeconds.toString(),

@@ -41,4 +41,30 @@ class SettingsStorageTest {
         val loaded = storage.load()
         assertEquals(true, loaded.prominentAlwaysAllow)
     }
+
+    @Test
+    fun `serverHost defaults to loopback`() {
+        assertEquals("127.0.0.1", AppSettings().serverHost)
+    }
+
+    @Test
+    fun `save and reload preserves serverHost`() {
+        val dir = "/tmp/test-settings-${System.currentTimeMillis()}"
+        val storage = SettingsStorage(dir)
+        val custom = AppSettings(serverHost = "0.0.0.0")
+        storage.save(custom)
+        val loaded = storage.load()
+        assertEquals("0.0.0.0", loaded.serverHost)
+    }
+
+    @Test
+    fun `load defaults serverHost when missing from legacy file`() {
+        val dir = "/tmp/test-settings-${System.currentTimeMillis()}"
+        java.io.File(dir).mkdirs()
+        // Legacy settings file without the serverHost field.
+        java.io.File(dir, "settings.json").writeText("""{"serverPort":19532}""")
+        val storage = SettingsStorage(dir)
+        val loaded = storage.load()
+        assertEquals("127.0.0.1", loaded.serverHost)
+    }
 }

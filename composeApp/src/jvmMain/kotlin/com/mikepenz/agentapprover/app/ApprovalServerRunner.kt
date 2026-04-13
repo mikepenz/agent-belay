@@ -48,7 +48,8 @@ class ApprovalServerRunner(
         )
         server = newServer
         return try {
-            newServer.start(stateManager.state.value.settings.serverPort)
+            val settings = stateManager.state.value.settings
+            newServer.start(port = settings.serverPort, host = settings.serverHost)
             StartResult.Ok
         } catch (e: BindException) {
             StartResult.PortInUse
