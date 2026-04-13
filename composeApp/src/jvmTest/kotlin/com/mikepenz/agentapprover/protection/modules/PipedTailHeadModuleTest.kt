@@ -71,6 +71,16 @@ class PipedTailHeadModuleTest {
         assertNull(evaluateRule("piped_tail", "cat data.json | jq '.items[]' | tail -10"))
     }
 
+    @Test
+    fun pipedTailAfterGrepFollowingSlowCommandAllowed() {
+        assertNull(evaluateRule("piped_tail", "./gradlew build 2>&1 | grep ERROR | tail -20"))
+    }
+
+    @Test
+    fun pipedHeadAfterGrepFollowingSlowCommandAllowed() {
+        assertNull(evaluateRule("piped_head", "curl -s https://example.com | grep foo | head -5"))
+    }
+
     // --- piped_tail: blocked (expensive commands) ---
 
     @Test
