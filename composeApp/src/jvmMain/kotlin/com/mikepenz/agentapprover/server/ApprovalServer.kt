@@ -24,14 +24,17 @@ class ApprovalServer(
     private val copilotAdapter = CopilotAdapter()
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
 
-    fun start(port: Int) {
+    fun start(port: Int, host: String) {
         val env = applicationEnvironment()
 
         server = embeddedServer(
             factory = Netty,
             environment = env,
             configure = {
-                connector { this.port = port }
+                connector {
+                    this.port = port
+                    this.host = host
+                }
                 responseWriteTimeoutSeconds = 0
             },
             module = {
@@ -58,7 +61,7 @@ class ApprovalServer(
             },
         ).start(wait = false)
 
-        logger.i { "Approval server started on port $port (write timeout: disabled)" }
+        logger.i { "Approval server started on $host:$port (write timeout: disabled)" }
     }
 
     fun stop() {
