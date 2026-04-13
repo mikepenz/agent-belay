@@ -99,7 +99,7 @@ object SoftwareInstallModule : ProtectionModule {
         override val id = "npx"
         override val name = "npx package execution"
         override val description = "Detects npx, which downloads and runs arbitrary npm packages."
-        private val pattern = Regex("""\bnpx\s""")
+        private val pattern = Regex("""\bnpx\b""")
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
             val cmd = CommandParser.bashCommand(hookInput) ?: return null
@@ -189,8 +189,10 @@ object SoftwareInstallModule : ProtectionModule {
     private object PacmanInstall : ProtectionRule {
         override val id = "pacman_install"
         override val name = "pacman -S"
-        override val description = "Detects pacman -S / pacman --sync."
-        private val pattern = Regex("""\bpacman\s+(-S\b|--sync\b)""")
+        override val description = "Detects pacman -S / -Syu / --sync (including combined short flags)."
+        // pacman's operation is the first capital letter after `-`; -S* = sync, so match any
+        // short-flag token whose first letter is S (e.g. -S, -Sy, -Syu, -Syyu, -Su).
+        private val pattern = Regex("""\bpacman\s+(-S[a-zA-Z]*\b|--sync\b)""")
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
             val cmd = CommandParser.bashCommand(hookInput) ?: return null

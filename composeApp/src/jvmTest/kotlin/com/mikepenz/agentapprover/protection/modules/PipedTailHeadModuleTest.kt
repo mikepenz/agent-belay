@@ -81,6 +81,14 @@ class PipedTailHeadModuleTest {
         assertNull(evaluateRule("piped_head", "curl -s https://example.com | grep foo | head -5"))
     }
 
+    @Test
+    fun pipedTailWithGrepEarlierButSlowLastSegmentBlocked() {
+        // grep appears earlier, but the segment directly feeding tail is a slow command.
+        assertNotNull(
+            evaluateRule("piped_tail", "grep foo big.log | curl https://example.com | tail -5")
+        )
+    }
+
     // --- piped_tail: blocked (expensive commands) ---
 
     @Test

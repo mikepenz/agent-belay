@@ -141,6 +141,11 @@ class SoftwareInstallModuleTest {
         assertNotNull(evaluateRule("npx", "npx --yes cowsay hello"))
     }
 
+    @Test
+    fun bareNpxBlocked() {
+        assertNotNull(evaluateRule("npx", "npx"))
+    }
+
     // --- pipx ---
 
     @Test
@@ -238,6 +243,21 @@ class SoftwareInstallModuleTest {
     @Test
     fun pacmanQueryAllowed() {
         assertNull(evaluateRule("pacman_install", "pacman -Q"))
+    }
+
+    @Test
+    fun pacmanSyuBlocked() {
+        assertNotNull(evaluateRule("pacman_install", "sudo pacman -Syu"))
+    }
+
+    @Test
+    fun pacmanSyBlocked() {
+        assertNotNull(evaluateRule("pacman_install", "sudo pacman -Sy neovim"))
+    }
+
+    @Test
+    fun pacmanQuerySearchAllowed() {
+        assertNull(evaluateRule("pacman_install", "pacman -Qs neovim"))
     }
 
     // --- snap ---

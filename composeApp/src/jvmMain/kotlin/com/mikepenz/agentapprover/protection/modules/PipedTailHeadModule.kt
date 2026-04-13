@@ -50,8 +50,9 @@ object PipedTailHeadModule : ProtectionModule {
     }
 
     /**
-     * Returns true if every command before the final tail/head is fast, OR if any preceding
-     * segment is a grep-family command (grep already limits output, so tail/head after is fine).
+     * Returns true if every command before the final tail/head is fast, OR if the segment
+     * immediately before the tail/head is a grep-family command (grep limits its own output,
+     * so tail/head directly after grep is fine regardless of upstream cost).
      */
     private fun allPipeSegmentsFast(fullCmd: String, pipeMatch: MatchResult): Boolean {
         val beforeFinalPipe = fullCmd.substring(0, pipeMatch.range.first)
@@ -65,7 +66,7 @@ object PipedTailHeadModule : ProtectionModule {
         val segments = singlePipePattern.split(pipelineStr)
         val commands = segments.map { segmentCommand(it) }
         if (commands.any { it == null }) return false
-        if (commands.any { it in grepCommands }) return true
+        if (commands.lastOrNull() in grepCommands) return true
         return commands.all { it in fastCommands }
     }
 

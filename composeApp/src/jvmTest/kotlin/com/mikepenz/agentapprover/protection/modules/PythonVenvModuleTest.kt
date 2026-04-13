@@ -71,6 +71,20 @@ class PythonVenvModuleTest {
         assertNull(evaluateRule("bare_python", ". .venv/bin/activate && python main.py"))
     }
 
+    @Test
+    fun pythonBeforeActivateBlocked() {
+        assertNotNull(
+            evaluateRule("bare_python", "python main.py && source .venv/bin/activate")
+        )
+    }
+
+    @Test
+    fun pipBeforeActivateBlocked() {
+        assertNotNull(
+            evaluateRule("bare_pip", "pip install requests && source .venv/bin/activate")
+        )
+    }
+
     // --- bare_pip ---
 
     @Test
