@@ -8,7 +8,7 @@ class SettingsStorageTest {
 
     @Test
     fun `load returns defaults when file missing`() {
-        val dir = "/tmp/test-settings-${System.currentTimeMillis()}"
+        val dir = "/tmp/test-settings-${java.util.UUID.randomUUID()}"
         val storage = SettingsStorage(dir)
         val settings = storage.load()
         assertEquals(AppSettings(), settings)
@@ -16,7 +16,7 @@ class SettingsStorageTest {
 
     @Test
     fun `save and reload preserves settings`() {
-        val dir = "/tmp/test-settings-${System.currentTimeMillis()}"
+        val dir = "/tmp/test-settings-${java.util.UUID.randomUUID()}"
         val storage = SettingsStorage(dir)
         val custom = AppSettings(
             serverPort = 9999,
@@ -34,7 +34,7 @@ class SettingsStorageTest {
 
     @Test
     fun `save and reload preserves prominentAlwaysAllow`() {
-        val dir = "/tmp/test-settings-${System.currentTimeMillis()}"
+        val dir = "/tmp/test-settings-${java.util.UUID.randomUUID()}"
         val storage = SettingsStorage(dir)
         val custom = AppSettings(prominentAlwaysAllow = true)
         storage.save(custom)
@@ -49,7 +49,7 @@ class SettingsStorageTest {
 
     @Test
     fun `save and reload preserves serverHost`() {
-        val dir = "/tmp/test-settings-${System.currentTimeMillis()}"
+        val dir = "/tmp/test-settings-${java.util.UUID.randomUUID()}"
         val storage = SettingsStorage(dir)
         val custom = AppSettings(serverHost = "0.0.0.0")
         storage.save(custom)
@@ -59,7 +59,7 @@ class SettingsStorageTest {
 
     @Test
     fun `load defaults serverHost when missing from legacy file`() {
-        val dir = "/tmp/test-settings-${System.currentTimeMillis()}"
+        val dir = "/tmp/test-settings-${java.util.UUID.randomUUID()}"
         java.io.File(dir).mkdirs()
         // Legacy settings file without the serverHost field.
         java.io.File(dir, "settings.json").writeText("""{"serverPort":19532}""")
