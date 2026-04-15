@@ -16,24 +16,24 @@ package com.mikepenz.agentapprover.hook
  */
 interface CopilotBridge {
     fun isRegistered(port: Int): Boolean
-    fun register(port: Int)
+    fun register(port: Int, failClosed: Boolean = false)
     fun unregister(port: Int)
 
     /** True iff the capability `sessionStart` hook is registered. */
     fun isCapabilityHookRegistered(port: Int): Boolean
-    fun registerCapabilityHook(port: Int)
+    fun registerCapabilityHook(port: Int, failClosed: Boolean = false)
     fun unregisterCapabilityHook(port: Int)
 }
 
 /** Production-only delegate to the [CopilotBridgeInstaller] object. */
 object DefaultCopilotBridge : CopilotBridge {
     override fun isRegistered(port: Int): Boolean = CopilotBridgeInstaller.isRegistered(port)
-    override fun register(port: Int) = CopilotBridgeInstaller.register(port)
+    override fun register(port: Int, failClosed: Boolean) = CopilotBridgeInstaller.register(port, failClosed)
     override fun unregister(port: Int) = CopilotBridgeInstaller.unregister(port)
     override fun isCapabilityHookRegistered(port: Int): Boolean =
         CopilotBridgeInstaller.isCapabilityHookRegistered(port)
-    override fun registerCapabilityHook(port: Int) =
-        CopilotBridgeInstaller.registerCapabilityHook(port)
+    override fun registerCapabilityHook(port: Int, failClosed: Boolean) =
+        CopilotBridgeInstaller.registerCapabilityHook(port, failClosed)
     override fun unregisterCapabilityHook(port: Int) =
         CopilotBridgeInstaller.unregisterCapabilityHook(port)
 }

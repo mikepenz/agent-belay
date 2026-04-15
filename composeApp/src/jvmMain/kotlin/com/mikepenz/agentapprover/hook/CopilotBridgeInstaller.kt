@@ -122,31 +122,57 @@ object CopilotBridgeInstaller {
      *    parsers tolerate trailing whitespace but Copilot's hook reader is
      *    undocumented and we have no need to add bytes the server didn't send.
      */
-    private fun buildScriptContent(endpoint: String, port: Int): String = """
-        #!/usr/bin/env bash
-        # Agent Approver bridge script for GitHub Copilot CLI
-        # Reads hook JSON from stdin, POSTs to Agent Approver, returns response.
-        # Fail-open: if server is unreachable, exits 0 so Copilot proceeds normally.
+    private fun buildScriptContent(endpoint: String, port: Int, failClosed: Boolean): String {
+        // When fail-closed, a non-zero exit signals "deny" to Copilot CLI for
+        // preToolUse; for permissionRequest an error exit is treated as a
+        // blocked action. We also emit a short stderr message so the user
+        // sees *why* their command was blocked rather than a silent failure.
+        val failureBranch = if (failClosed) {
+            """
+            if [ "${'$'}CURL_EXIT" -ne 0 ] || [ -z "${'$'}RESPONSE" ]; then
+                # Server unreachable — fail closed (Agent Approver setting)
+                echo "Agent Approver unreachable — blocking (fail-closed)" >&2
+                exit 1
+            fi
+            """.trimIndent()
+        } else {
+            """
+            if [ "${'$'}CURL_EXIT" -ne 0 ] || [ -z "${'$'}RESPONSE" ]; then
+                # Server unreachable — fail open
+                exit 0
+            fi
+            """.trimIndent()
+        }
 
-        set -uo pipefail
+        val headerComment = if (failClosed) {
+            "# Fail-closed: if server is unreachable, exits 1 so Copilot blocks the action."
+        } else {
+            "# Fail-open: if server is unreachable, exits 0 so Copilot proceeds normally."
+        }
 
-        URL="http://localhost:$port/$endpoint"
-        INPUT=${'$'}(cat)
+        return """
+            #!/usr/bin/env bash
+            # Agent Approver bridge script for GitHub Copilot CLI
+            # Reads hook JSON from stdin, POSTs to Agent Approver, returns response.
+            $headerComment
 
-        RESPONSE=${'$'}(printf '%s' "${'$'}INPUT" | curl -sS --max-time 300 \
-            -X POST \
-            -H "Content-Type: application/json" \
-            --data-binary @- \
-            "${'$'}URL" 2>/dev/null)
-        CURL_EXIT=${'$'}?
+            set -uo pipefail
 
-        if [ "${'$'}CURL_EXIT" -ne 0 ] || [ -z "${'$'}RESPONSE" ]; then
-            # Server unreachable — fail open
-            exit 0
-        fi
+            URL="http://localhost:$port/$endpoint"
+            INPUT=${'$'}(cat)
 
-        printf '%s' "${'$'}RESPONSE"
-    """.trimIndent()
+            RESPONSE=${'$'}(printf '%s' "${'$'}INPUT" | curl -sS --max-time 300 \
+                -X POST \
+                -H "Content-Type: application/json" \
+                --data-binary @- \
+                "${'$'}URL" 2>/dev/null)
+            CURL_EXIT=${'$'}?
+
+            $failureBranch
+
+            printf '%s' "${'$'}RESPONSE"
+        """.trimIndent()
+    }
 
     /**
      * True if the bridge scripts exist + are executable AND the user-scoped
@@ -185,15 +211,15 @@ object CopilotBridgeInstaller {
      * bridge script exists on disk, the rewritten hook file keeps the
      * `sessionStart` entry alongside the approval entries.
      */
-    fun register(port: Int) {
-        installScripts(port)
+    fun register(port: Int, failClosed: Boolean = false) {
+        installScripts(port, failClosed)
         val keepCapability = capabilityScriptFile().exists()
         if (keepCapability) {
             // Refresh the capability script so its baked-in port matches.
-            writeCapabilityScript(port)
+            writeCapabilityScript(port, failClosed)
         }
         writeHookFile(includeCapability = keepCapability)
-        logger.i { "Registered Copilot user-scoped hook for port $port" }
+        logger.i { "Registered Copilot user-scoped hook for port $port (failClosed=$failClosed)" }
     }
 
     /**
@@ -220,12 +246,12 @@ object CopilotBridgeInstaller {
      * entry to the hook file. The approval entries (if any) are preserved.
      * Idempotent.
      */
-    fun registerCapabilityHook(port: Int) {
-        writeCapabilityScript(port)
+    fun registerCapabilityHook(port: Int, failClosed: Boolean = false) {
+        writeCapabilityScript(port, failClosed)
         // Preserve existing approval hooks if their scripts are still on disk.
         val keepApproval = preToolUseScriptFile().exists() && permissionRequestScriptFile().exists()
         writeHookFile(includeApproval = keepApproval, includeCapability = true)
-        logger.i { "Registered Copilot capability hook for port $port" }
+        logger.i { "Registered Copilot capability hook for port $port (failClosed=$failClosed)" }
     }
 
     /**
@@ -305,26 +331,29 @@ object CopilotBridgeInstaller {
 
     // ----- internals -----
 
-    private fun installScripts(port: Int) {
+    private fun installScripts(port: Int, failClosed: Boolean) {
         val dir = scriptDir()
         dir.mkdirs()
 
         val pre = preToolUseScriptFile()
-        pre.writeText(buildScriptContent(PRE_TOOL_USE_ENDPOINT, port))
+        pre.writeText(buildScriptContent(PRE_TOOL_USE_ENDPOINT, port, failClosed))
         pre.setExecutable(true)
         logger.i { "Installed bridge script ${pre.absolutePath}" }
 
         val perm = permissionRequestScriptFile()
-        perm.writeText(buildScriptContent(PERMISSION_REQUEST_ENDPOINT, port))
+        perm.writeText(buildScriptContent(PERMISSION_REQUEST_ENDPOINT, port, failClosed))
         perm.setExecutable(true)
         logger.i { "Installed bridge script ${perm.absolutePath}" }
     }
 
-    private fun writeCapabilityScript(port: Int) {
+    private fun writeCapabilityScript(port: Int, failClosed: Boolean) {
         val dir = scriptDir()
         dir.mkdirs()
         val cap = capabilityScriptFile()
-        cap.writeText(buildScriptContent(CAPABILITY_ENDPOINT, port))
+        // Capability injection is additive context, not a gate — but we still
+        // honour the fail-closed flag for consistency across the three scripts
+        // so a single toggle reliably describes all three files' behaviour.
+        cap.writeText(buildScriptContent(CAPABILITY_ENDPOINT, port, failClosed))
         cap.setExecutable(true)
         logger.i { "Installed bridge script ${cap.absolutePath}" }
     }

@@ -13,6 +13,7 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val serverPort: Int = 19532,
     val serverHost: String = "127.0.0.1",
+    val copilotFailClosed: Boolean = false,
     val alwaysOnTop: Boolean = true,
     val defaultTimeoutSeconds: Int = 240,
     val startOnBoot: Boolean = false,

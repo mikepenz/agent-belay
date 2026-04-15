@@ -13,6 +13,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,6 +27,7 @@ fun IntegrationsSettingsContent(
     settings: AppSettings,
     isHookRegistered: Boolean,
     isCopilotRegistered: Boolean,
+    onSettingsChange: (AppSettings) -> Unit,
     onRegisterHook: () -> Unit,
     onUnregisterHook: () -> Unit,
     onRegisterCopilot: () -> Unit,
@@ -57,7 +59,38 @@ fun IntegrationsSettingsContent(
                 "(PreToolUse + PermissionRequest, requires Copilot CLI ≥ v1.0.21)",
             onRegister = onRegisterCopilot,
             onUnregister = onUnregisterCopilot,
-        )
+        ) {
+            CopilotFailClosedToggle(
+                failClosed = settings.copilotFailClosed,
+                onChange = { onSettingsChange(settings.copy(copilotFailClosed = it)) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CopilotFailClosedToggle(
+    failClosed: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Fail closed when unreachable", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                if (failClosed) {
+                    "Copilot blocks the action if Agent Approver isn't running."
+                } else {
+                    "Copilot proceeds normally if Agent Approver isn't running (default)."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = failClosed, onCheckedChange = onChange)
     }
 }
 
@@ -68,6 +101,7 @@ private fun IntegrationCard(
     description: String,
     onRegister: () -> Unit,
     onUnregister: () -> Unit,
+    extraContent: @Composable (() -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -86,6 +120,7 @@ private fun IntegrationCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            extraContent?.invoke()
             Button(
                 onClick = if (isRegistered) onUnregister else onRegister,
                 modifier = Modifier.fillMaxWidth(),
