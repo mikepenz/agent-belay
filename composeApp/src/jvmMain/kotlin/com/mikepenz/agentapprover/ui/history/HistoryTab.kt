@@ -4,11 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -34,35 +36,58 @@ import com.mikepenz.agentapprover.model.RiskAnalysis
 import com.mikepenz.agentapprover.model.Source
 import com.mikepenz.agentapprover.model.ToolType
 import com.mikepenz.agentapprover.ui.theme.AgentApproverTheme
+import com.mikepenz.agentapprover.ui.theme.sourceLabel
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.time.Duration.Companion.minutes
 
+/**
+ * Pure filter used by the History tab. Extracted as a top-level function so it
+ * can be unit-tested without standing up Compose.
+ *
+ * @param sourceFilter null = match all sources.
+ */
+internal fun filterHistory(
+    history: List<ApprovalResult>,
+    query: String,
+    typeFilter: String,
+    sourceFilter: Source?,
+): List<ApprovalResult> {
+    val q = query.trim().lowercase()
+    return history.filter { result ->
+        val typeMatch = when (typeFilter) {
+            "approvals" -> result.protectionModule == null
+            "protections" -> result.protectionModule != null
+            else -> true
+        }
+        val sourceMatch = sourceFilter == null || result.request.source == sourceFilter
+        val textMatch = q.isBlank() || result.request.hookInput.toolName.lowercase().contains(q) ||
+                result.request.hookInput.sessionId.lowercase().contains(q) ||
+                result.decision.name.lowercase().contains(q) ||
+                (result.riskAnalysis?.risk?.toString() == q) ||
+                (result.protectionModule?.lowercase()?.contains(q) == true) ||
+                (result.protectionRule?.lowercase()?.contains(q) == true)
+        typeMatch && sourceMatch && textMatch
+    }
+}
+
 @Composable
 fun HistoryTab(history: List<ApprovalResult>, onReplay: ((ApprovalResult) -> Unit)? = null) {
     var filterText by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf("all") }
+    var sourceFilter by remember { mutableStateOf<Source?>(null) }
     var expandedId by remember { mutableStateOf<String?>(null) }
 
     val filterOptions = listOf("all" to "All", "approvals" to "Approvals", "protections" to "Protections")
+    val sourceOptions: List<Pair<Source?, String>> = listOf(
+        null to "All",
+        Source.CLAUDE_CODE to sourceLabel(Source.CLAUDE_CODE),
+        Source.COPILOT to sourceLabel(Source.COPILOT),
+    )
 
-    val filtered = remember(history, filterText, filter) {
-        val query = filterText.trim().lowercase()
-        history.filter { result ->
-            val typeMatch = when (filter) {
-                "approvals" -> result.protectionModule == null
-                "protections" -> result.protectionModule != null
-                else -> true
-            }
-            val textMatch = query.isBlank() || result.request.hookInput.toolName.lowercase().contains(query) ||
-                    result.request.hookInput.sessionId.lowercase().contains(query) ||
-                    result.decision.name.lowercase().contains(query) ||
-                    (result.riskAnalysis?.risk?.toString() == query) ||
-                    (result.protectionModule?.lowercase()?.contains(query) == true) ||
-                    (result.protectionRule?.lowercase()?.contains(query) == true)
-            typeMatch && textMatch
-        }
+    val filtered = remember(history, filterText, filter, sourceFilter) {
+        filterHistory(history, filterText, filter, sourceFilter)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
@@ -77,6 +102,19 @@ fun HistoryTab(history: List<ApprovalResult>, onReplay: ((ApprovalResult) -> Uni
                 ) {
                     Text(label, fontSize = 12.sp)
                 }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            sourceOptions.forEach { (source, label) ->
+                FilterChip(
+                    selected = sourceFilter == source,
+                    onClick = { sourceFilter = source },
+                    label = { Text(label, fontSize = 11.sp) },
+                )
             }
         }
 
