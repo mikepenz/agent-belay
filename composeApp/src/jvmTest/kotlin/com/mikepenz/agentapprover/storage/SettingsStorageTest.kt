@@ -58,6 +58,33 @@ class SettingsStorageTest {
     }
 
     @Test
+    fun `verboseLogging defaults to false`() {
+        assertEquals(false, AppSettings().verboseLogging)
+    }
+
+    @Test
+    fun `load defaults verboseLogging when missing from legacy file`() {
+        val dir = "/tmp/test-settings-${java.util.UUID.randomUUID()}"
+        java.io.File(dir).mkdirs()
+        // Legacy settings file without verboseLogging — must still deserialize.
+        java.io.File(dir, "settings.json").writeText(
+            """{"serverPort":19532,"serverHost":"127.0.0.1","themeMode":"SYSTEM"}"""
+        )
+        val storage = SettingsStorage(dir)
+        val loaded = storage.load()
+        assertEquals(false, loaded.verboseLogging)
+        assertEquals(19532, loaded.serverPort)
+    }
+
+    @Test
+    fun `save and reload preserves verboseLogging`() {
+        val dir = "/tmp/test-settings-${java.util.UUID.randomUUID()}"
+        val storage = SettingsStorage(dir)
+        storage.save(AppSettings(verboseLogging = true))
+        assertEquals(true, storage.load().verboseLogging)
+    }
+
+    @Test
     fun `load defaults serverHost when missing from legacy file`() {
         val dir = "/tmp/test-settings-${java.util.UUID.randomUUID()}"
         java.io.File(dir).mkdirs()
