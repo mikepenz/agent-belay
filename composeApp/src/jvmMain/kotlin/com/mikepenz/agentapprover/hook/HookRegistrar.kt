@@ -231,9 +231,12 @@ object HookRegistrar {
     }
 
     /**
-     * Removes our `UserPromptSubmit` hook entry. Preserves any other entries
-     * under `UserPromptSubmit` that belong to other tools, and the file's
-     * other keys (env, other hook events) are left alone.
+     * Removes our capability hook def from any `UserPromptSubmit` entry.
+     * Operates at the inner hook-def level, not the entry level: if a user
+     * has merged our hook alongside another tool's into a single entry, the
+     * other tool's defs are preserved and only the entry is dropped when no
+     * hooks remain. Other hook events (PermissionRequest / PreToolUse / …)
+     * and top-level keys (env, etc.) are left alone.
      */
     fun unregisterCapabilityHook(port: Int) {
         val file = settingsFile()
@@ -250,14 +253,26 @@ object HookRegistrar {
         val upsUrl = userPromptSubmitUrl(port)
 
         val entries = existingHooks["UserPromptSubmit"]?.jsonArray ?: return
-        val filtered = entries.filter { entry ->
-            val innerHooks = entry.jsonObject["hooks"]?.jsonArray ?: return@filter true
-            val hasOurHook = innerHooks.any { h ->
+        val filtered = entries.mapNotNull { entry ->
+            val entryObject = entry.jsonObject
+            val innerHooks = entryObject["hooks"]?.jsonArray ?: return@mapNotNull entry
+            val remainingHooks = innerHooks.filterNot { h ->
                 val hObj = h.jsonObject
                 hObj["type"].toString().trim('"') == "http" &&
                     hObj["url"].toString().trim('"') == upsUrl
             }
-            !hasOurHook
+            if (remainingHooks.isEmpty()) {
+                null
+            } else if (remainingHooks.size == innerHooks.size) {
+                entry
+            } else {
+                buildJsonObject {
+                    entryObject.forEach { (key, value) ->
+                        if (key != "hooks") put(key, value)
+                    }
+                    put("hooks", Json.encodeToJsonElement(remainingHooks))
+                }
+            }
         }
 
         val updatedHooks = buildJsonObject {

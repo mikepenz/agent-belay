@@ -19,7 +19,7 @@ interface CopilotBridge {
     fun register(port: Int)
     fun unregister(port: Int)
 
-    /** True iff the capability `userPromptSubmitted` hook is registered. */
+    /** True iff the capability `sessionStart` hook is registered. */
     fun isCapabilityHookRegistered(port: Int): Boolean
     fun registerCapabilityHook(port: Int)
     fun unregisterCapabilityHook(port: Int)

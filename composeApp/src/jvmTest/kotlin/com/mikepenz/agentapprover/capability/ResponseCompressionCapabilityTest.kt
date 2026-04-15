@@ -69,13 +69,12 @@ class ResponseCompressionCapabilityTest {
     }
 
     @Test
-    fun `non-applicable events return empty injection`() {
-        // The enum only contains USER_PROMPT_SUBMIT today, but the guard
-        // must still short-circuit if a future event is added and this
-        // module hasn't opted in.
+    fun `userPromptSubmit returns a non-blank injection`() {
+        // The enum only contains USER_PROMPT_SUBMIT today, so this test
+        // verifies the one supported event always produces injection text.
         val text = ResponseCompressionCapability.contextInjection(
             settings = CapabilityModuleSettings(enabled = true),
-            event = HookEvent.USER_PROMPT_SUBMIT, // current single event — sanity check only
+            event = HookEvent.USER_PROMPT_SUBMIT,
         )
         assertFalse(text.isBlank())
     }

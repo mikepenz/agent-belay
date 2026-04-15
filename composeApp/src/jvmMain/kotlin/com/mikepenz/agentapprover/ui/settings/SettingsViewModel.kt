@@ -161,13 +161,14 @@ class SettingsViewModel(
     }
 
     /**
-     * Updates capability settings and, as a side effect, reconciles the
-     * `UserPromptSubmit` / `userPromptSubmitted` hook registrations — the
-     * hook is installed iff at least one capability is enabled.
+     * Updates capability settings and, as a side effect, reconciles each
+     * agent's capability hook registration — Claude Code's `UserPromptSubmit`
+     * entry and Copilot CLI's `sessionStart` entry. The capability hook is
+     * installed iff at least one capability is enabled.
      *
-     * The reconciliation only touches an agent's capability hook if that
-     * agent's main approval hook is already registered, to avoid writing
-     * into a user's config for an agent they haven't opted into.
+     * Reconciliation is unconditional: it updates both agents' capability
+     * hook entries based purely on capability state, independent of whether
+     * the main approval hooks are registered.
      */
     fun updateCapabilitySettings(capabilitySettings: CapabilitySettings) {
         viewModelScope.launch(writeDispatcher) {
