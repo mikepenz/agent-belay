@@ -70,6 +70,7 @@ fun SettingsTab(
                 settings = settings,
                 isHookRegistered = isHookRegistered,
                 isCopilotRegistered = isCopilotRegistered,
+                onSettingsChange = onSettingsChange,
                 onRegisterHook = onRegisterHook,
                 onUnregisterHook = onUnregisterHook,
                 onRegisterCopilot = onRegisterCopilot,

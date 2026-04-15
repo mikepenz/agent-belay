@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -149,7 +150,36 @@ class SettingsViewModel(
                 .map { it.settings.serverPort }
                 .distinctUntilChanged()
                 .collect { port ->
-                    reconcileCapabilityHooks(port, stateManager.state.value.settings.capabilitySettings)
+                    val settings = stateManager.state.value.settings
+                    reconcileCapabilityHooks(port, settings.capabilitySettings, settings.copilotFailClosed)
+                }
+        }
+
+        // Re-bake the Copilot bridge scripts whenever the fail-closed flag
+        // changes, but only for whichever of the two hook surfaces is
+        // currently installed. `drop(1)` skips the initial emission so
+        // startup doesn't trigger an unsolicited install.
+        //
+        // Two branches because capability hooks can be installed
+        // independently of the main approval hooks (see
+        // `reconcileCapabilityHooks`). The `else if` is safe — and required
+        // to avoid double-writing — because `copilotBridge.register()`
+        // already refreshes the capability script in place when it exists
+        // on disk, so when the main hook is registered a single call
+        // re-bakes all three scripts.
+        viewModelScope.launch(writeDispatcher) {
+            stateManager.state
+                .map { it.settings.copilotFailClosed }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { failClosed ->
+                    val port = stateManager.state.value.settings.serverPort
+                    if (copilotBridge.isRegistered(port)) {
+                        copilotBridge.register(port, failClosed)
+                        isCopilotRegistered.value = copilotBridge.isRegistered(port)
+                    } else if (copilotBridge.isCapabilityHookRegistered(port)) {
+                        copilotBridge.registerCapabilityHook(port, failClosed)
+                    }
                 }
         }
     }
@@ -181,7 +211,7 @@ class SettingsViewModel(
         viewModelScope.launch(writeDispatcher) {
             val current = stateManager.state.value.settings
             stateManager.updateSettings(current.copy(capabilitySettings = capabilitySettings))
-            reconcileCapabilityHooks(current.serverPort, capabilitySettings)
+            reconcileCapabilityHooks(current.serverPort, capabilitySettings, current.copilotFailClosed)
         }
     }
 
@@ -192,11 +222,11 @@ class SettingsViewModel(
      * approval hooks are independent features and the user may want one
      * without the other.
      */
-    private fun reconcileCapabilityHooks(port: Int, capSettings: CapabilitySettings) {
+    private fun reconcileCapabilityHooks(port: Int, capSettings: CapabilitySettings, copilotFailClosed: Boolean) {
         val anyEnabled = capSettings.modules.values.any { it.enabled }
         if (anyEnabled) {
             hookRegistry.registerCapabilityHook(port)
-            copilotBridge.registerCapabilityHook(port)
+            copilotBridge.registerCapabilityHook(port, copilotFailClosed)
         } else {
             hookRegistry.unregisterCapabilityHook(port)
             copilotBridge.unregisterCapabilityHook(port)
@@ -221,9 +251,9 @@ class SettingsViewModel(
 
     fun registerCopilot() {
         viewModelScope.launch(writeDispatcher) {
-            val port = stateManager.state.value.settings.serverPort
-            copilotBridge.register(port)
-            isCopilotRegistered.value = copilotBridge.isRegistered(port)
+            val settings = stateManager.state.value.settings
+            copilotBridge.register(settings.serverPort, settings.copilotFailClosed)
+            isCopilotRegistered.value = copilotBridge.isRegistered(settings.serverPort)
         }
     }
 

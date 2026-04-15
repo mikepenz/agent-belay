@@ -48,13 +48,15 @@ class SettingsViewModelTest {
         var registerCalls = 0
         var unregisterCalls = 0
         var isRegisteredCalls = 0
+        var lastRegisterFailClosed: Boolean? = null
 
         override fun isRegistered(port: Int): Boolean {
             isRegisteredCalls++
             return port in registeredPorts
         }
-        override fun register(port: Int) {
+        override fun register(port: Int, failClosed: Boolean) {
             registerCalls++
+            lastRegisterFailClosed = failClosed
             registeredPorts.add(port)
         }
         override fun unregister(port: Int) {
@@ -63,8 +65,12 @@ class SettingsViewModelTest {
         }
 
         val capabilityHookPorts: MutableSet<Int> = mutableSetOf()
+        var lastCapabilityFailClosed: Boolean? = null
         override fun isCapabilityHookRegistered(port: Int): Boolean = port in capabilityHookPorts
-        override fun registerCapabilityHook(port: Int) { capabilityHookPorts.add(port) }
+        override fun registerCapabilityHook(port: Int, failClosed: Boolean) {
+            lastCapabilityFailClosed = failClosed
+            capabilityHookPorts.add(port)
+        }
         override fun unregisterCapabilityHook(port: Int) { capabilityHookPorts.remove(port) }
     }
 
@@ -127,12 +133,80 @@ class SettingsViewModelTest {
         vm.registerCopilot()
         runCurrent()
         assertEquals(1, bridge.registerCalls)
+        assertEquals(false, bridge.lastRegisterFailClosed)
         assertTrue(vm.uiState.value.isCopilotRegistered)
 
         vm.unregisterCopilot()
         runCurrent()
         assertEquals(1, bridge.unregisterCalls)
         assertFalse(vm.uiState.value.isCopilotRegistered)
+    }
+
+    @Test
+    fun `registerCopilot forwards copilotFailClosed from current settings`() = runTest {
+        val bridge = FakeCopilotBridge()
+        val (vm, state, _) = newVm(bridge = bridge)
+        runCurrent()
+
+        state.updateSettings(state.state.value.settings.copy(copilotFailClosed = true))
+        runCurrent()
+
+        vm.registerCopilot()
+        runCurrent()
+
+        assertEquals(true, bridge.lastRegisterFailClosed)
+    }
+
+    @Test
+    fun `toggling copilotFailClosed re-registers when currently registered`() = runTest {
+        val bridge = FakeCopilotBridge(registeredPorts = mutableSetOf(19532))
+        val (_, state, _) = newVm(bridge = bridge)
+        runCurrent()
+        // The startup flag-watcher drops its initial emission, so no re-register
+        // should have fired yet.
+        assertEquals(0, bridge.registerCalls)
+
+        state.updateSettings(state.state.value.settings.copy(copilotFailClosed = true))
+        runCurrent()
+
+        assertEquals(1, bridge.registerCalls)
+        assertEquals(true, bridge.lastRegisterFailClosed)
+    }
+
+    @Test
+    fun `toggling copilotFailClosed does nothing when Copilot is not registered`() = runTest {
+        val bridge = FakeCopilotBridge()
+        val (_, state, _) = newVm(bridge = bridge)
+        runCurrent()
+
+        state.updateSettings(state.state.value.settings.copy(copilotFailClosed = true))
+        runCurrent()
+
+        assertEquals(0, bridge.registerCalls)
+    }
+
+    @Test
+    fun `toggling copilotFailClosed re-registers capability hook when only capability is installed`() = runTest {
+        // Capability hooks can be installed independently of the main
+        // approval hooks (via reconcileCapabilityHooks). In that state the
+        // main register() path is not exercised, so the watcher must fall
+        // back to registerCapabilityHook() to re-bake the capability script.
+        val bridge = FakeCopilotBridge()
+        val (_, state, _) = newVm(bridge = bridge)
+        runCurrent() // drain startup reconciles
+
+        // Simulate the user having enabled a capability previously so the
+        // capability hook is live on disk, but main approval is not.
+        bridge.capabilityHookPorts.add(state.state.value.settings.serverPort)
+        bridge.lastCapabilityFailClosed = null
+
+        state.updateSettings(state.state.value.settings.copy(copilotFailClosed = true))
+        runCurrent()
+
+        // Main register() is NOT called because main isn't registered.
+        assertEquals(0, bridge.registerCalls)
+        // Capability hook IS re-registered with the new flag.
+        assertEquals(true, bridge.lastCapabilityFailClosed)
     }
 
     @Test

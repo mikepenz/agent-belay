@@ -155,4 +155,60 @@ class CopilotBridgeInstallerTest {
     fun `isRegistered returns false on a clean install`() {
         assertFalse(CopilotBridgeInstaller.isRegistered(port))
     }
+
+    @Test
+    fun `default register bakes fail-open behaviour into both scripts`() {
+        CopilotBridgeInstaller.register(port)
+
+        listOf(preToolUseScript(), permissionRequestScript()).forEach { script ->
+            val body = script.readText()
+            assertTrue("exit 0" in body, "expected fail-open exit 0 in ${script.name}: $body")
+            assertFalse("exit 1" in body, "unexpected exit 1 in fail-open script ${script.name}")
+            assertTrue("Fail-open" in body)
+        }
+    }
+
+    @Test
+    fun `register with failClosed bakes exit 1 into both scripts`() {
+        CopilotBridgeInstaller.register(port, failClosed = true)
+
+        listOf(preToolUseScript(), permissionRequestScript()).forEach { script ->
+            val body = script.readText()
+            assertTrue("exit 1" in body, "expected fail-closed exit 1 in ${script.name}: $body")
+            assertTrue("Fail-closed" in body)
+            assertTrue("fail-closed" in body) // user-visible stderr message
+        }
+    }
+
+    @Test
+    fun `bridge scripts start with the shebang at byte 0 in both modes`() {
+        // Regression: an earlier attempt interpolated a pre-trimIndent()'d
+        // failure branch into a trimIndent()'d outer template, which made
+        // the min-indent detection collapse to 0 and left every line —
+        // including `#!/usr/bin/env bash` — indented by 12 spaces. A leading
+        // space in front of the shebang defeats kernel shebang lookup when
+        // Copilot CLI execs the script directly.
+        listOf(false, true).forEach { failClosed ->
+            CopilotBridgeInstaller.register(port, failClosed = failClosed)
+            listOf(preToolUseScript(), permissionRequestScript()).forEach { script ->
+                val body = script.readText()
+                assertTrue(
+                    body.startsWith("#!/usr/bin/env bash"),
+                    "script ${script.name} (failClosed=$failClosed) must start with shebang at byte 0, " +
+                        "got: ${body.take(40)}",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `re-registering with a different failClosed flag overwrites the scripts`() {
+        CopilotBridgeInstaller.register(port, failClosed = false)
+        assertTrue("exit 0" in preToolUseScript().readText())
+
+        CopilotBridgeInstaller.register(port, failClosed = true)
+        val body = preToolUseScript().readText()
+        assertTrue("exit 1" in body)
+        assertFalse("# Server unreachable — fail open" in body)
+    }
 }
