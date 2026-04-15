@@ -9,6 +9,7 @@ import com.mikepenz.agentapprover.hook.HookRegistry
 import com.mikepenz.agentapprover.protection.ProtectionEngine
 import com.mikepenz.agentapprover.protection.modules.AbsolutePathsModule
 import com.mikepenz.agentapprover.protection.modules.DestructiveCommandsModule
+import com.mikepenz.agentapprover.protection.modules.GitAwareGuardModule
 import com.mikepenz.agentapprover.protection.modules.InlineScriptsModule
 import com.mikepenz.agentapprover.protection.modules.PipeAbuseModule
 import com.mikepenz.agentapprover.protection.modules.PipedTailHeadModule
@@ -76,6 +77,7 @@ interface AppProviders {
                 InlineScriptsModule,
                 PipeAbuseModule,
                 UncommittedFilesModule,
+                GitAwareGuardModule,
                 PythonVenvModule,
                 AbsolutePathsModule,
                 PipedTailHeadModule,
