@@ -5,6 +5,7 @@ import com.mikepenz.agentapprover.model.ProtectionMode
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -48,7 +49,7 @@ class SecretsScanningModuleTest {
     @Test
     fun moduleMetadata() {
         assertEquals("secrets_scanning", module.id)
-        assertEquals(false, module.corrective)
+        assertFalse(module.corrective)
         assertEquals(ProtectionMode.ASK_AUTO_BLOCK, module.defaultMode)
         assertEquals(setOf("Bash", "Write", "Edit"), module.applicableTools)
         assertEquals(4, module.rules.size)
@@ -149,7 +150,7 @@ class SecretsScanningModuleTest {
         val hits = evaluateAll(writeHookInput("/project/secrets.kt", "val token = \"$token\""))
         val hit = hits.firstOrNull { it.ruleId == "hardcoded_secret" }
         assertNotNull(hit)
-        assertTrue(!hit.message.contains(token))
+        assertFalse(hit.message.contains(token))
     }
 
     // -- Negative cases (placeholders / examples) -------------------------------
@@ -203,7 +204,7 @@ class SecretsScanningModuleTest {
         for (s in secrets) {
             val hits = evaluateAll(bashHookInput("echo $s"))
             for (h in hits) {
-                assertTrue(!h.message.contains(s), "Hit message leaked secret: ${h.message}")
+                assertFalse(h.message.contains(s), "Hit message leaked secret: ${h.message}")
             }
         }
     }

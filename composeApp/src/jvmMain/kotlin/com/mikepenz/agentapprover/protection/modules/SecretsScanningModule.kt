@@ -6,6 +6,8 @@ import com.mikepenz.agentapprover.model.ProtectionMode
 import com.mikepenz.agentapprover.protection.CommandParser
 import com.mikepenz.agentapprover.protection.ProtectionModule
 import com.mikepenz.agentapprover.protection.ProtectionRule
+import com.mikepenz.agentapprover.protection.parser.SimpleCommand
+import com.mikepenz.agentapprover.protection.parser.allPipelines
 import com.mikepenz.agentapprover.protection.parser.allSimpleCommands
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -73,6 +75,14 @@ object SecretsScanningModule : ProtectionModule {
 
     private fun isPlaceholder(text: String): Boolean =
         PLACEHOLDER_EXCLUSIONS.any { it.containsMatchIn(text) }
+
+    /**
+     * Shared catalogue of network/egress tools. Referenced by multiple rules to keep them
+     * in sync — adding a tool here benefits every secrets-scanning rule at once.
+     */
+    private val NETWORK_TOOLS = setOf(
+        "curl", "wget", "nc", "ncat", "scp", "rsync", "sftp", "ftp", "http", "httpie",
+    )
 
     private fun findToken(text: String): String? {
         for ((regex, label) in TOKEN_PATTERNS) {
@@ -152,11 +162,6 @@ object SecretsScanningModule : ProtectionModule {
             Regex("""\.env\.(example|sample|template)$"""),
         )
 
-        // Network/egress tools that an agent could use to ship the file off-box.
-        private val NETWORK_TOOLS = setOf(
-            "curl", "wget", "nc", "ncat", "scp", "rsync", "sftp", "ftp", "http", "httpie",
-        )
-
         // Local read tools that, when piped to a network tool, are still suspicious.
         private val READ_TOOLS = setOf("cat", "tac", "head", "tail", "less", "more", "base64")
 
@@ -165,49 +170,51 @@ object SecretsScanningModule : ProtectionModule {
             return CRED_PATHS.any { it.containsMatchIn(path) }
         }
 
+        private fun literalsOf(sc: SimpleCommand) =
+            buildList {
+                for (a in sc.args) a.literal?.let { add(it) }
+                for (r in sc.redirects) r.target.literal?.let { add(it) }
+                for (asg in sc.assignments) asg.value.literal?.let { add(it) }
+            }
+
+        private fun referencesCredPath(sc: SimpleCommand): Boolean {
+            val literals = literalsOf(sc)
+            if (literals.any { matchesCredPath(it) }) return true
+            // curl --data-binary @/path/to/.env style: strip leading '@' before matching.
+            return literals.map { it.removePrefix("@") }.any { matchesCredPath(it) }
+        }
+
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
             if (hookInput.toolName != "Bash") return null
             val parsed = CommandParser.parsedBash(hookInput) ?: return null
 
-            var hasNetworkTool = false
-            var hasReadTool = false
-            var credPathHit = false
-            var directNetworkUploadOfCred = false
-
+            // 1) Direct network upload of a credential file:
+            //    `curl --data-binary @/home/user/.aws/credentials ...`, `scp ~/.ssh/id_rsa host:...`
             for (sc in parsed.allSimpleCommands()) {
-                val name = sc.commandName
-
-                // Track tool categories for piped-combo detection.
-                if (name != null && name in NETWORK_TOOLS) hasNetworkTool = true
-                if (name != null && name in READ_TOOLS) hasReadTool = true
-
-                // Collect literals in this simple command (positional args, redirect targets,
-                // assignment values).
-                val literals = buildList {
-                    for (a in sc.args) a.literal?.let { add(it) }
-                    for (r in sc.redirects) r.target.literal?.let { add(it) }
-                    for (asg in sc.assignments) asg.value.literal?.let { add(it) }
-                }
-
-                val credLiteral = literals.firstOrNull { matchesCredPath(it) } ?:
-                    // curl --data-binary @/path/to/.env style: check if any arg has the
-                    // credential path embedded with a leading '@'.
-                    literals.map { it.removePrefix("@") }.firstOrNull { matchesCredPath(it) }
-                if (credLiteral != null) {
-                    credPathHit = true
-                    // curl --data-binary @path / curl -T path / scp/rsync path host:...
-                    if (name != null && name in NETWORK_TOOLS) {
-                        directNetworkUploadOfCred = true
-                    }
+                val name = sc.commandName ?: continue
+                if (name in NETWORK_TOOLS && referencesCredPath(sc)) {
+                    return hit(id, "Credential file referenced by network upload command")
                 }
             }
 
-            if (directNetworkUploadOfCred) {
-                return hit(id, "Credential file referenced by network upload command")
+            // 2) True pipeline combining a credential-file read with a network tool:
+            //    `cat .env | curl --data-binary @- https://...`
+            //    We require both commands to live in the SAME pipeline so that accidental
+            //    co-occurrence via `;` / `&&` does not produce a "piped" hit.
+            for (pipeline in parsed.allPipelines()) {
+                if (pipeline.commands.size < 2) continue
+                var sawCredRead = false
+                var sawNetwork = false
+                for (cmd in pipeline.commands) {
+                    val name = cmd.commandName ?: continue
+                    if (name in READ_TOOLS && referencesCredPath(cmd)) sawCredRead = true
+                    if (name in NETWORK_TOOLS) sawNetwork = true
+                }
+                if (sawCredRead && sawNetwork) {
+                    return hit(id, "Credential file piped into a network tool")
+                }
             }
-            if (credPathHit && hasNetworkTool && hasReadTool) {
-                return hit(id, "Credential file piped into a network tool")
-            }
+
             return null
         }
     }
@@ -228,23 +235,32 @@ object SecretsScanningModule : ProtectionModule {
             """\$\{?([A-Z][A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD|PASSWD|PWD|API[_-]?KEY|CREDENTIAL)[A-Z0-9_]*)\}?"""
         )
 
-        private val NETWORK_TOOLS = setOf(
-            "curl", "wget", "nc", "ncat", "scp", "rsync", "sftp", "ftp", "http", "httpie",
-        )
-
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
             if (hookInput.toolName != "Bash") return null
             val cmd = CommandParser.bashCommand(hookInput) ?: return null
             val parsed = CommandParser.parsedBash(hookInput) ?: return null
 
-            var hasEnvDump = false
-            var hasNetworkTool = false
-            var hasEchoOfSecretVar = false
+            // 1) env/printenv piped directly into a network tool within the SAME pipeline.
+            //    Unrelated chains like `env; curl https://...` are intentionally ignored here
+            //    to avoid false positives when a user just happens to run both in sequence.
+            for (pipeline in parsed.allPipelines()) {
+                if (pipeline.commands.size < 2) continue
+                var sawEnvDump = false
+                var sawNetwork = false
+                for (c in pipeline.commands) {
+                    val name = c.commandName ?: continue
+                    if (name == "printenv" || name == "env") sawEnvDump = true
+                    if (name in NETWORK_TOOLS) sawNetwork = true
+                }
+                if (sawEnvDump && sawNetwork) {
+                    return hit(id, "Environment dump piped into a network tool")
+                }
+            }
 
+            // 2) echo $SECRET_TOKEN-style leak of a secret-named environment variable.
+            var hasEchoOfSecretVar = false
             for (sc in parsed.allSimpleCommands()) {
                 val name = sc.commandName ?: continue
-                if (name == "printenv" || name == "env") hasEnvDump = true
-                if (name in NETWORK_TOOLS) hasNetworkTool = true
                 if (name == "echo") {
                     for (a in sc.args) {
                         val raw = a.literal ?: continue
@@ -263,9 +279,6 @@ object SecretsScanningModule : ProtectionModule {
                 hasEchoOfSecretVar = true
             }
 
-            if (hasEnvDump && hasNetworkTool) {
-                return hit(id, "Environment dump piped into a network tool")
-            }
             if (hasEchoOfSecretVar) {
                 return hit(id, "Echo of secret-named environment variable")
             }
