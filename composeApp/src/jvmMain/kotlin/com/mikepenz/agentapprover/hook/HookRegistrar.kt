@@ -428,51 +428,68 @@ object HookRegistrar {
     }
 
     /**
-     * Removes our SessionStart bridge script and command hook entry.
+     * Removes our SessionStart command hook entry and bridge script.
+     * The settings file is updated first — the script is only deleted once
+     * the hook entry is gone, avoiding a dangling reference that would make
+     * Claude Code log an error on every session start.
      */
     fun unregisterSessionStartHook(port: Int) {
-        // 1. Remove the bridge script.
         val script = sessionStartScriptFile()
-        if (script.exists()) {
-            script.delete()
-            logger.i { "Removed SessionStart bridge script ${script.absolutePath}" }
+        val file = settingsFile()
+        // Track whether the settings entry was successfully removed (or was
+        // never present). The script is only deleted when this is true to
+        // avoid leaving a dangling hook that errors on every session start.
+        var hookEntryCleared = !file.exists()
+
+        // 1. Remove the hook entry from settings.json.
+        if (file.exists()) {
+            withFileLock(file) {
+                val root: JsonObject = try {
+                    json.parseToJsonElement(file.readText()).jsonObject
+                } catch (e: Exception) {
+                    logger.w(e) { "Failed to parse settings.json — keeping bridge script to avoid dangling hook" }
+                    return@withFileLock
+                }
+
+                val existingHooks = root["hooks"]?.jsonObject
+                if (existingHooks == null) {
+                    hookEntryCleared = true
+                    return@withFileLock
+                }
+                val filtered = stripMatchingCommandHookDefs(existingHooks["SessionStart"]?.jsonArray, sessionStartScriptPath())
+                if (filtered == null) {
+                    hookEntryCleared = true
+                    return@withFileLock
+                }
+
+                val updatedHooks = buildJsonObject {
+                    existingHooks.forEach { (key, value) ->
+                        if (key != "SessionStart") put(key, value)
+                    }
+                    if (filtered.isNotEmpty()) {
+                        put("SessionStart", Json.encodeToJsonElement(filtered))
+                    }
+                }
+
+                val updatedRoot = buildJsonObject {
+                    root.forEach { (key, value) ->
+                        if (key != "hooks") put(key, value)
+                    }
+                    if (updatedHooks.isNotEmpty()) {
+                        put("hooks", updatedHooks)
+                    }
+                }
+
+                atomicWrite(file, json.encodeToString(JsonElement.serializer(), updatedRoot))
+                hookEntryCleared = true
+                logger.i { "Unregistered SessionStart hook for port $port" }
+            }
         }
 
-        // 2. Remove the hook entry from settings.json.
-        val file = settingsFile()
-        if (!file.exists()) return
-
-        withFileLock(file) {
-            val root: JsonObject = try {
-                json.parseToJsonElement(file.readText()).jsonObject
-            } catch (e: Exception) {
-                logger.w(e) { "Failed to parse settings.json" }
-                return@withFileLock
-            }
-
-            val existingHooks = root["hooks"]?.jsonObject ?: return@withFileLock
-            val filtered = stripMatchingCommandHookDefs(existingHooks["SessionStart"]?.jsonArray, sessionStartScriptPath()) ?: return@withFileLock
-
-            val updatedHooks = buildJsonObject {
-                existingHooks.forEach { (key, value) ->
-                    if (key != "SessionStart") put(key, value)
-                }
-                if (filtered.isNotEmpty()) {
-                    put("SessionStart", Json.encodeToJsonElement(filtered))
-                }
-            }
-
-            val updatedRoot = buildJsonObject {
-                root.forEach { (key, value) ->
-                    if (key != "hooks") put(key, value)
-                }
-                if (updatedHooks.isNotEmpty()) {
-                    put("hooks", updatedHooks)
-                }
-            }
-
-            atomicWrite(file, json.encodeToString(JsonElement.serializer(), updatedRoot))
-            logger.i { "Unregistered SessionStart hook for port $port" }
+        // 2. Delete the bridge script only after the hook entry is gone.
+        if (hookEntryCleared && script.exists()) {
+            script.delete()
+            logger.i { "Removed SessionStart bridge script ${script.absolutePath}" }
         }
     }
 
