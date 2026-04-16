@@ -125,16 +125,19 @@ class ApprovalsViewModel(
                 approval.toolType == ToolType.ASK_USER_QUESTION
             if (skipAutoActions) return@onSuccess
 
-            val current = stateManager.state.value.settings
+            // Read fresh settings right before auto-action decisions so that
+            // toggling autoApproveRisk1 / autoDenyRisk5 while analysis is
+            // in flight takes effect immediately.
+            val freshSettings = stateManager.state.value.settings
             when {
-                analysis.risk == 1 && current.autoApproveRisk1 -> {
+                analysis.risk == 1 && freshSettings.autoApproveRisk1 -> {
                     orchestrator.runAutoApprove(
                         approvalId = approval.id,
                         analysis = analysis,
                         timestamps = { userInteractionTimestamps.toMap() },
                     )
                 }
-                analysis.risk == 5 && current.autoDenyRisk5 && !current.awayMode -> {
+                analysis.risk == 5 && freshSettings.autoDenyRisk5 && !freshSettings.awayMode -> {
                     orchestrator.runAutoDenyWithRetry(
                         approvalId = approval.id,
                         analysis = analysis,

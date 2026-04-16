@@ -212,6 +212,24 @@ class AppStateManager(
         }
     }
 
+    /**
+     * Resolves all pending approvals as [Decision.RESOLVED_EXTERNALLY].
+     * Called during server shutdown so that waiting HTTP handlers get a
+     * response instead of hanging indefinitely.
+     */
+    fun resolveAllPending() {
+        val pending = _state.value.pendingApprovals
+        for (request in pending) {
+            resolve(
+                requestId = request.id,
+                decision = Decision.RESOLVED_EXTERNALLY,
+                feedback = "Server shutting down",
+                riskAnalysis = null,
+                rawResponseJson = null,
+            )
+        }
+    }
+
     fun addPreToolUseEvent(request: ApprovalRequest, hits: List<ProtectionHit>) {
         if (!devMode) return
         val event = PreToolUseEvent(
