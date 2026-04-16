@@ -9,6 +9,7 @@ import com.mikepenz.agentapprover.protection.ProtectionRule
 import com.mikepenz.agentapprover.protection.parser.SimpleCommand
 import com.mikepenz.agentapprover.protection.parser.allPipelines
 import com.mikepenz.agentapprover.protection.parser.allSimpleCommands
+import com.mikepenz.agentapprover.protection.parser.effectiveCommands
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
@@ -202,10 +203,11 @@ object SecretsScanningModule : ProtectionModule {
             //    We require both commands to live in the SAME pipeline so that accidental
             //    co-occurrence via `;` / `&&` does not produce a "piped" hit.
             for (pipeline in parsed.allPipelines()) {
-                if (pipeline.commands.size < 2) continue
+                val cmds = pipeline.effectiveCommands()
+                if (cmds.size < 2) continue
                 var sawCredRead = false
                 var sawNetwork = false
-                for (cmd in pipeline.commands) {
+                for (cmd in cmds) {
                     val name = cmd.commandName ?: continue
                     if (name in READ_TOOLS && referencesCredPath(cmd)) sawCredRead = true
                     if (name in NETWORK_TOOLS) sawNetwork = true
@@ -232,7 +234,7 @@ object SecretsScanningModule : ProtectionModule {
 
         // Variables whose name strongly suggests a secret.
         private val SECRET_VAR_NAME = Regex(
-            """\$\{?([A-Z][A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD|PASSWD|PWD|API[_-]?KEY|CREDENTIAL)[A-Z0-9_]*)\}?"""
+            """\$\{?([A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD|PASSWD|PWD|API[_-]?KEY|CREDENTIAL)[A-Z0-9_]*)\}?"""
         )
 
         override fun evaluate(hookInput: HookInput): ProtectionHit? {
@@ -244,10 +246,11 @@ object SecretsScanningModule : ProtectionModule {
             //    Unrelated chains like `env; curl https://...` are intentionally ignored here
             //    to avoid false positives when a user just happens to run both in sequence.
             for (pipeline in parsed.allPipelines()) {
-                if (pipeline.commands.size < 2) continue
+                val cmds = pipeline.effectiveCommands()
+                if (cmds.size < 2) continue
                 var sawEnvDump = false
                 var sawNetwork = false
-                for (c in pipeline.commands) {
+                for (c in cmds) {
                     val name = c.commandName ?: continue
                     if (name == "printenv" || name == "env") sawEnvDump = true
                     if (name in NETWORK_TOOLS) sawNetwork = true
