@@ -4,11 +4,13 @@ import co.touchlab.kermit.Logger
 import com.mikepenz.agentapprover.model.HookInput
 import com.mikepenz.agentapprover.model.RiskAnalysis
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.coroutineScope
 import java.util.concurrent.TimeUnit
 
 class ClaudeCliRiskAnalyzer(
@@ -34,7 +36,7 @@ class ClaudeCliRiskAnalyzer(
         }
     }
 
-    private fun runClaude(userMessage: String): String {
+    private suspend fun runClaude(userMessage: String): String = coroutineScope {
         val command = listOf(
             "claude",
             "-p",
@@ -49,7 +51,7 @@ class ClaudeCliRiskAnalyzer(
 
         log.d { "Spawning claude -p --model $model --effort low" }
 
-        val process = ProcessBuilder(listOf("/bin/sh", "-c", command.joinToString(" ") { shellEscape(it) })).apply {
+        val process = ProcessBuilder(command).apply {
             environment().remove("CLAUDECODE")
             val path = environment()["PATH"] ?: ""
             val extraPaths = listOf("/usr/local/bin", "/opt/homebrew/bin", "${System.getProperty("user.home")}/.local/bin")
@@ -57,42 +59,53 @@ class ClaudeCliRiskAnalyzer(
             redirectErrorStream(false)
         }.start()
 
-        // Close stdin immediately so claude doesn't wait for input
-        process.outputStream.close()
+        try {
+            // Close stdin immediately so claude doesn't wait for input
+            process.outputStream.close()
 
-        log.d { "Process pid=${process.pid()}" }
+            log.d { "Process pid=${process.pid()}" }
 
-        // Read both streams in background threads to prevent deadlock
-        var stdoutOutput = ""
-        var stderrOutput = ""
-        val stdoutThread = Thread {
-            stdoutOutput = process.inputStream.bufferedReader().readText()
-        }.apply { isDaemon = true; start() }
-        val stderrThread = Thread {
-            stderrOutput = process.errorStream.bufferedReader().readText()
-        }.apply { isDaemon = true; start() }
+            // Read both streams concurrently via coroutines to prevent deadlock.
+            // Use `use {}` so readers are closed promptly when streams are closed.
+            val stdoutDeferred = async {
+                process.inputStream.bufferedReader().use { it.readText() }
+            }
+            val stderrDeferred = async {
+                process.errorStream.bufferedReader().use { it.readText() }
+            }
 
-        val finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        if (!finished) {
-            log.w { "Process timed out after ${PROCESS_TIMEOUT_SECONDS}s" }
+            val finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            if (!finished) {
+                log.w { "Process timed out after ${PROCESS_TIMEOUT_SECONDS}s" }
+                process.destroyForcibly()
+                // Close streams so the blocking readText() calls unblock
+                process.inputStream.close()
+                process.errorStream.close()
+                stdoutDeferred.cancel()
+                stderrDeferred.cancel()
+                throw RuntimeException("claude process timed out after ${PROCESS_TIMEOUT_SECONDS}s")
+            }
+
+            val stdoutOutput = stdoutDeferred.await()
+            val stderrOutput = stderrDeferred.await()
+
+            val exitCode = process.exitValue()
+            log.d { "Exited=$exitCode" }
+
+            if (exitCode != 0) {
+                log.w { "Failed: ${stderrOutput.take(200)}" }
+                throw RuntimeException("claude exited with code $exitCode: ${stderrOutput.take(200)}")
+            }
+
+            stdoutOutput.trim()
+        } catch (e: Exception) {
+            // Ensure the process is torn down on any failure (timeout,
+            // cancellation, coroutine scope cancel, etc.)
             process.destroyForcibly()
-            stdoutThread.join(2000)
-            stderrThread.join(2000)
-            throw RuntimeException("claude process timed out after ${PROCESS_TIMEOUT_SECONDS}s")
+            process.inputStream.close()
+            process.errorStream.close()
+            throw e
         }
-
-        stdoutThread.join(3000)
-        stderrThread.join(3000)
-
-        val exitCode = process.exitValue()
-        log.d { "Exited=$exitCode" }
-
-        if (exitCode != 0) {
-            log.w { "Failed: ${stderrOutput.take(200)}" }
-            throw RuntimeException("claude exited with code $exitCode: ${stderrOutput.take(200)}")
-        }
-
-        return stdoutOutput.trim()
     }
 
     private fun parseResult(rawOutput: String): RiskAnalysis {
@@ -140,11 +153,5 @@ class ClaudeCliRiskAnalyzer(
         private const val PROCESS_TIMEOUT_SECONDS = 25L
 
         private const val JSON_SCHEMA = """{"type":"object","properties":{"level":{"type":"integer"},"label":{"type":"string"},"explanation":{"type":"string"}},"required":["level","label","explanation"]}"""
-
-        private fun shellEscape(arg: String): String {
-            if (arg.isEmpty()) return "''"
-            if (arg.all { it.isLetterOrDigit() || it in "-_./:=" }) return arg
-            return "'" + arg.replace("'", "'\\''") + "'"
-        }
     }
 }
