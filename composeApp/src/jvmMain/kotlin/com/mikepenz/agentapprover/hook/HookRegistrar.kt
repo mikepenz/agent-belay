@@ -390,7 +390,7 @@ object HookRegistrar {
         val backupName = "${file.nameWithoutExtension}.corrupt.$timestamp.${file.extension}"
         val backup = File(file.parentFile, backupName)
         try {
-            file.renameTo(backup)
+            Files.move(file.toPath(), backup.toPath(), StandardCopyOption.REPLACE_EXISTING)
             logger.w { "Backed up corrupt file to ${backup.absolutePath}" }
         } catch (e: Exception) {
             logger.e(e) { "Failed to back up corrupt file ${file.absolutePath}" }

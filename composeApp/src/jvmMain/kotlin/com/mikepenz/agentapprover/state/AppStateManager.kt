@@ -218,7 +218,7 @@ class AppStateManager(
      * response instead of hanging indefinitely.
      */
     fun resolveAllPending() {
-        val pending = _state.value.pendingApprovals
+        val pending = synchronized(persistLock) { _state.value.pendingApprovals }
         for (request in pending) {
             resolve(
                 requestId = request.id,
