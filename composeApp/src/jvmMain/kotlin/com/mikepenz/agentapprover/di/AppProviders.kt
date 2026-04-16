@@ -14,6 +14,7 @@ import com.mikepenz.agentapprover.protection.modules.InlineScriptsModule
 import com.mikepenz.agentapprover.protection.modules.PipeAbuseModule
 import com.mikepenz.agentapprover.protection.modules.PipedTailHeadModule
 import com.mikepenz.agentapprover.protection.modules.PythonVenvModule
+import com.mikepenz.agentapprover.protection.modules.SecretsScanningModule
 import com.mikepenz.agentapprover.protection.modules.SoftwareInstallModule
 import com.mikepenz.agentapprover.protection.modules.SensitiveFilesModule
 import com.mikepenz.agentapprover.protection.modules.SupplyChainRceModule
@@ -72,6 +73,7 @@ interface AppProviders {
             modules = listOf(
                 DestructiveCommandsModule,
                 SensitiveFilesModule,
+                SecretsScanningModule,
                 SupplyChainRceModule,
                 ToolBypassModule,
                 InlineScriptsModule,
