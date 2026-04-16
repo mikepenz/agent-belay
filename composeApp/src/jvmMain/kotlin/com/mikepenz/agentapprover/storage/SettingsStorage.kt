@@ -4,6 +4,8 @@ import co.touchlab.kermit.Logger
 import com.mikepenz.agentapprover.model.AppSettings
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 class SettingsStorage(private val dataDir: String) {
 
@@ -32,7 +34,7 @@ class SettingsStorage(private val dataDir: String) {
             if (!dir.exists()) dir.mkdirs()
             val tmp = File(dataDir, "settings.json.tmp")
             tmp.writeText(json.encodeToString(AppSettings.serializer(), settings))
-            tmp.renameTo(file)
+            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         } catch (e: Exception) {
             Logger.e("SettingsStorage") { "Failed to save settings: ${e.message}" }
         }

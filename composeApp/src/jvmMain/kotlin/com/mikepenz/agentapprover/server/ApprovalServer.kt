@@ -68,6 +68,9 @@ class ApprovalServer(
     }
 
     fun stop() {
+        // Resolve all pending approvals before stopping so that waiting
+        // HTTP handlers receive a response instead of hanging indefinitely.
+        stateManager.resolveAllPending()
         server?.stop(gracePeriodMillis = 1000, timeoutMillis = 3000)
         server = null
         logger.i { "Approval server stopped" }

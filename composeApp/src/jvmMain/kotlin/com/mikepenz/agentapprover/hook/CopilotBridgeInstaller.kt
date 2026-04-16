@@ -11,6 +11,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 private val logger = Logger.withTag("CopilotBridgeInstaller")
 
@@ -344,27 +346,21 @@ object CopilotBridgeInstaller {
         val dir = scriptDir()
         dir.mkdirs()
 
-        val pre = preToolUseScriptFile()
-        pre.writeText(buildScriptContent(PRE_TOOL_USE_ENDPOINT, port, failClosed))
-        pre.setExecutable(true)
-        logger.i { "Installed bridge script ${pre.absolutePath}" }
+        atomicWriteExecutable(preToolUseScriptFile(), buildScriptContent(PRE_TOOL_USE_ENDPOINT, port, failClosed))
+        logger.i { "Installed bridge script ${preToolUseScriptFile().absolutePath}" }
 
-        val perm = permissionRequestScriptFile()
-        perm.writeText(buildScriptContent(PERMISSION_REQUEST_ENDPOINT, port, failClosed))
-        perm.setExecutable(true)
-        logger.i { "Installed bridge script ${perm.absolutePath}" }
+        atomicWriteExecutable(permissionRequestScriptFile(), buildScriptContent(PERMISSION_REQUEST_ENDPOINT, port, failClosed))
+        logger.i { "Installed bridge script ${permissionRequestScriptFile().absolutePath}" }
     }
 
     private fun writeCapabilityScript(port: Int, failClosed: Boolean) {
         val dir = scriptDir()
         dir.mkdirs()
-        val cap = capabilityScriptFile()
         // Capability injection is additive context, not a gate — but we still
         // honour the fail-closed flag for consistency across the three scripts
         // so a single toggle reliably describes all three files' behaviour.
-        cap.writeText(buildScriptContent(CAPABILITY_ENDPOINT, port, failClosed))
-        cap.setExecutable(true)
-        logger.i { "Installed bridge script ${cap.absolutePath}" }
+        atomicWriteExecutable(capabilityScriptFile(), buildScriptContent(CAPABILITY_ENDPOINT, port, failClosed))
+        logger.i { "Installed bridge script ${capabilityScriptFile().absolutePath}" }
     }
 
     private fun writeHookFile(
@@ -386,7 +382,7 @@ object CopilotBridgeInstaller {
                 }
             })
         }
-        file.writeText(json.encodeToString(JsonElement.serializer(), root))
+        atomicWrite(file, json.encodeToString(JsonElement.serializer(), root))
     }
 
     /**
@@ -400,6 +396,21 @@ object CopilotBridgeInstaller {
         put("type", "command")
         put("bash", scriptPath)
         put("timeoutSec", 300)
+    }
+
+    private fun atomicWrite(target: File, content: String) {
+        val tmp = File(target.parentFile, "${target.name}.tmp")
+        tmp.writeText(content)
+        Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+    }
+
+    private fun atomicWriteExecutable(target: File, content: String) {
+        val tmp = File(target.parentFile, "${target.name}.tmp")
+        tmp.writeText(content)
+        if (!tmp.setExecutable(true)) {
+            logger.w { "Failed to set executable bit on ${tmp.absolutePath}" }
+        }
+        Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
     }
 
     private fun hasHookEntry(hooks: JsonObject, eventKey: String, scriptPath: String): Boolean {

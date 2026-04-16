@@ -13,6 +13,10 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import java.io.File
+import java.io.RandomAccessFile
+import java.nio.channels.FileLock
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 private val logger = Logger.withTag("HookRegistrar")
 
@@ -80,84 +84,87 @@ object HookRegistrar {
 
     fun register(port: Int) {
         val file = settingsFile()
+        file.parentFile.mkdirs()
 
-        val root: JsonObject = if (file.exists()) {
-            try {
-                json.parseToJsonElement(file.readText()).jsonObject
-            } catch (e: Exception) {
-                logger.w(e) { "Failed to parse settings.json, starting fresh" }
+        withFileLock(file) {
+            val root: JsonObject = if (file.exists()) {
+                try {
+                    json.parseToJsonElement(file.readText()).jsonObject
+                } catch (e: Exception) {
+                    backupCorruptFile(file)
+                    logger.e(e) { "settings.json is corrupt — backed up and aborting registration" }
+                    return@withFileLock
+                }
+            } else {
                 JsonObject(emptyMap())
             }
-        } else {
-            JsonObject(emptyMap())
-        }
 
-        val existingHooks = root["hooks"]?.jsonObject ?: JsonObject(emptyMap())
+            val existingHooks = root["hooks"]?.jsonObject ?: JsonObject(emptyMap())
 
-        val permUrl = hookUrl(port)
-        val ptuUrl = preToolUseUrl(port)
-        val postUrl = postToolUseUrl(port)
+            val permUrl = hookUrl(port)
+            val ptuUrl = preToolUseUrl(port)
+            val postUrl = postToolUseUrl(port)
 
-        val hasPermHook = hasHook(existingHooks, "PermissionRequest", permUrl)
-        val hasPtuHook = hasHook(existingHooks, "PreToolUse", ptuUrl)
-        val hasPostHook = hasHook(existingHooks, "PostToolUse", postUrl)
+            val hasPermHook = hasHook(existingHooks, "PermissionRequest", permUrl)
+            val hasPtuHook = hasHook(existingHooks, "PreToolUse", ptuUrl)
+            val hasPostHook = hasHook(existingHooks, "PostToolUse", postUrl)
 
-        if (hasPermHook && hasPtuHook && hasPostHook) {
-            logger.i { "Hooks already registered for port $port" }
-            return
-        }
-
-        // Build PermissionRequest array
-        val permList = existingHooks["PermissionRequest"]?.jsonArray?.toMutableList() ?: mutableListOf()
-        if (!hasPermHook) {
-            permList.add(
-                json.encodeToJsonElement(
-                    HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = permUrl)))
-                )
-            )
-        }
-
-        // Build PreToolUse array
-        val ptuList = existingHooks["PreToolUse"]?.jsonArray?.toMutableList() ?: mutableListOf()
-        if (!hasPtuHook) {
-            ptuList.add(
-                json.encodeToJsonElement(
-                    HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = ptuUrl, timeout = 120)))
-                )
-            )
-        }
-
-        // Build PostToolUse array — secondary correlation channel that lets
-        // us clear pending entries whose original PermissionRequest hung
-        // (canUseTool race in claude-code).
-        val postList = existingHooks["PostToolUse"]?.jsonArray?.toMutableList() ?: mutableListOf()
-        if (!hasPostHook) {
-            postList.add(
-                json.encodeToJsonElement(
-                    HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = postUrl, timeout = 5)))
-                )
-            )
-        }
-
-        val updatedHooks = buildJsonObject {
-            existingHooks.forEach { (key, value) ->
-                if (key != "PermissionRequest" && key != "PreToolUse" && key != "PostToolUse") put(key, value)
+            if (hasPermHook && hasPtuHook && hasPostHook) {
+                logger.i { "Hooks already registered for port $port" }
+                return@withFileLock
             }
-            put("PermissionRequest", Json.encodeToJsonElement(permList))
-            put("PreToolUse", Json.encodeToJsonElement(ptuList))
-            put("PostToolUse", Json.encodeToJsonElement(postList))
-        }
 
-        val updatedRoot = buildJsonObject {
-            root.forEach { (key, value) ->
-                if (key != "hooks") put(key, value)
+            // Build PermissionRequest array
+            val permList = existingHooks["PermissionRequest"]?.jsonArray?.toMutableList() ?: mutableListOf()
+            if (!hasPermHook) {
+                permList.add(
+                    json.encodeToJsonElement(
+                        HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = permUrl)))
+                    )
+                )
             }
-            put("hooks", updatedHooks)
-        }
 
-        file.parentFile.mkdirs()
-        file.writeText(json.encodeToString(JsonElement.serializer(), updatedRoot))
-        logger.i { "Registered hooks for port $port" }
+            // Build PreToolUse array
+            val ptuList = existingHooks["PreToolUse"]?.jsonArray?.toMutableList() ?: mutableListOf()
+            if (!hasPtuHook) {
+                ptuList.add(
+                    json.encodeToJsonElement(
+                        HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = ptuUrl, timeout = 120)))
+                    )
+                )
+            }
+
+            // Build PostToolUse array — secondary correlation channel that lets
+            // us clear pending entries whose original PermissionRequest hung
+            // (canUseTool race in claude-code).
+            val postList = existingHooks["PostToolUse"]?.jsonArray?.toMutableList() ?: mutableListOf()
+            if (!hasPostHook) {
+                postList.add(
+                    json.encodeToJsonElement(
+                        HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = postUrl, timeout = 5)))
+                    )
+                )
+            }
+
+            val updatedHooks = buildJsonObject {
+                existingHooks.forEach { (key, value) ->
+                    if (key != "PermissionRequest" && key != "PreToolUse" && key != "PostToolUse") put(key, value)
+                }
+                put("PermissionRequest", Json.encodeToJsonElement(permList))
+                put("PreToolUse", Json.encodeToJsonElement(ptuList))
+                put("PostToolUse", Json.encodeToJsonElement(postList))
+            }
+
+            val updatedRoot = buildJsonObject {
+                root.forEach { (key, value) ->
+                    if (key != "hooks") put(key, value)
+                }
+                put("hooks", updatedHooks)
+            }
+
+            atomicWrite(file, json.encodeToString(JsonElement.serializer(), updatedRoot))
+            logger.i { "Registered hooks for port $port" }
+        }
     }
 
     /**
@@ -186,49 +193,52 @@ object HookRegistrar {
      */
     fun registerCapabilityHook(port: Int) {
         val file = settingsFile()
+        file.parentFile.mkdirs()
 
-        val root: JsonObject = if (file.exists()) {
-            try {
-                json.parseToJsonElement(file.readText()).jsonObject
-            } catch (e: Exception) {
-                logger.w(e) { "Failed to parse settings.json, starting fresh" }
+        withFileLock(file) {
+            val root: JsonObject = if (file.exists()) {
+                try {
+                    json.parseToJsonElement(file.readText()).jsonObject
+                } catch (e: Exception) {
+                    backupCorruptFile(file)
+                    logger.e(e) { "settings.json is corrupt — backed up and aborting registration" }
+                    return@withFileLock
+                }
+            } else {
                 JsonObject(emptyMap())
             }
-        } else {
-            JsonObject(emptyMap())
-        }
 
-        val existingHooks = root["hooks"]?.jsonObject ?: JsonObject(emptyMap())
-        val upsUrl = userPromptSubmitUrl(port)
-        if (hasHook(existingHooks, "UserPromptSubmit", upsUrl)) {
-            logger.i { "Capability hook already registered for port $port" }
-            return
-        }
+            val existingHooks = root["hooks"]?.jsonObject ?: JsonObject(emptyMap())
+            val upsUrl = userPromptSubmitUrl(port)
+            if (hasHook(existingHooks, "UserPromptSubmit", upsUrl)) {
+                logger.i { "Capability hook already registered for port $port" }
+                return@withFileLock
+            }
 
-        val upsList = existingHooks["UserPromptSubmit"]?.jsonArray?.toMutableList() ?: mutableListOf()
-        upsList.add(
-            json.encodeToJsonElement(
-                HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = upsUrl, timeout = 10)))
+            val upsList = existingHooks["UserPromptSubmit"]?.jsonArray?.toMutableList() ?: mutableListOf()
+            upsList.add(
+                json.encodeToJsonElement(
+                    HookEntry(matcher = "", hooks = listOf(HookDef(type = "http", url = upsUrl, timeout = 10)))
+                )
             )
-        )
 
-        val updatedHooks = buildJsonObject {
-            existingHooks.forEach { (key, value) ->
-                if (key != "UserPromptSubmit") put(key, value)
+            val updatedHooks = buildJsonObject {
+                existingHooks.forEach { (key, value) ->
+                    if (key != "UserPromptSubmit") put(key, value)
+                }
+                put("UserPromptSubmit", Json.encodeToJsonElement(upsList))
             }
-            put("UserPromptSubmit", Json.encodeToJsonElement(upsList))
-        }
 
-        val updatedRoot = buildJsonObject {
-            root.forEach { (key, value) ->
-                if (key != "hooks") put(key, value)
+            val updatedRoot = buildJsonObject {
+                root.forEach { (key, value) ->
+                    if (key != "hooks") put(key, value)
+                }
+                put("hooks", updatedHooks)
             }
-            put("hooks", updatedHooks)
-        }
 
-        file.parentFile.mkdirs()
-        file.writeText(json.encodeToString(JsonElement.serializer(), updatedRoot))
-        logger.i { "Registered capability hook for port $port" }
+            atomicWrite(file, json.encodeToString(JsonElement.serializer(), updatedRoot))
+            logger.i { "Registered capability hook for port $port" }
+        }
     }
 
     /**
@@ -243,89 +253,148 @@ object HookRegistrar {
         val file = settingsFile()
         if (!file.exists()) return
 
-        val root: JsonObject = try {
-            json.parseToJsonElement(file.readText()).jsonObject
-        } catch (e: Exception) {
-            logger.w(e) { "Failed to parse settings.json" }
-            return
+        withFileLock(file) {
+            val root: JsonObject = try {
+                json.parseToJsonElement(file.readText()).jsonObject
+            } catch (e: Exception) {
+                logger.w(e) { "Failed to parse settings.json" }
+                return@withFileLock
+            }
+
+            val existingHooks = root["hooks"]?.jsonObject ?: return@withFileLock
+            val upsUrl = userPromptSubmitUrl(port)
+            val filtered = stripMatchingHookDefs(existingHooks["UserPromptSubmit"]?.jsonArray, upsUrl) ?: return@withFileLock
+
+            val updatedHooks = buildJsonObject {
+                existingHooks.forEach { (key, value) ->
+                    if (key != "UserPromptSubmit") put(key, value)
+                }
+                if (filtered.isNotEmpty()) {
+                    put("UserPromptSubmit", Json.encodeToJsonElement(filtered))
+                }
+            }
+
+            val updatedRoot = buildJsonObject {
+                root.forEach { (key, value) ->
+                    if (key != "hooks") put(key, value)
+                }
+                if (updatedHooks.isNotEmpty()) {
+                    put("hooks", updatedHooks)
+                }
+            }
+
+            atomicWrite(file, json.encodeToString(JsonElement.serializer(), updatedRoot))
+            logger.i { "Unregistered capability hook for port $port" }
         }
-
-        val existingHooks = root["hooks"]?.jsonObject ?: return
-        val upsUrl = userPromptSubmitUrl(port)
-        val filtered = stripMatchingHookDefs(existingHooks["UserPromptSubmit"]?.jsonArray, upsUrl) ?: return
-
-        val updatedHooks = buildJsonObject {
-            existingHooks.forEach { (key, value) ->
-                if (key != "UserPromptSubmit") put(key, value)
-            }
-            if (filtered.isNotEmpty()) {
-                put("UserPromptSubmit", Json.encodeToJsonElement(filtered))
-            }
-        }
-
-        val updatedRoot = buildJsonObject {
-            root.forEach { (key, value) ->
-                if (key != "hooks") put(key, value)
-            }
-            if (updatedHooks.isNotEmpty()) {
-                put("hooks", updatedHooks)
-            }
-        }
-
-        file.writeText(json.encodeToString(JsonElement.serializer(), updatedRoot))
-        logger.i { "Unregistered capability hook for port $port" }
     }
 
     fun unregister(port: Int) {
         val file = settingsFile()
         if (!file.exists()) return
 
-        val root: JsonObject = try {
-            json.parseToJsonElement(file.readText()).jsonObject
+        withFileLock(file) {
+            val root: JsonObject = try {
+                json.parseToJsonElement(file.readText()).jsonObject
+            } catch (e: Exception) {
+                logger.w(e) { "Failed to parse settings.json" }
+                return@withFileLock
+            }
+
+            val existingHooks = root["hooks"]?.jsonObject ?: return@withFileLock
+
+            fun filterHooks(event: String, url: String): List<JsonElement> =
+                stripMatchingHookDefs(existingHooks[event]?.jsonArray, url) ?: emptyList()
+
+            val filteredPerm = filterHooks("PermissionRequest", hookUrl(port))
+            val filteredPtu = filterHooks("PreToolUse", preToolUseUrl(port))
+            val filteredPost = filterHooks("PostToolUse", postToolUseUrl(port))
+            val filteredUps = filterHooks("UserPromptSubmit", userPromptSubmitUrl(port))
+
+            val updatedHooks = buildJsonObject {
+                existingHooks.forEach { (key, value) ->
+                    if (key != "PermissionRequest" && key != "PreToolUse" && key != "PostToolUse" && key != "UserPromptSubmit") put(key, value)
+                }
+                if (filteredPerm.isNotEmpty()) {
+                    put("PermissionRequest", Json.encodeToJsonElement(filteredPerm))
+                }
+                if (filteredPtu.isNotEmpty()) {
+                    put("PreToolUse", Json.encodeToJsonElement(filteredPtu))
+                }
+                if (filteredPost.isNotEmpty()) {
+                    put("PostToolUse", Json.encodeToJsonElement(filteredPost))
+                }
+                if (filteredUps.isNotEmpty()) {
+                    put("UserPromptSubmit", Json.encodeToJsonElement(filteredUps))
+                }
+            }
+
+            val updatedRoot = buildJsonObject {
+                root.forEach { (key, value) ->
+                    if (key != "hooks") put(key, value)
+                }
+                if (updatedHooks.isNotEmpty()) {
+                    put("hooks", updatedHooks)
+                }
+            }
+
+            atomicWrite(file, json.encodeToString(JsonElement.serializer(), updatedRoot))
+            logger.i { "Unregistered hooks for port $port" }
+        }
+    }
+
+    /**
+     * Writes [content] to [target] atomically by writing to a sibling temp
+     * file first and then moving it into place. Prevents half-written files
+     * if the process crashes mid-write.
+     */
+    private fun atomicWrite(target: File, content: String) {
+        val tmp = File(target.parentFile, "${target.name}.tmp")
+        tmp.writeText(content)
+        Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+    }
+
+    /**
+     * Acquires an advisory file lock on a `.lock` sibling of [file] for
+     * the duration of [block]. This prevents concurrent read-modify-write
+     * races between Agent Approver and other processes (e.g. Claude Code)
+     * that cooperate on the same lock file. If the lock cannot be acquired
+     * (e.g. FAT32, NFS), the block runs unlocked with a warning.
+     */
+    private inline fun withFileLock(file: File, block: () -> Unit) {
+        val lockFile = File(file.parentFile, "${file.name}.lock")
+        lockFile.parentFile.mkdirs()
+        var raf: RandomAccessFile? = null
+        var lock: FileLock? = null
+        try {
+            raf = RandomAccessFile(lockFile, "rw")
+            lock = try {
+                raf.channel.lock()
+            } catch (e: Exception) {
+                logger.w(e) { "Could not acquire file lock on ${lockFile.absolutePath} — proceeding unlocked" }
+                null
+            }
+            block()
+        } finally {
+            lock?.release()
+            raf?.close()
+        }
+    }
+
+    /**
+     * Renames a corrupt file to `<name>.corrupt.<timestamp>.json` so the
+     * user can inspect and manually recover it. Avoids silently discarding
+     * the user's Claude Code configuration.
+     */
+    private fun backupCorruptFile(file: File) {
+        val timestamp = System.currentTimeMillis()
+        val backupName = "${file.nameWithoutExtension}.corrupt.$timestamp.${file.extension}"
+        val backup = File(file.parentFile, backupName)
+        try {
+            Files.move(file.toPath(), backup.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            logger.w { "Backed up corrupt file to ${backup.absolutePath}" }
         } catch (e: Exception) {
-            logger.w(e) { "Failed to parse settings.json" }
-            return
+            logger.e(e) { "Failed to back up corrupt file ${file.absolutePath}" }
         }
-
-        val existingHooks = root["hooks"]?.jsonObject ?: return
-
-        fun filterHooks(event: String, url: String): List<JsonElement> =
-            stripMatchingHookDefs(existingHooks[event]?.jsonArray, url) ?: emptyList()
-
-        val filteredPerm = filterHooks("PermissionRequest", hookUrl(port))
-        val filteredPtu = filterHooks("PreToolUse", preToolUseUrl(port))
-        val filteredPost = filterHooks("PostToolUse", postToolUseUrl(port))
-        val filteredUps = filterHooks("UserPromptSubmit", userPromptSubmitUrl(port))
-
-        val updatedHooks = buildJsonObject {
-            existingHooks.forEach { (key, value) ->
-                if (key != "PermissionRequest" && key != "PreToolUse" && key != "PostToolUse" && key != "UserPromptSubmit") put(key, value)
-            }
-            if (filteredPerm.isNotEmpty()) {
-                put("PermissionRequest", Json.encodeToJsonElement(filteredPerm))
-            }
-            if (filteredPtu.isNotEmpty()) {
-                put("PreToolUse", Json.encodeToJsonElement(filteredPtu))
-            }
-            if (filteredPost.isNotEmpty()) {
-                put("PostToolUse", Json.encodeToJsonElement(filteredPost))
-            }
-            if (filteredUps.isNotEmpty()) {
-                put("UserPromptSubmit", Json.encodeToJsonElement(filteredUps))
-            }
-        }
-
-        val updatedRoot = buildJsonObject {
-            root.forEach { (key, value) ->
-                if (key != "hooks") put(key, value)
-            }
-            if (updatedHooks.isNotEmpty()) {
-                put("hooks", updatedHooks)
-            }
-        }
-
-        file.writeText(json.encodeToString(JsonElement.serializer(), updatedRoot))
-        logger.i { "Unregistered hooks for port $port" }
     }
 
     /**
