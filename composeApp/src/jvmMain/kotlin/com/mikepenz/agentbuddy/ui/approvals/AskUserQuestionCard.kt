@@ -35,7 +35,9 @@ import com.mikepenz.agentbuddy.model.QuestionOption
 import com.mikepenz.agentbuddy.model.Source
 import com.mikepenz.agentbuddy.model.ToolType
 import com.mikepenz.agentbuddy.model.UserQuestionData
-import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.components.SlimAllowButton
+import com.mikepenz.agentbuddy.ui.components.SlimDenyButton
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -52,6 +54,7 @@ fun AskUserQuestionCard(
     questionData: UserQuestionData,
     onApproveWithInput: (updatedInput: Map<String, JsonElement>) -> Unit,
     onDismiss: () -> Unit,
+    slimButtons: Boolean = false,
 ) {
     // question index -> selected option indices
     val selections = remember { mutableStateMapOf<Int, Set<Int>>() }
@@ -168,30 +171,50 @@ fun AskUserQuestionCard(
         Spacer(Modifier.height(8.dp))
 
         // Buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        val submitAction = {
+            val updatedInput = buildUpdatedInput(
+                request.hookInput.toolInput,
+                selections,
+                customAnswers,
+            )
+            onApproveWithInput(updatedInput)
+        }
+        if (slimButtons) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text("Dismiss")
+                SlimDenyButton(
+                    modifier = Modifier.weight(1f),
+                    label = "Dismiss",
+                    onClick = onDismiss,
+                )
+                SlimAllowButton(
+                    modifier = Modifier.weight(1f),
+                    label = "Submit",
+                    enabled = allAnswered,
+                    onClick = submitAction,
+                )
             }
-            Button(
-                onClick = {
-                    val updatedInput = buildUpdatedInput(
-                        request.hookInput.toolInput,
-                        selections,
-                        customAnswers,
-                    )
-                    onApproveWithInput(updatedInput)
-                },
-                modifier = Modifier.weight(1f),
-                enabled = allAnswered,
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Submit")
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text("Dismiss")
+                }
+                Button(
+                    onClick = submitAction,
+                    modifier = Modifier.weight(1f),
+                    enabled = allAnswered,
+                ) {
+                    Text("Submit")
+                }
             }
         }
     }
@@ -241,68 +264,121 @@ internal fun buildUpdatedInput(
 @Preview
 @Composable
 private fun PreviewAskUserQuestionWithOptions() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                AskUserQuestionCard(
-                    request = ApprovalRequest(
-                        id = "preview-ask",
-                        source = Source.CLAUDE_CODE,
-                        toolType = ToolType.ASK_USER_QUESTION,
-                        hookInput = HookInput(
-                            sessionId = "sess-abc123",
-                            toolName = "AskUserQuestion",
-                            toolInput = mapOf(
-                                "questions" to kotlinx.serialization.json.JsonArray(
-                                    listOf(
-                                        JsonObject(
-                                            mapOf(
-                                                "question" to JsonPrimitive("Which database?"),
-                                                "header" to JsonPrimitive("Database Choice"),
-                                                "options" to kotlinx.serialization.json.JsonArray(
-                                                    listOf(
-                                                        JsonObject(
-                                                            mapOf(
-                                                                "label" to JsonPrimitive("PostgreSQL"),
-                                                                "description" to JsonPrimitive("Robust relational DB"),
-                                                            )
-                                                        ),
-                                                        JsonObject(
-                                                            mapOf(
-                                                                "label" to JsonPrimitive("SQLite"),
-                                                                "description" to JsonPrimitive("Lightweight embedded DB"),
-                                                            )
-                                                        ),
-                                                    )
-                                                ),
-                                                "multiSelect" to JsonPrimitive(false),
-                                            )
-                                        ),
-                                    )
-                                ),
-                            ),
-                            cwd = "/home/user/project",
-                        ),
-                        timestamp = Clock.System.now(),
-                        rawRequestJson = "{}",
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            AskUserQuestionCard(
+                request = ApprovalRequest(
+                    id = "preview-ask",
+                    source = Source.CLAUDE_CODE,
+                    toolType = ToolType.ASK_USER_QUESTION,
+                    hookInput = HookInput(
+                        sessionId = "sess-abc123",
+                        toolName = "AskUserQuestion",
+                        toolInput = emptyMap(),
+                        cwd = "/home/user/project",
                     ),
-                    questionData = UserQuestionData(
-                        questions = listOf(
-                            Question(
-                                header = "Database Choice",
-                                question = "Which database?",
-                                options = listOf(
-                                    QuestionOption(label = "PostgreSQL", description = "Robust relational DB"),
-                                    QuestionOption(label = "SQLite", description = "Lightweight embedded DB"),
-                                ),
-                                multiSelect = false,
+                    timestamp = Clock.System.now(),
+                    rawRequestJson = "{}",
+                ),
+                questionData = UserQuestionData(
+                    questions = listOf(
+                        Question(
+                            header = "Database Choice",
+                            question = "Which database?",
+                            options = listOf(
+                                QuestionOption(label = "PostgreSQL", description = "Robust relational DB"),
+                                QuestionOption(label = "SQLite", description = "Lightweight embedded DB"),
                             ),
+                            multiSelect = false,
                         ),
                     ),
-                    onApproveWithInput = {},
-                    onDismiss = {},
-                )
-            }
+                ),
+                onApproveWithInput = {},
+                onDismiss = {},
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun PreviewAskUserQuestionSlimButtons() {
+    // Verifies the slim-style buttons (Dismiss = outlined-red-on-hover,
+    // Submit = emerald fill, disabled state when no answer chosen).
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            AskUserQuestionCard(
+                request = ApprovalRequest(
+                    id = "preview-ask-slim",
+                    source = Source.CLAUDE_CODE,
+                    toolType = ToolType.ASK_USER_QUESTION,
+                    hookInput = HookInput(
+                        sessionId = "sess-slim",
+                        toolName = "AskUserQuestion",
+                        toolInput = emptyMap(),
+                        cwd = "/home/user/project",
+                    ),
+                    timestamp = Clock.System.now(),
+                    rawRequestJson = "{}",
+                ),
+                questionData = UserQuestionData(
+                    questions = listOf(
+                        Question(
+                            header = "Database Choice",
+                            question = "Which database?",
+                            options = listOf(
+                                QuestionOption(label = "PostgreSQL", description = "Robust relational DB"),
+                                QuestionOption(label = "SQLite", description = "Lightweight embedded DB"),
+                            ),
+                            multiSelect = false,
+                        ),
+                    ),
+                ),
+                onApproveWithInput = {},
+                onDismiss = {},
+                slimButtons = true,
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun PreviewAskUserQuestionMultiSelect() {
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            AskUserQuestionCard(
+                request = ApprovalRequest(
+                    id = "preview-ask-multi",
+                    source = Source.CLAUDE_CODE,
+                    toolType = ToolType.ASK_USER_QUESTION,
+                    hookInput = HookInput(
+                        sessionId = "sess-abc123",
+                        toolName = "AskUserQuestion",
+                        toolInput = emptyMap(),
+                        cwd = "/home/user/project",
+                    ),
+                    timestamp = Clock.System.now(),
+                    rawRequestJson = "{}",
+                ),
+                questionData = UserQuestionData(
+                    questions = listOf(
+                        Question(
+                            header = "Select features",
+                            question = "Which features should we enable?",
+                            options = listOf(
+                                QuestionOption(label = "Auth", description = "User login / signup"),
+                                QuestionOption(label = "Billing", description = "Stripe integration"),
+                                QuestionOption(label = "Search", description = "Full-text search"),
+                                QuestionOption(label = "Analytics", description = "Event tracking"),
+                            ),
+                            multiSelect = true,
+                        ),
+                    ),
+                ),
+                onApproveWithInput = {},
+                onDismiss = {},
+            )
         }
     }
 }

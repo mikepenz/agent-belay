@@ -8,6 +8,7 @@ import com.mikepenz.agentbuddy.capability.HookEvent
 import com.mikepenz.agentbuddy.di.AppScope
 import com.mikepenz.agentbuddy.hook.CopilotBridge
 import com.mikepenz.agentbuddy.hook.HookRegistry
+import com.mikepenz.agentbuddy.hook.RegistrationEvents
 import com.mikepenz.agentbuddy.model.AppSettings
 import com.mikepenz.agentbuddy.model.CapabilitySettings
 import com.mikepenz.agentbuddy.model.ProtectionSettings
@@ -60,6 +61,7 @@ class SettingsViewModel(
     protectionEngine: ProtectionEngine,
     capabilityEngine: CapabilityEngine,
     private val hookRegistry: HookRegistry,
+    private val registrationEvents: RegistrationEvents,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
@@ -255,6 +257,7 @@ class SettingsViewModel(
             val port = stateManager.state.value.settings.serverPort
             hookRegistry.register(port)
             isHookRegistered.value = hookRegistry.isRegistered(port)
+            registrationEvents.emit()
         }
     }
 
@@ -263,6 +266,7 @@ class SettingsViewModel(
             val port = stateManager.state.value.settings.serverPort
             hookRegistry.unregister(port)
             isHookRegistered.value = hookRegistry.isRegistered(port)
+            registrationEvents.emit()
         }
     }
 
@@ -271,6 +275,7 @@ class SettingsViewModel(
             val settings = stateManager.state.value.settings
             copilotBridge.register(settings.serverPort, settings.copilotFailClosed)
             isCopilotRegistered.value = copilotBridge.isRegistered(settings.serverPort)
+            registrationEvents.emit()
         }
     }
 
@@ -279,6 +284,7 @@ class SettingsViewModel(
             val port = stateManager.state.value.settings.serverPort
             copilotBridge.unregister(port)
             isCopilotRegistered.value = copilotBridge.isRegistered(port)
+            registrationEvents.emit()
         }
     }
 

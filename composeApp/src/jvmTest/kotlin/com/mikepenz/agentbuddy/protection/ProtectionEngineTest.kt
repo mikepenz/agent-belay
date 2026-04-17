@@ -125,4 +125,88 @@ class ProtectionEngineTest {
         val engine = engine()
         assertEquals(ProtectionMode.DISABLED, engine.highestSeverity(emptyList()))
     }
+
+    @Test
+    fun settingsProviderIsConsultedFreshOnEachEvaluation() {
+        var currentSettings = ProtectionSettings()
+        val engine = ProtectionEngine(listOf(testModule)) { currentSettings }
+
+        // Initially no override — module default (ASK) applies, rule fires.
+        val hits1 = engine.evaluate(bashHookInput("run dangerous operation"))
+        assertEquals(1, hits1.size)
+        assertEquals(ProtectionMode.ASK, hits1[0].mode)
+
+        // Change settings in-place — engine reads the new value on the next call.
+        currentSettings = ProtectionSettings(
+            modules = mapOf("test-module" to ModuleSettings(mode = ProtectionMode.LOG_ONLY))
+        )
+        val hits2 = engine.evaluate(bashHookInput("run dangerous operation"))
+        assertEquals(1, hits2.size)
+        assertEquals(ProtectionMode.LOG_ONLY, hits2[0].mode)
+
+        // Disable the module — engine skips it entirely.
+        currentSettings = ProtectionSettings(
+            modules = mapOf("test-module" to ModuleSettings(mode = ProtectionMode.DISABLED))
+        )
+        val hits3 = engine.evaluate(bashHookInput("run dangerous operation"))
+        assertTrue(hits3.isEmpty(), "Expected no hits after disabling module")
+    }
+
+    @Test
+    fun multiModuleHighestSeverityWins() {
+        // Two modules both fire on the same Bash input.
+        // One is overridden to LOG_ONLY, the other stays at AUTO_BLOCK.
+        // highestSeverity must return AUTO_BLOCK — the tool should still be blocked.
+        val blockingRule = object : ProtectionRule {
+            override val id = "block-rule"
+            override val name = "Blocking rule"
+            override val description = "Always blocks"
+            override fun evaluate(hookInput: HookInput) = ProtectionHit(
+                moduleId = "block-module",
+                ruleId = id,
+                message = "Blocked",
+                mode = ProtectionMode.AUTO_BLOCK,
+            )
+        }
+        val blockingModule = object : ProtectionModule {
+            override val id = "block-module"
+            override val name = "Blocking Module"
+            override val description = "Always blocks Bash"
+            override val corrective = false
+            override val defaultMode = ProtectionMode.AUTO_BLOCK
+            override val applicableTools = setOf("Bash")
+            override val rules = listOf(blockingRule)
+        }
+        val settings = ProtectionSettings(
+            modules = mapOf("test-module" to ModuleSettings(mode = ProtectionMode.LOG_ONLY))
+            // block-module has no settings entry → uses its defaultMode (AUTO_BLOCK)
+        )
+        val engine = ProtectionEngine(listOf(testModule, blockingModule)) { settings }
+
+        val hits = engine.evaluate(bashHookInput("run dangerous operation"))
+        assertEquals(2, hits.size, "Both modules should fire")
+
+        val testHit = hits.first { it.moduleId == "test-module" }
+        val blockHit = hits.first { it.moduleId == "block-module" }
+        assertEquals(ProtectionMode.LOG_ONLY, testHit.mode)
+        assertEquals(ProtectionMode.AUTO_BLOCK, blockHit.mode)
+
+        assertEquals(ProtectionMode.AUTO_BLOCK, engine.highestSeverity(hits),
+            "highestSeverity must return AUTO_BLOCK even though one module is LOG_ONLY")
+    }
+
+    @Test
+    fun evaluateAllReflectsSettingsOverride() {
+        val settings = ProtectionSettings(
+            modules = mapOf("test-module" to ModuleSettings(mode = ProtectionMode.LOG_ONLY))
+        )
+        val engine = ProtectionEngine(listOf(testModule)) { settings }
+
+        val evaluations = engine.evaluateAll(bashHookInput("run dangerous operation"))
+        assertEquals(1, evaluations.size)
+        val eval = evaluations[0]
+        assertEquals(ProtectionMode.LOG_ONLY, eval.mode)
+        assertTrue(eval.enabled)
+        assertTrue(eval.ruleResults.first { it.ruleId == "test-dangerous" }.matched)
+    }
 }

@@ -51,7 +51,7 @@ import com.mikepenz.agentbuddy.model.Source
 import com.mikepenz.agentbuddy.model.SpecialToolParser
 import com.mikepenz.agentbuddy.model.ToolType
 import com.mikepenz.agentbuddy.risk.RiskAutoActionOrchestrator.Companion.AUTO_DENY_COUNTDOWN
-import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import com.mikepenz.agentbuddy.ui.theme.RiskCritical
 import com.mikepenz.agentbuddy.ui.theme.RiskSafe
 import com.mikepenz.agentbuddy.ui.theme.riskColor
@@ -438,76 +438,185 @@ private fun sampleRequest(
     rawRequestJson = "{}",
 )
 
-@Preview
+@Preview(widthDp = 404, heightDp = 320)
 @Composable
 private fun PreviewAnalyzing() {
-    AgentBuddyTheme {
-        ApprovalCard(
-            request = sampleRequest(),
-            riskResult = null,
-            riskStatus = RiskStatus.ANALYZING,
-            riskError = null,
-            timeoutSeconds = 120,
-            onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
-            autoDenyActive = false, onCancelAutoDeny = {},
-        )
+    PreviewScaffold {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          androidx.compose.foundation.layout.Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = sampleRequest(),
+                riskResult = null,
+                riskStatus = RiskStatus.ANALYZING,
+                riskError = null,
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = false, onCancelAutoDeny = {},
+            )
+          }
+        }
     }
 }
 
-@Preview
+@Preview(widthDp = 404, heightDp = 360)
 @Composable
 private fun PreviewRisk1() {
-    AgentBuddyTheme {
-        ApprovalCard(
-            request = sampleRequest(),
-            riskResult = RiskAnalysis(risk = 1, label = "Safe", message = "Read-only command"),
-            riskStatus = RiskStatus.COMPLETED,
-            riskError = null,
-            timeoutSeconds = 120,
-            onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
-            autoDenyActive = false, onCancelAutoDeny = {},
-        )
+    PreviewScaffold {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          androidx.compose.foundation.layout.Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = sampleRequest(),
+                riskResult = RiskAnalysis(risk = 1, label = "Safe", message = "Read-only command"),
+                riskStatus = RiskStatus.COMPLETED,
+                riskError = null,
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = false, onCancelAutoDeny = {},
+            )
+          }
+        }
     }
 }
 
-@Preview
+@Preview(widthDp = 404, heightDp = 420)
 @Composable
 private fun PreviewRisk3() {
-    AgentBuddyTheme {
-        ApprovalCard(
-            request = sampleRequest(
-                toolName = "Edit", toolInput = mapOf(
-                    "file_path" to kotlinx.serialization.json.JsonPrimitive("/src/main.kt"),
-                    "old_string" to kotlinx.serialization.json.JsonPrimitive("foo"),
-                    "new_string" to kotlinx.serialization.json.JsonPrimitive("bar"),
-                )
-            ),
-            riskResult = RiskAnalysis(risk = 3, label = "Moderate", message = "Modifies source file"),
-            riskStatus = RiskStatus.COMPLETED,
-            riskError = null,
-            timeoutSeconds = 120,
-            onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
-            autoDenyActive = false, onCancelAutoDeny = {},
-        )
+    PreviewScaffold {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          androidx.compose.foundation.layout.Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = sampleRequest(
+                    toolName = "Edit", toolInput = mapOf(
+                        "file_path" to kotlinx.serialization.json.JsonPrimitive("/src/main.kt"),
+                        "old_string" to kotlinx.serialization.json.JsonPrimitive("foo"),
+                        "new_string" to kotlinx.serialization.json.JsonPrimitive("bar"),
+                    )
+                ),
+                riskResult = RiskAnalysis(risk = 3, label = "Moderate", message = "Modifies source file"),
+                riskStatus = RiskStatus.COMPLETED,
+                riskError = null,
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = false, onCancelAutoDeny = {},
+            )
+          }
+        }
     }
 }
 
-@Preview
+@Preview(widthDp = 404, heightDp = 420)
 @Composable
 private fun PreviewRisk5() {
-    AgentBuddyTheme {
-        ApprovalCard(
-            request = sampleRequest(
-                toolName = "Bash", toolInput = mapOf(
-                    "command" to kotlinx.serialization.json.JsonPrimitive("rm -rf /"),
+    PreviewScaffold {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          androidx.compose.foundation.layout.Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = sampleRequest(
+                    toolName = "Bash", toolInput = mapOf(
+                        "command" to kotlinx.serialization.json.JsonPrimitive("rm -rf /"),
+                    )
+                ),
+                riskResult = RiskAnalysis(risk = 5, label = "Critical", message = "Destructive system command"),
+                riskStatus = RiskStatus.COMPLETED,
+                riskError = null,
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = true, onCancelAutoDeny = {},
+            )
+          }
+        }
+    }
+}
+
+@Preview(widthDp = 404, heightDp = 420)
+@Composable
+private fun PreviewRisk2Copilot() {
+    PreviewScaffold {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          androidx.compose.foundation.layout.Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = sampleRequest(
+                    toolName = "Write",
+                    toolInput = mapOf(
+                        "file_path" to kotlinx.serialization.json.JsonPrimitive("/src/config.json"),
+                        "content" to kotlinx.serialization.json.JsonPrimitive("{\n  \"debug\": true\n}"),
+                    ),
+                ).copy(source = Source.COPILOT),
+                riskResult = RiskAnalysis(risk = 2, label = "Low", message = "Writing config file"),
+                riskStatus = RiskStatus.COMPLETED,
+                riskError = null,
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = false, onCancelAutoDeny = {},
+            )
+          }
+        }
+    }
+}
+
+@Preview(widthDp = 404, heightDp = 360)
+@Composable
+private fun PreviewRiskError() {
+    PreviewScaffold {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          androidx.compose.foundation.layout.Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = sampleRequest(),
+                riskResult = null,
+                riskStatus = RiskStatus.ERROR,
+                riskError = "timeout",
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = false, onCancelAutoDeny = {},
+            )
+          }
+        }
+    }
+}
+
+@Preview(widthDp = 404, heightDp = 420)
+@Composable
+private fun PreviewRisk3Light() {
+    PreviewScaffold(themeMode = com.mikepenz.agentbuddy.model.ThemeMode.LIGHT) {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            androidx.compose.foundation.layout.Box(modifier = Modifier.width(380.dp)) {
+                ApprovalCard(
+                    request = sampleRequest(
+                        toolName = "Edit", toolInput = mapOf(
+                            "file_path" to kotlinx.serialization.json.JsonPrimitive("/src/main.kt"),
+                            "old_string" to kotlinx.serialization.json.JsonPrimitive("foo"),
+                            "new_string" to kotlinx.serialization.json.JsonPrimitive("bar"),
+                        )
+                    ),
+                    riskResult = RiskAnalysis(risk = 3, label = "Moderate", message = "Modifies source file"),
+                    riskStatus = RiskStatus.COMPLETED,
+                    riskError = null,
+                    timeoutSeconds = 120,
+                    onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                    autoDenyActive = false, onCancelAutoDeny = {},
                 )
-            ),
-            riskResult = RiskAnalysis(risk = 5, label = "Critical", message = "Destructive system command"),
-            riskStatus = RiskStatus.COMPLETED,
-            riskError = null,
-            timeoutSeconds = 120,
-            onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
-            autoDenyActive = true, onCancelAutoDeny = {},
-        )
+            }
+        }
     }
 }

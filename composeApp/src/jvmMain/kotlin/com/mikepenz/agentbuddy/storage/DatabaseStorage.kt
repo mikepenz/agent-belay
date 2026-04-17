@@ -335,19 +335,26 @@ open class DatabaseStorage(
      *
      * @param since lower bound on `decided_at` (inclusive); pass `null` for all-time.
      */
-    fun queryStats(since: Instant?): StatsSummary = synchronized(connectionLock) {
-        val sinceClause = if (since != null) "WHERE decided_at >= ?" else ""
-        fun bindSince(ps: java.sql.PreparedStatement, startIndex: Int = 1) {
-            if (since != null) ps.setString(startIndex, since.toString())
+    fun queryStats(since: Instant?, until: Instant? = null): StatsSummary = synchronized(connectionLock) {
+        val conditions = buildList {
+            if (since != null) add("decided_at >= ?")
+            if (until != null) add("decided_at < ?")
+        }
+        val whereClause = if (conditions.isEmpty()) "" else "WHERE ${conditions.joinToString(" AND ")}"
+        fun bindBounds(ps: java.sql.PreparedStatement, startIndex: Int = 1): Int {
+            var idx = startIndex
+            if (since != null) ps.setString(idx++, since.toString())
+            if (until != null) ps.setString(idx++, until.toString())
+            return idx
         }
 
         // 1. Count by Decision (then collapse to DecisionGroup in Kotlin).
         val byGroup = mutableMapOf<DecisionGroup, Int>()
         var total = 0
         connection.prepareStatement(
-            "SELECT decision, COUNT(*) AS c FROM history $sinceClause GROUP BY decision"
+            "SELECT decision, COUNT(*) AS c FROM history $whereClause GROUP BY decision"
         ).use { ps ->
-            bindSince(ps)
+            bindBounds(ps)
             ps.executeQuery().use { rs ->
                 while (rs.next()) {
                     val decisionName = rs.getString("decision")
@@ -362,9 +369,9 @@ open class DatabaseStorage(
         // 2. Per-day breakdown. SQLite's `date()` understands ISO-8601 strings.
         val dailyByDate = sortedMapOf<String, MutableMap<DecisionGroup, Int>>()
         connection.prepareStatement(
-            "SELECT date(decided_at) AS d, decision, COUNT(*) AS c FROM history $sinceClause GROUP BY d, decision ORDER BY d ASC"
+            "SELECT date(decided_at) AS d, decision, COUNT(*) AS c FROM history $whereClause GROUP BY d, decision ORDER BY d ASC"
         ).use { ps ->
-            bindSince(ps)
+            bindBounds(ps)
             ps.executeQuery().use { rs ->
                 while (rs.next()) {
                     val day = rs.getString("d") ?: continue
@@ -385,12 +392,15 @@ open class DatabaseStorage(
         val deliberatedDecisions = Decision.entries.filter { it.group().hasMeaningfulLatency }
         if (deliberatedDecisions.isNotEmpty()) {
             val placeholders = deliberatedDecisions.joinToString(",") { "?" }
-            val sinceFilter = if (since != null) " AND decided_at >= ?" else ""
+            val boundsFilter = buildList {
+                if (since != null) add("decided_at >= ?")
+                if (until != null) add("decided_at < ?")
+            }.let { if (it.isEmpty()) "" else " AND ${it.joinToString(" AND ")}" }
             connection.prepareStatement(
-                "SELECT decision, requested_at, decided_at FROM history WHERE decision IN ($placeholders)$sinceFilter"
+                "SELECT decision, requested_at, decided_at FROM history WHERE decision IN ($placeholders)$boundsFilter"
             ).use { ps ->
                 deliberatedDecisions.forEachIndexed { i, d -> ps.setString(i + 1, d.name) }
-                if (since != null) ps.setString(deliberatedDecisions.size + 1, since.toString())
+                bindBounds(ps, deliberatedDecisions.size + 1)
                 ps.executeQuery().use { rs ->
                     while (rs.next()) {
                         val decision = runCatching { Decision.valueOf(rs.getString("decision")) }.getOrNull() ?: continue
@@ -412,18 +422,21 @@ open class DatabaseStorage(
 
         // 4. Top protection hits.
         val topProtections = mutableListOf<ProtectionHitCount>()
-        val protectionSinceClause = if (since != null) " AND decided_at >= ?" else ""
+        val protectionBoundsClause = buildList {
+            if (since != null) add("decided_at >= ?")
+            if (until != null) add("decided_at < ?")
+        }.let { if (it.isEmpty()) "" else " AND ${it.joinToString(" AND ")}" }
         connection.prepareStatement(
             """
             SELECT protection_module AS m, protection_rule AS r, COUNT(*) AS c
             FROM history
-            WHERE protection_module IS NOT NULL$protectionSinceClause
+            WHERE protection_module IS NOT NULL$protectionBoundsClause
             GROUP BY m, r
             ORDER BY c DESC
             LIMIT 10
             """.trimIndent()
         ).use { ps ->
-            if (since != null) ps.setString(1, since.toString())
+            bindBounds(ps)
             ps.executeQuery().use { rs ->
                 while (rs.next()) {
                     topProtections.add(

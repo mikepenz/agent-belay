@@ -18,11 +18,11 @@
 Agent Buddy is a **human-in-the-loop gateway** for AI coding agents like [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [GitHub Copilot](https://github.com/features/copilot). It intercepts tool requests (file edits, shell commands, web fetches, etc.) via hook events, displays them in a review UI, and lets you approve or deny each action before it executes.
 
 <p align="center">
-  <img src="screenshots/approval_risk.png" alt="Approval UI with risk analysis" width="280">
+  <img src="screenshots/approvals_pending.png" alt="Approval queue" width="280">
   &nbsp;&nbsp;
   <img src="screenshots/history.png" alt="History tab" width="280">
   &nbsp;&nbsp;
-  <img src="screenshots/settings_protections_1.png" alt="Protection engine modules" width="280">
+  <img src="screenshots/stats.png" alt="Stats tab" width="280">
 </p>
 
 ### Key Features
@@ -101,14 +101,14 @@ Two backends are supported:
 > **macOS note (Claude backend):** Because risk analysis spawns a `claude` CLI process, macOS may show a file access permission dialog. This permission is **not required** — you can safely deny it. The risk analysis will still work correctly.
 
 <p align="center">
-  <img src="screenshots/settings_general.png" alt="General settings" width="280">
-  &nbsp;&nbsp;
-  <img src="screenshots/settings_integrations.png" alt="Integration settings" width="280">
-  &nbsp;&nbsp;
-  <img src="screenshots/settings_risk_analysis.png" alt="Risk analysis settings" width="280">
+  <img src="screenshots/approvals_pending_detail.png" alt="Approval detail with risk analysis" width="380">
 </p>
 <p align="center">
-  <img src="screenshots/settings_protection_rules.png" alt="Protection rules detail" width="280">
+  <img src="screenshots/settings_general.png" alt="General settings" width="280">
+  &nbsp;&nbsp;
+  <img src="screenshots/settings_protections.png" alt="Protection engine guardrails" width="280">
+  &nbsp;&nbsp;
+  <img src="screenshots/settings_capabilities.png" alt="Session capabilities settings" width="280">
 </p>
 
 ## Tech Stack
@@ -118,6 +118,54 @@ Two backends are supported:
 - **[Ktor](https://ktor.io/)** for the embedded HTTP server that receives hook callbacks
 - **[SQLite](https://www.sqlite.org/)** for persistent history storage
 - **[Nucleus](https://github.com/niclas-4712/nucleus)** for native window decorations and macOS dock integration
+
+## Design System
+
+The UI is built on a small set of theme-aware primitives living under
+`composeApp/src/jvmMain/kotlin/com/mikepenz/agentbuddy/ui/`:
+
+- **Theme tokens** — `ui/theme/Theme.kt` exposes `AgentBuddyColors.*`
+  (theme-aware semantic colors) and `AgentBuddyDimens.*` (canonical
+  icon/density tokens).
+- **Shared primitives** — `ui/components/` (`PillSegmented`,
+  `AgentBuddyCard`, `StatusPill`, `RiskPill`, `ToolTag`, `SourceTag`,
+  `DesignToggle`, `ScreenLoadingState`, `ScreenErrorState`, …).
+- **Previews** — every composable has one or more `@Preview`
+  functions covering the state matrix (empty / loading / full / error /
+  hover / light+dark).
+
+### Generating screenshots
+
+Screenshots are rendered headlessly with
+[compose-buddy-cli](https://github.com/mikepenz/compose-buddy) — the
+same tool the iter 1–5 design passes used to verify every change. Build
+the CLI once (`./gradlew :compose-buddy-cli:installDist` in the
+compose-buddy repo) and point `COMPOSE_BUDDY_CLI` at the installed
+binary, then:
+
+```bash
+export COMPOSE_BUDDY_CLI=/path/to/compose-buddy-cli/build/install/compose-buddy-cli/bin/compose-buddy-cli
+
+# Render every @Preview as PNG (desktop renderer, headless)
+$COMPOSE_BUDDY_CLI render \
+  --project . --module :composeApp --renderer desktop \
+  --output /tmp/agent-approver-previews \
+  --build --format agent --hierarchy --semantics all
+
+# Filter to a single surface while iterating
+$COMPOSE_BUDDY_CLI render \
+  --project . --module :composeApp --renderer desktop \
+  --preview '*ApprovalCard*' --output /tmp/agent-approver-previews
+```
+
+Output goes to `<output>/manifest.json` plus one PNG per preview
+(including `*_Light` / `*_Dark` multi-preview variants). The
+`--hierarchy --semantics all` flags emit the semantic tree used for the
+a11y audit. **Any UI change must re-render and be verified visually
+before commit.**
+
+See [`composeApp/DESIGN.md`](composeApp/DESIGN.md) for the full token
+table, state-matrix coverage, and the preview-authoring playbook.
 
 ## Contributing
 

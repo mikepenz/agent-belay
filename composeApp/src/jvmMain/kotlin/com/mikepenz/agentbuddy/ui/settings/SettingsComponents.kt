@@ -1,24 +1,273 @@
 package com.mikepenz.agentbuddy.ui.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.mikepenz.agentbuddy.ui.components.AgentBuddyCard
+import com.mikepenz.agentbuddy.ui.theme.AccentEmerald
+import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
+
+// ── Design-aligned shared helpers used across the Settings sub-tabs ─────────
+// These mirror Settings.jsx `SettingGroup` / `SettingRow` (JSX padding 14x16,
+// 1px AgentBuddyColors.line1 separators between rows, card with maxWidth 780).
+
+/** Section header with title + optional subtitle + card wrapper for rows. */
+@Composable
+internal fun SettingSection(
+    title: String,
+    desc: String? = null,
+    content: @Composable () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().widthIn(max = 780.dp)) {
+        Text(
+            text = title,
+            color = AgentBuddyColors.inkPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.1).sp,
+        )
+        if (desc != null) {
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = desc,
+                color = AgentBuddyColors.inkTertiary,
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        AgentBuddyCard(modifier = Modifier.fillMaxWidth()) {
+            Column { content() }
+        }
+    }
+}
+
+/**
+ * Row with label + optional subtitle on the left and optional trailing control.
+ * First row skips the top divider to mimic the JSX `borderTop: none` on `first`.
+ */
+@Composable
+internal fun SettingItem(
+    label: String,
+    desc: String? = null,
+    first: Boolean = false,
+    right: @Composable (() -> Unit)? = null,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (!first) {
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    color = AgentBuddyColors.inkPrimary,
+                    fontSize = 13.sp,
+                    letterSpacing = (-0.05).sp,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                if (desc != null) {
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = desc,
+                        color = AgentBuddyColors.inkTertiary,
+                        fontSize = 11.5.sp,
+                        lineHeight = 17.sp,
+                        maxLines = 3,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (right != null) {
+                Box { right() }
+            }
+        }
+    }
+}
+
+/**
+ * Editable inline input matching JSX `TextInput mono`. 32dp tall, 6dp radius,
+ * 10dp horizontal padding, transparent caret tinted with AgentBuddyColors.inkPrimary.
+ */
+@Composable
+internal fun SettingsTextInput(
+    value: String,
+    onChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    width: Dp = 120.dp,
+    suffix: String? = null,
+    mono: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+) {
+    val textStyle = LocalTextStyle.current.merge(
+        TextStyle(
+            color = AgentBuddyColors.inkPrimary,
+            fontSize = 12.5.sp,
+            fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
+        ),
+    )
+    Row(
+        modifier = modifier
+            .width(width)
+            .height(32.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(AgentBuddyColors.background)
+            .border(1.dp, AgentBuddyColors.line1, RoundedCornerShape(6.dp))
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onChange,
+            modifier = Modifier.weight(1f),
+            textStyle = textStyle,
+            singleLine = true,
+            cursorBrush = SolidColor(AgentBuddyColors.inkPrimary),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        )
+        if (suffix != null) {
+            Text(
+                text = suffix,
+                color = AgentBuddyColors.inkMuted,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+    }
+}
+
+/**
+ * Small outline button — matches JSX `Btn variant="outline" size="sm"` used in
+ * integrations / data rows. 28dp tall, AgentBuddyColors.line1 border, ghost hover fill.
+ */
+@Composable
+internal fun SettingsOutlineBtn(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    Box(
+        modifier = modifier
+            .height(28.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (hovered) AgentBuddyColors.surface2 else Color.Transparent)
+            .border(1.dp, AgentBuddyColors.line1, RoundedCornerShape(6.dp))
+            .hoverable(interactionSource)
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = AgentBuddyColors.inkSecondary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+/** Ghost button — no fill, no border. Used for destructive secondary actions. */
+@Composable
+internal fun SettingsGhostBtn(
+    text: String,
+    color: Color = AgentBuddyColors.inkSecondary,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    Box(
+        modifier = modifier
+            .height(28.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (hovered) color.copy(alpha = 0.1f) else Color.Transparent)
+            .hoverable(interactionSource)
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+/** Solid primary button — JSX `Btn variant="primary" size="sm"`. */
+@Composable
+internal fun SettingsPrimaryBtn(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    Box(
+        modifier = modifier
+            .height(28.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (hovered) AccentEmerald.copy(alpha = 0.9f) else AccentEmerald)
+            .hoverable(interactionSource)
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = Color(0xFF163826),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+// ── Legacy helpers kept for files not migrated in this pass ─────────────────
 
 @Composable
 internal fun SectionHeader(title: String) {
@@ -53,7 +302,7 @@ internal fun SettingsTextField(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
-        OutlinedTextField(
+        androidx.compose.material3.OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
@@ -79,7 +328,8 @@ internal fun SettingsSwitch(
         Text(
             label,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            color = if (enabled) MaterialTheme.colorScheme.onSurface
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
         )
         Switch(
             checked = checked,
@@ -122,7 +372,7 @@ internal fun SettingsDiscreteSlider(
                 color = labelColor,
             )
         }
-        Slider(
+        androidx.compose.material3.Slider(
             value = currentIndex.toFloat(),
             onValueChange = { f ->
                 val idx = f.toInt().coerceIn(0, stops.lastIndex)
@@ -133,19 +383,15 @@ internal fun SettingsDiscreteSlider(
             steps = (stops.size - 2).coerceAtLeast(0),
             enabled = enabled,
         )
-        // The Material3 Slider insets its track by the thumb radius (~10dp).
-        // Inset the label row by the same amount so tick captions line up with
-        // thumb positions, then place each label centered on its exact fraction.
-        Layout(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp),
+        androidx.compose.ui.layout.Layout(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
             content = {
                 stopLabels.forEach { text ->
                     Text(
                         text = text,
                         style = MaterialTheme.typography.labelSmall,
                         color = tickColor,
+                        textAlign = TextAlign.Center,
                     )
                 }
             },
