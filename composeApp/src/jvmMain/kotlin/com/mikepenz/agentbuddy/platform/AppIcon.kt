@@ -24,37 +24,33 @@ object AppIcon {
 
     /**
      * Creates a tray icon as a MultiResolutionImage for HiDPI (1x + 2x).
-     * @param drawBadge If false, skips the badge (logo with cutout only, for template overlay use)
+     *
+     * @param logoColor Colour of the Claude logo fill. Pick based on menu-bar
+     *   theme (white on dark menu bars, black on light).
+     * @param drawBadge If false, skips the colored pending-count badge.
      */
-    fun createTrayIconMultiRes(pendingCount: Int = 0, drawBadge: Boolean = true): java.awt.Image {
-        val img1x = create(22, pendingCount, trayMode = true, drawBadge = drawBadge)
-        val img2x = create(44, pendingCount, trayMode = true, drawBadge = drawBadge)
+    fun createTrayIconMultiRes(
+        pendingCount: Int = 0,
+        drawBadge: Boolean = true,
+        logoColor: Color = Color.WHITE,
+    ): java.awt.Image {
+        val img1x = create(22, pendingCount, logoColor = logoColor, drawBadge = drawBadge)
+        val img2x = create(44, pendingCount, logoColor = logoColor, drawBadge = drawBadge)
         return java.awt.image.BaseMultiResolutionImage(img1x, img2x)
     }
 
     /**
-     * Creates a badge-only image at 2x resolution (44×44 pixels for 22pt tray icon).
-     * Transparent background with just the colored badge and its content.
-     */
-    fun createTrayBadgeImage(pendingCount: Int): BufferedImage {
-        val size = 44 // 2x for 22pt tray icon
-        val image = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
-        val g = image.createGraphics()
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-        g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE)
-        g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON)
-        drawBadge(g, size, pendingCount, Color.WHITE)
-        g.dispose()
-        return image
-    }
-
-    /**
      * Creates the app icon at the given pixel size.
-     * @param trayMode If true, renders logo in black for macOS template images
-     * @param drawBadge If false, skips the badge (useful when badge is overlaid natively)
+     *
+     * @param logoColor Colour of the Claude logo fill.
+     * @param drawBadge If false, skips the colored pending-count badge.
      */
-    fun create(size: Int, pendingCount: Int = 0, trayMode: Boolean = false, drawBadge: Boolean = true): BufferedImage {
+    fun create(
+        size: Int,
+        pendingCount: Int = 0,
+        logoColor: Color = Color.WHITE,
+        drawBadge: Boolean = true,
+    ): BufferedImage {
         val image = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
         val g = image.createGraphics()
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -80,21 +76,11 @@ object AppIcon {
         val logoArea = Area(claudeShape)
         logoArea.subtract(Area(cutoutShape))
 
-        // Draw Claude logo with cutout
-        g.color = if (trayMode) Color.BLACK else Color.WHITE
+        g.color = logoColor
         g.fill(logoArea)
 
         if (drawBadge) {
-            if (trayMode) {
-                // Template image: draw badge in black, cut out content as transparent
-                val badgeShape = buildBadgeOutline(badgeCenterX, badgeCenterY, badgeDiameter)
-                g.color = Color.BLACK
-                g.fill(badgeShape)
-                g.composite = java.awt.AlphaComposite.Clear
-                drawBadgeContent(g, size, pendingCount)
-            } else {
-                drawBadge(g, size, pendingCount, Color.WHITE)
-            }
+            drawBadge(g, size, pendingCount, Color.WHITE)
         }
 
         g.dispose()

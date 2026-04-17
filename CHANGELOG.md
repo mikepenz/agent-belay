@@ -4,7 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Tray menu now includes a **Capabilities** sub-menu with one checkbox per
+  registered `CapabilityModule` (Response Compression, Socratic Thinking),
+  kept in sync with the Settings → Capabilities tab via `AppStateManager`.
+
 ### Changed
+- Migrated the system tray from raw AWT (`SystemTray` + `PopupMenu`) to
+  [ComposeNativeTray](https://github.com/kdroidFilter/ComposeNativeTray). The
+  tray is now a Compose composable and its menu recomposes from the reactive
+  app state. macOS no longer renders the menu-bar icon as a template image
+  with a separately-coloured badge overlay; the baked-in coloured badge is
+  used on all platforms.
 - Renamed project from **Agent Approver** to **Agent Buddy** (repo `mikepenz/agent-buddy`).
   Package, bundle ID, and data-directory names updated accordingly. Existing installs
   auto-migrate on first launch: data dir (`AgentApprover/` → `AgentBuddy/`), DB file,

@@ -78,6 +78,23 @@ Nucleus (`io.github.kdroidfilter:nucleus.*`) ships 14 pre-compiled native binari
 
 **When bumping the Nucleus version**: Re-audit the native source code in the [Nucleus repo](https://github.com/kdroidFilter/Nucleus) for changes to `.m`, `.c`, or build scripts. Check that the CI pipeline (`build-natives.yaml`) still compiles from source without injecting additional binaries. Run `strings` on the new `.dylib`/`.so` files to verify no suspicious additions (network URLs, exec calls, credential access). This is necessary because Nucleus is a young, single-maintainer project without reproducible build attestation.
 
+### ComposeNativeTray Native Binary Audit (April 2026)
+
+ComposeNativeTray (`io.github.kdroidfilter:composenativetray` v1.3.0) ships 6 pre-compiled native binaries inside the `-jvm` artifact:
+- `composetray/native/darwin-aarch64/libMacTray.dylib` (156 KB)
+- `composetray/native/darwin-x86-64/libMacTray.dylib` (131 KB)
+- `composetray/native/linux-aarch64/libLinuxTray.so` (260 KB)
+- `composetray/native/linux-x86-64/libLinuxTray.so` (228 KB)
+- `composetray/native/win32-arm64/WinTray.dll` (23 KB)
+- `composetray/native/win32-x86-64/WinTray.dll` (23 KB)
+
+- **Source**: Same maintainer ecosystem as Nucleus ([`kdroidFilter/ComposeNativeTray`](https://github.com/kdroidFilter/ComposeNativeTray), MIT).
+- **Build pipeline**: CI builds natives from source via `.github/workflows/build-natives.yaml`.
+- **Binary analysis**: `strings` shows only the expected tray symbols (`NSStatusItem`, `org.kde.StatusNotifierItem`, `Shell_NotifyIconW`). No network (socket/curl/http), no exec/system, no credential access.
+- **Verification**: SHA-256 checksums pinned in `verification-metadata.xml`.
+
+**When bumping the ComposeNativeTray version**: same drill as for Nucleus — verify the CI pipeline still compiles from source, re-run `strings` on the bundled `.dylib`/`.so`/`.dll` for suspicious additions, and refresh `verification-metadata.xml`.
+
 ## Key Technical Details
 
 - **Kotlin 2.3.20**, **Compose Multiplatform 1.10.0**, **Ktor 3.1.3**

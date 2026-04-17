@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
@@ -30,6 +31,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import com.mikepenz.agentbuddy.app.AgentBuddyTray
 import com.mikepenz.agentbuddy.app.ApprovalServerRunner
 import com.mikepenz.agentbuddy.app.rememberPersistedWindowState
 import com.mikepenz.agentbuddy.di.AppGraph
@@ -63,7 +65,7 @@ private const val MIN_WINDOW_HEIGHT = 360
  * [exitApplication] is the host's terminator.
  */
 @Composable
-fun AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitApplication: () -> Unit) {
+fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitApplication: () -> Unit) {
     val stateManager = graph.stateManager
     val trayManager = graph.trayManager
     val isVisible by trayManager.visible.collectAsState()
@@ -112,11 +114,23 @@ fun AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitApplication: () -> Un
         }
     }
 
-    // Tray icon + badge + notifications. install() returns an AutoCloseable
-    // that removes the icon and cancels the observer jobs.
+    // Native system tray (Compose-owned via ComposeNativeTray). The Capabilities
+    // sub-menu lists every registered CapabilityModule; toggling a checkbox
+    // writes back through AppStateManager so it stays in sync with the
+    // Settings tab.
+    AgentBuddyTray(
+        trayManager = trayManager,
+        stateManager = stateManager,
+        capabilityEngine = graph.capabilityEngine,
+        environment = graph.environment,
+        exitApplication = exitApplication,
+    )
+
+    // OS-level dock badge + Linux notifications — app-scoped so they survive
+    // the main window being hidden.
     DisposableEffect(Unit) {
-        val installation = trayManager.install(onQuit = exitApplication)
-        onDispose { installation.close() }
+        val closer = graph.trayNotificationsManager.start()
+        onDispose { closer.close() }
     }
 
     // Approval server: try to start, route BindException → port-error window.

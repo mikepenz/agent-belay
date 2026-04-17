@@ -3,6 +3,8 @@ package com.mikepenz.agentbuddy.di
 import com.mikepenz.agentbuddy.app.ApprovalServerRunner
 import com.mikepenz.agentbuddy.app.RiskAnalyzerLifecycle
 import com.mikepenz.agentbuddy.app.TrayManager
+import com.mikepenz.agentbuddy.app.TrayNotificationsManager
+import com.mikepenz.agentbuddy.capability.CapabilityEngine
 import com.mikepenz.agentbuddy.protection.ProtectionEngine
 import com.mikepenz.agentbuddy.risk.ActiveRiskAnalyzerHolder
 import com.mikepenz.agentbuddy.risk.ClaudeCliRiskAnalyzer
@@ -39,6 +41,8 @@ interface AppGraph : ViewModelGraph {
     val copilotStateHolder: CopilotStateHolder
     val ollamaStateHolder: OllamaStateHolder
     val trayManager: TrayManager
+    val trayNotificationsManager: TrayNotificationsManager
+    val capabilityEngine: CapabilityEngine
     val riskAnalyzerLifecycle: RiskAnalyzerLifecycle
     val approvalServerRunner: ApprovalServerRunner
 
