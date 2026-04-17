@@ -237,7 +237,7 @@ jobs:
             "artifacts/AgentBuddy-${VERSION}-macos-${{ matrix.arch }}.dmg"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-${{ matrix.arch }}-dmg
           path: artifacts/*.dmg
@@ -314,7 +314,7 @@ jobs:
             "artifacts/AgentBuddy-${VERSION}-windows-x64.msi"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-msi
           path: artifacts/*.msi
@@ -367,7 +367,7 @@ jobs:
             "artifacts/AgentBuddy-${VERSION}.jar"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: linux-packages
           path: artifacts/*
@@ -416,7 +416,7 @@ jobs:
         run: sha256sum * | tee CHECKSUMS-SHA256.txt
 
       - name: Upload checksums
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: checksums
           path: all-artifacts/CHECKSUMS-SHA256.txt
