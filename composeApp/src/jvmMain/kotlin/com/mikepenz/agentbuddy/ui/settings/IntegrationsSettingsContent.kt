@@ -30,7 +30,6 @@ import com.mikepenz.agentbuddy.ui.components.StatusPill
 import com.mikepenz.agentbuddy.ui.components.TagSize
 import com.mikepenz.agentbuddy.ui.icons.LucidePlug
 import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
-import com.mikepenz.agentbuddy.ui.theme.InfoBlue
 import com.mikepenz.agentbuddy.ui.theme.VioletPurple
 
 @Composable
@@ -73,15 +72,6 @@ fun IntegrationsSettingsContent(
                         onChange = { onSettingsChange(settings.copy(copilotFailClosed = it)) },
                     )
                 },
-            ),
-            IntegrationItemData(
-                id = "cursor",
-                name = "Cursor",
-                desc = "Tool-use hooks for the Cursor agent.",
-                color = InfoBlue,
-                registered = false,
-                onRegister = {},
-                onUnregister = {},
             ),
         )
         items.forEachIndexed { idx, it -> IntegrationRow(item = it, first = idx == 0) }
