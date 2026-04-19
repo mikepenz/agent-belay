@@ -91,7 +91,6 @@ fun ApprovalsScreen(
     onApprove: (id: String) -> Unit = {},
     onAlwaysAllow: (id: String) -> Unit = {},
     onDeny: (id: String) -> Unit = {},
-    onDenyAndRemember: (id: String) -> Unit = {},
     initialMediumDetailId: String? = null,
 ) {
     if (items.isEmpty()) {
@@ -137,7 +136,6 @@ fun ApprovalsScreen(
                     onApprove = onApprove,
                     onAlwaysAllow = onAlwaysAllow,
                     onDeny = onDeny,
-                    onDenyAndRemember = onDenyAndRemember,
                 )
             }
         } else {
@@ -152,7 +150,6 @@ fun ApprovalsScreen(
                         onApprove = onApprove,
                         onAlwaysAllow = onAlwaysAllow,
                         onDeny = onDeny,
-                        onDenyAndRemember = onDenyAndRemember,
                     )
                 } else {
                     QueueHeader(count = items.size)
@@ -535,7 +532,6 @@ private fun MediumDetailView(
     onApprove: (id: String) -> Unit = {},
     onAlwaysAllow: (id: String) -> Unit = {},
     onDeny: (id: String) -> Unit = {},
-    onDenyAndRemember: (id: String) -> Unit = {},
 ) {
     Column(modifier = modifier) {
         // Back bar
@@ -568,7 +564,6 @@ private fun MediumDetailView(
             onApprove = onApprove,
             onAlwaysAllow = onAlwaysAllow,
             onDeny = onDeny,
-            onDenyAndRemember = onDenyAndRemember,
         )
     }
 }
@@ -582,7 +577,6 @@ private fun ApprovalDetail(
     onApprove: (id: String) -> Unit = {},
     onAlwaysAllow: (id: String) -> Unit = {},
     onDeny: (id: String) -> Unit = {},
-    onDenyAndRemember: (id: String) -> Unit = {},
 ) {
     Column(modifier = modifier.background(AgentBuddyColors.background)) {
         // Header

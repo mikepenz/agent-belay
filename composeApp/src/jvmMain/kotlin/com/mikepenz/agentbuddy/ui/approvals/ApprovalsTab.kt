@@ -81,6 +81,5 @@ fun ApprovalsTab(
         onApprove = { id -> onApprove(id, null) },
         onAlwaysAllow = { id -> onAlwaysAllow(id) },
         onDeny = { id -> onDeny(id, "") },
-        onDenyAndRemember = { id -> onDeny(id, "remember") },
     )
 }
