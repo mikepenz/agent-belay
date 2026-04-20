@@ -48,6 +48,8 @@ import com.mikepenz.agentbuddy.risk.CopilotInitState
 import com.mikepenz.agentbuddy.risk.OllamaInitState
 import com.mikepenz.agentbuddy.risk.RiskMessageBuilder
 import com.mikepenz.agentbuddy.ui.components.DecisionStatus
+import com.mikepenz.agentbuddy.ui.components.GhostButton
+import com.mikepenz.agentbuddy.ui.components.OutlineButton
 import com.mikepenz.agentbuddy.ui.components.DesignToggle
 import com.mikepenz.agentbuddy.ui.components.PillSegmented
 import com.mikepenz.agentbuddy.ui.components.StatusPill
@@ -364,7 +366,7 @@ private fun CopilotSection(
                 label = "Login with GitHub",
                 desc = "Opens the gh auth login documentation.",
                 right = {
-                    SettingsOutlineBtn(text = "Open", onClick = {
+                    OutlineButton(text = "Open", onClick = {
                         openBrowserSafely("https://cli.github.com/manual/gh_auth_login")
                     })
                 },
@@ -425,7 +427,7 @@ private fun OllamaSection(
         SettingItem(
             label = "Download Ollama",
             desc = "Opens ollama.com/download in your browser.",
-            right = { SettingsOutlineBtn(text = "Open", onClick = { openBrowserSafely("https://ollama.com/download") }) },
+            right = { OutlineButton(text = "Open", onClick = { openBrowserSafely("https://ollama.com/download") }) },
         )
     }
 }
@@ -459,11 +461,11 @@ private fun SystemPromptSection(
             )
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingsOutlineBtn(
+                OutlineButton(
                     text = if (show) "Hide default" else "View default",
                     onClick = { show = !show },
                 )
-                SettingsGhostBtn(
+                GhostButton(
                     text = "Copy default",
                     onClick = { clipboardManager.setText(AnnotatedString(effectivePrompt)) },
                 )

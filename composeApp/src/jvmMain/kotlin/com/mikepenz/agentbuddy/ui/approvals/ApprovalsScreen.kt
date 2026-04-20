@@ -45,7 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.Source
 import com.mikepenz.agentbuddy.model.ToolType
+import com.mikepenz.agentbuddy.ui.components.ColoredIconTile
 import com.mikepenz.agentbuddy.ui.components.DecisionStatus
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
+import com.mikepenz.agentbuddy.ui.components.MetadataField
 import com.mikepenz.agentbuddy.ui.components.RiskPill
 import com.mikepenz.agentbuddy.ui.components.SectionLabel
 import com.mikepenz.agentbuddy.ui.components.SourceTag
@@ -557,7 +560,7 @@ private fun MediumDetailView(
             )
             Spacer(Modifier.weight(1f))
         }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+        HorizontalHairline()
         ApprovalDetail(
             item = item,
             modifier = Modifier.weight(1f),
@@ -620,7 +623,7 @@ private fun ApprovalDetail(
                 lineHeight = 20.sp,
             )
         }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+        HorizontalHairline()
 
         // Body (scrollable)
         Column(
@@ -692,13 +695,7 @@ private fun ApprovalDetail(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     val c = riskColor(item.risk)
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(c.copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
+                    ColoredIconTile(tint = c, bgAlpha = 0.12f, borderAlpha = 0f) {
                         Text(
                             text = "${item.risk}",
                             color = c,
@@ -736,7 +733,7 @@ private fun ApprovalDetail(
 
         // Footer actions
         Column(modifier = Modifier.fillMaxWidth()) {
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+            HorizontalHairline()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -781,34 +778,16 @@ private fun MetaRow(
     modifier: Modifier = Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
 ) {
-    Column(
+    MetadataField(
+        label = label,
+        icon = icon,
+        labelGap = 6.dp,
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(AgentBuddyColors.surface)
             .border(1.dp, AgentBuddyColors.line1, RoundedCornerShape(8.dp))
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = AgentBuddyColors.inkMuted,
-                    modifier = Modifier.size(10.dp),
-                )
-            }
-            Text(
-                text = label.uppercase(),
-                color = AgentBuddyColors.inkMuted,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.4.sp,
-            )
-        }
-        Spacer(Modifier.height(6.dp))
         Text(
             text = value,
             color = AgentBuddyColors.inkPrimary,
@@ -837,7 +816,7 @@ private fun RecentSimilarList(tool: String) {
     ) {
         rows.forEachIndexed { idx, row ->
             if (idx > 0) {
-                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+                HorizontalHairline()
             }
             Row(
                 modifier = Modifier

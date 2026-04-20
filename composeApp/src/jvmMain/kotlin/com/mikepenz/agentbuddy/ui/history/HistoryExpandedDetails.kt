@@ -37,7 +37,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.ToolType
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
+import com.mikepenz.agentbuddy.ui.components.IconActionButton
 import com.mikepenz.agentbuddy.ui.components.LocalPreviewHoverOverride
+import com.mikepenz.agentbuddy.ui.components.MetadataField
 import com.mikepenz.agentbuddy.ui.icons.FeatherExternalLink
 import com.mikepenz.agentbuddy.ui.icons.LucideChevronDown
 import com.mikepenz.agentbuddy.ui.icons.LucideChevronRight
@@ -484,7 +487,7 @@ private fun RawJsonBlock(title: String, json: String?) {
             )
         }
         if (expanded) {
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+            HorizontalHairline()
             val scroll = rememberScrollState()
             Box(
                 modifier = Modifier
@@ -525,17 +528,7 @@ private fun DetailField(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Column(modifier = modifier) {
-        Text(
-            text = label.uppercase(),
-            color = AgentBuddyColors.inkMuted,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.5.sp,
-        )
-        Spacer(Modifier.height(5.dp))
-        content()
-    }
+    MetadataField(label = label, modifier = modifier, content = content)
 }
 
 @Composable
@@ -590,7 +583,7 @@ private fun LabeledCodeBlock(
                     onClick = { copyToClipboard(copyPayload) },
                 )
             }
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+            HorizontalHairline()
             val scroll = rememberScrollState()
             Box(
                 modifier = Modifier
@@ -631,7 +624,7 @@ private fun DiffBlock(oldStr: String, newStr: String) {
                 onClick = { copyToClipboard(newStr) },
             )
         }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+        HorizontalHairline()
         val scroll = rememberScrollState()
         Column(
             modifier = Modifier
@@ -659,35 +652,6 @@ private fun DiffBlock(oldStr: String, newStr: String) {
                 )
             }
         }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun IconActionButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val liveHover by interactionSource.collectIsHoveredAsState()
-    val hovered = LocalPreviewHoverOverride.current ?: liveHover
-    val bg = if (hovered) AgentBuddyColors.surface3 else Color.Transparent
-    Box(
-        modifier = Modifier
-            .size(24.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(bg)
-            .hoverable(interactionSource)
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = AgentBuddyColors.inkSecondary,
-            modifier = Modifier.size(12.dp),
-        )
     }
 }
 

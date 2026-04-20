@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.ui.components.AgentBuddyCard
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
 import com.mikepenz.agentbuddy.ui.theme.AccentEmerald
 import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
 
@@ -92,7 +93,7 @@ internal fun SettingItem(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         if (!first) {
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+            HorizontalHairline()
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -178,94 +179,8 @@ internal fun SettingsTextInput(
     }
 }
 
-/**
- * Small outline button — matches JSX `Btn variant="outline" size="sm"` used in
- * integrations / data rows. 28dp tall, AgentBuddyColors.line1 border, ghost hover fill.
- */
-@Composable
-internal fun SettingsOutlineBtn(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
-    Box(
-        modifier = modifier
-            .height(28.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (hovered) AgentBuddyColors.surface2 else Color.Transparent)
-            .border(1.dp, AgentBuddyColors.line1, RoundedCornerShape(6.dp))
-            .hoverable(interactionSource)
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = AgentBuddyColors.inkSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-}
-
-/** Ghost button — no fill, no border. Used for destructive secondary actions. */
-@Composable
-internal fun SettingsGhostBtn(
-    text: String,
-    color: Color = AgentBuddyColors.inkSecondary,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
-    Box(
-        modifier = modifier
-            .height(28.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (hovered) color.copy(alpha = 0.1f) else Color.Transparent)
-            .hoverable(interactionSource)
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
-            .padding(horizontal = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = color,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-}
-
-/** Solid primary button — JSX `Btn variant="primary" size="sm"`. */
-@Composable
-internal fun SettingsPrimaryBtn(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
-    Box(
-        modifier = modifier
-            .height(28.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (hovered) AccentEmerald.copy(alpha = 0.9f) else AccentEmerald)
-            .hoverable(interactionSource)
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = Color(0xFF163826),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
+// Button variants moved to ui/components/ActionButtons.kt as
+// OutlineButton / GhostButton / PrimaryButton.
 
 // ── Legacy helpers kept for files not migrated in this pass ─────────────────
 

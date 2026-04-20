@@ -49,7 +49,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.Source
 import com.mikepenz.agentbuddy.model.ToolType
+import com.mikepenz.agentbuddy.ui.components.BadgeChip
 import com.mikepenz.agentbuddy.ui.components.DecisionStatus
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
 import kotlinx.serialization.json.JsonElement
 import com.mikepenz.agentbuddy.ui.components.LocalPreviewHoverOverride
 import com.mikepenz.agentbuddy.ui.components.PillSegmented
@@ -193,7 +195,7 @@ fun HistoryScreen(
                             ColHeader("Outcome", Modifier.width(200.dp))
                             ColHeader("When", Modifier.width(80.dp), alignEnd = true)
                         }
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+                        HorizontalHairline()
                     }
                     Column(
                         modifier = Modifier
@@ -307,7 +309,7 @@ private fun HistoryHeader(
             onSelect = onScopeChange,
         )
         // Baseline divider under tabs (matches JSX borderBottom on Segmented).
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+        HorizontalHairline()
     }
 }
 
@@ -415,19 +417,12 @@ private fun SegmentTab(item: SegmentItem, active: Boolean, onClick: () -> Unit) 
                 fontWeight = FontWeight.Medium,
                 letterSpacing = (-0.05).sp,
             )
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(if (active) AgentBuddyColors.surface3 else AgentBuddyColors.surface)
-                    .padding(horizontal = 5.dp, vertical = 1.dp),
-            ) {
-                Text(
-                    text = item.count.toString(),
-                    color = if (active) AgentBuddyColors.inkSecondary else AgentBuddyColors.inkMuted,
-                    fontSize = 10.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                )
-            }
+            BadgeChip(
+                text = item.count.toString(),
+                background = if (active) AgentBuddyColors.surface3 else AgentBuddyColors.surface,
+                textColor = if (active) AgentBuddyColors.inkSecondary else AgentBuddyColors.inkMuted,
+                mono = true,
+            )
         }
         if (active) {
             // matchParentSize() matches the Row's size WITHOUT participating
@@ -527,19 +522,14 @@ private fun HistoryRow(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 if (entry.tag != null) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(com.mikepenz.agentbuddy.ui.theme.WarnYellow.copy(alpha = 0.12f))
-                            .padding(horizontal = 6.dp, vertical = 1.dp),
-                    ) {
-                        Text(
-                            text = entry.tag,
-                            color = com.mikepenz.agentbuddy.ui.theme.WarnYellow,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                        )
-                    }
+                    BadgeChip(
+                        text = entry.tag,
+                        background = com.mikepenz.agentbuddy.ui.theme.WarnYellow.copy(alpha = 0.12f),
+                        textColor = com.mikepenz.agentbuddy.ui.theme.WarnYellow,
+                        mono = true,
+                        fontSize = 10.sp,
+                        horizontalPadding = 6.dp,
+                    )
                 }
             }
             Row(
@@ -568,7 +558,7 @@ private fun HistoryRow(
             HistoryExpandedDetails(entry, onReplay = onReplay)
         }
         if (!isLast) {
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+            HorizontalHairline()
         }
     }
 }

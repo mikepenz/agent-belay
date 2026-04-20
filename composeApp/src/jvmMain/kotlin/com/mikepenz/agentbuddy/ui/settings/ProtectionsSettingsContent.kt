@@ -44,6 +44,7 @@ import com.mikepenz.agentbuddy.model.ProtectionSettings
 import com.mikepenz.agentbuddy.protection.ProtectionModule
 import com.mikepenz.agentbuddy.ui.components.AgentBuddyCard
 import com.mikepenz.agentbuddy.ui.components.DesignToggle
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
 import com.mikepenz.agentbuddy.ui.icons.LucideChevronDown
 import com.mikepenz.agentbuddy.ui.icons.LucideShield
 import com.mikepenz.agentbuddy.ui.theme.AccentEmerald
@@ -155,7 +156,7 @@ private fun ProtectionRow(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         if (!first) {
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+            HorizontalHairline()
         }
         Row(
             modifier = Modifier

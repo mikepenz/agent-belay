@@ -14,6 +14,8 @@ import com.mikepenz.agentbuddy.model.AppSettings
 import com.mikepenz.agentbuddy.model.ThemeMode
 import com.mikepenz.agentbuddy.platform.StartupManager
 import com.mikepenz.agentbuddy.ui.components.DesignToggle
+import com.mikepenz.agentbuddy.ui.components.GhostButton
+import com.mikepenz.agentbuddy.ui.components.OutlineButton
 import com.mikepenz.agentbuddy.ui.components.PillSegmented
 import com.mikepenz.agentbuddy.ui.theme.DangerRed
 
@@ -157,13 +159,13 @@ fun GeneralSettingsContent(
             label = "History",
             desc = "$historyCount of ${settings.maxHistoryEntries} entries used.",
             first = true,
-            right = { SettingsOutlineBtn(text = "Export JSON", onClick = {}) },
+            right = { OutlineButton(text = "Export JSON", onClick = {}) },
         )
         SettingItem(
             label = "Clear history",
             desc = "Permanently removes all recorded decisions and protections.",
             right = {
-                SettingsGhostBtn(
+                GhostButton(
                     text = "Clear\u2026",
                     color = DangerRed,
                     onClick = { showClearDialog = true },
@@ -192,7 +194,7 @@ fun GeneralSettingsContent(
             label = "Open source libraries",
             desc = "View third-party licenses bundled with Agent Buddy.",
             first = true,
-            right = { SettingsOutlineBtn(text = "View\u2026", onClick = onShowLicenses) },
+            right = { OutlineButton(text = "View\u2026", onClick = onShowLicenses) },
         )
     }
 }

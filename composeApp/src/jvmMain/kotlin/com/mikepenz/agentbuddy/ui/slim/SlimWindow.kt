@@ -64,6 +64,7 @@ import com.mikepenz.agentbuddy.model.ToolType
 import com.mikepenz.agentbuddy.model.UserQuestionData
 import com.mikepenz.agentbuddy.ui.approvals.AskUserQuestionCard
 import com.mikepenz.agentbuddy.ui.approvals.PlanCard
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
 import com.mikepenz.agentbuddy.ui.components.LocalPreviewHoverOverride
 import com.mikepenz.agentbuddy.ui.components.SlimAllowButton
 import com.mikepenz.agentbuddy.ui.components.SlimDenyButton
@@ -310,7 +311,7 @@ private fun SlimDetailOverlay(
             Spacer(Modifier.weight(1f))
             Text("ESC", color = AgentBuddyColors.inkMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+        HorizontalHairline()
 
         // Scrollable detail body
         Column(
@@ -411,7 +412,7 @@ private fun SlimDetailOverlay(
         }
 
         // Footer actions
-        Box(Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+        HorizontalHairline()
         Column(
             modifier = Modifier.fillMaxWidth().background(AgentBuddyColors.surface).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -498,7 +499,7 @@ private fun SlimTitleBar(count: Int, onExpand: () -> Unit) {
             )
         }
     }
-    Box(Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+    HorizontalHairline()
 }
 
 @Composable
@@ -761,7 +762,7 @@ private fun RiskPill(risk: Int) {
 
 @Composable
 private fun SlimFooter(onExpand: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+    HorizontalHairline()
     Row(
         modifier = Modifier
             .fillMaxWidth()

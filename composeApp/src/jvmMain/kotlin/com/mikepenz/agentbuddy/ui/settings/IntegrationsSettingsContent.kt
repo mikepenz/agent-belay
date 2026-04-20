@@ -1,18 +1,14 @@
 package com.mikepenz.agentbuddy.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,8 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.AppSettings
+import com.mikepenz.agentbuddy.ui.components.ColoredIconTile
 import com.mikepenz.agentbuddy.ui.components.DecisionStatus
 import com.mikepenz.agentbuddy.ui.components.DesignToggle
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
+import com.mikepenz.agentbuddy.ui.components.OutlineButton
+import com.mikepenz.agentbuddy.ui.components.PrimaryButton
 import com.mikepenz.agentbuddy.ui.components.StatusPill
 import com.mikepenz.agentbuddy.ui.components.TagSize
 import com.mikepenz.agentbuddy.ui.icons.LucidePlug
@@ -93,27 +93,17 @@ private data class IntegrationItemData(
 private fun IntegrationRow(item: IntegrationItemData, first: Boolean) {
     Column(modifier = Modifier.fillMaxWidth()) {
         if (!first) {
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+            HorizontalHairline()
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(item.color.copy(alpha = 0.14f))
-                    .border(1.dp, item.color.copy(alpha = 0.22f), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = LucidePlug,
-                    contentDescription = null,
-                    tint = item.color,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
+            ColoredIconTile(
+                icon = LucidePlug,
+                tint = item.color,
+                contentDescription = null,
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -150,9 +140,9 @@ private fun IntegrationRow(item: IntegrationItemData, first: Boolean) {
                 }
             }
             if (item.registered) {
-                SettingsOutlineBtn(text = "Unregister", onClick = item.onUnregister)
+                OutlineButton(text = "Unregister", onClick = item.onUnregister)
             } else {
-                SettingsPrimaryBtn(text = "Register", onClick = item.onRegister)
+                PrimaryButton(text = "Register", onClick = item.onRegister)
             }
         }
     }

@@ -45,6 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.ToolType
 import com.mikepenz.agentbuddy.ui.components.AgentBuddyCard
+import com.mikepenz.agentbuddy.ui.components.CardSectionHeader
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
+import com.mikepenz.agentbuddy.ui.components.LinearMeter
+import com.mikepenz.agentbuddy.ui.components.StackedMeter
 import com.mikepenz.agentbuddy.ui.components.LocalPreviewHoverOverride
 import com.mikepenz.agentbuddy.ui.components.PillSegmented
 import com.mikepenz.agentbuddy.ui.components.TagSize
@@ -226,7 +230,7 @@ private fun StatsHeader(
             )
         }
         Spacer(Modifier.height(14.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+        HorizontalHairline()
     }
 }
 
@@ -345,15 +349,19 @@ private fun DecisionsPerDayCard(
 ) {
     AgentBuddyCard(modifier = modifier) {
         Column {
-            CardHeader(
+            CardSectionHeader(
                 title = "Decisions per day",
                 subtitle = "Stacked by outcome",
-                legend = listOf(
-                    "Auto approve" to AccentEmerald,
-                    "Deny" to DangerRed,
-                    "Protection" to InfoBlue,
-                    "External" to WarnYellow,
-                ),
+                trailing = {
+                    Legend(
+                        items = listOf(
+                            "Auto approve" to AccentEmerald,
+                            "Deny" to DangerRed,
+                            "Protection" to InfoBlue,
+                            "External" to WarnYellow,
+                        ),
+                    )
+                },
             )
             StackedDayChart(
                 daily = daily,
@@ -559,10 +567,9 @@ private fun BreakdownCard(
 ) {
     AgentBuddyCard(modifier = modifier) {
         Column {
-            CardHeader(
+            CardSectionHeader(
                 title = "Breakdown",
                 subtitle = "By source and timing",
-                legend = null,
             )
             Column(
                 modifier = Modifier.fillMaxWidth().padding(18.dp),
@@ -645,20 +652,7 @@ private fun BreakdownRow(item: BreakdownItem, showPct: Boolean) {
             )
         }
         Spacer(Modifier.height(5.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(AgentBuddyColors.surface2),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(item.pct / 100f)
-                    .fillMaxHeight()
-                    .background(item.color),
-            )
-        }
+        LinearMeter(progress = item.pct / 100f, color = item.color)
     }
 }
 
@@ -668,20 +662,24 @@ private fun BreakdownRow(item: BreakdownItem, showPct: Boolean) {
 private fun MostRequestedToolsCard(tools: List<ToolStat>) {
     AgentBuddyCard(modifier = Modifier.fillMaxWidth()) {
         Column {
-            CardHeader(
+            CardSectionHeader(
                 title = "Most-requested tools",
                 subtitle = "Ordered by total calls",
-                legend = listOf(
-                    "Approved" to AccentEmerald,
-                    "Denied" to DangerRed,
-                    "Protection" to InfoBlue,
-                ),
+                trailing = {
+                    Legend(
+                        items = listOf(
+                            "Approved" to AccentEmerald,
+                            "Denied" to DangerRed,
+                            "Protection" to InfoBlue,
+                        ),
+                    )
+                },
             )
             val maxCount = tools.maxOfOrNull { it.count } ?: 1
             tools.forEachIndexed { idx, tool ->
                 ToolStatRow(tool = tool, maxCount = maxCount)
                 if (idx < tools.lastIndex) {
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
+                    HorizontalHairline()
                 }
             }
         }
@@ -729,87 +727,21 @@ private fun ToolStatRow(tool: ToolStat, maxCount: Int) {
 @Composable
 private fun StackBar(tool: ToolStat, maxCount: Int, modifier: Modifier = Modifier) {
     val widthFraction = (tool.count.toFloat() / maxCount.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
-    Box(modifier = modifier) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(widthFraction)
-                .height(8.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(AgentBuddyColors.surface2),
-            horizontalArrangement = Arrangement.spacedBy(1.dp),
-        ) {
-            val total = tool.count.toFloat().coerceAtLeast(1f)
-            if (tool.auto > 0) {
-                Box(
-                    modifier = Modifier
-                        .weight(tool.auto / total)
-                        .fillMaxHeight()
-                        .background(AccentEmerald),
-                )
-            }
-            if (tool.deny > 0) {
-                Box(
-                    modifier = Modifier
-                        .weight(tool.deny / total)
-                        .fillMaxHeight()
-                        .background(DangerRed),
-                )
-            }
-            if (tool.protect > 0) {
-                Box(
-                    modifier = Modifier
-                        .weight(tool.protect / total)
-                        .fillMaxHeight()
-                        .background(InfoBlue),
-                )
-            }
-            val unaccounted = (tool.count - tool.auto - tool.deny - tool.protect).coerceAtLeast(0)
-            if (unaccounted > 0) {
-                Box(
-                    modifier = Modifier
-                        .weight(unaccounted / total)
-                        .fillMaxHeight(),
-                )
-            }
-        }
-    }
+    val total = tool.count.toFloat().coerceAtLeast(1f)
+    val unaccounted = (tool.count - tool.auto - tool.deny - tool.protect).coerceAtLeast(0)
+    StackedMeter(
+        modifier = modifier,
+        maxFraction = widthFraction,
+        segments = listOf(
+            (tool.auto / total) to AccentEmerald,
+            (tool.deny / total) to DangerRed,
+            (tool.protect / total) to InfoBlue,
+            (unaccounted / total) to Color.Transparent,
+        ),
+    )
 }
 
 // ── Shared ───────────────────────────────────────────────────────────────────
-
-@Composable
-private fun CardHeader(
-    title: String,
-    subtitle: String,
-    legend: List<Pair<String, Color>>?,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = title,
-                    color = AgentBuddyColors.inkPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-0.1).sp,
-                )
-                Text(
-                    text = subtitle,
-                    color = AgentBuddyColors.inkMuted,
-                    fontSize = 11.5.sp,
-                )
-            }
-            if (legend != null) {
-                Legend(items = legend)
-            }
-        }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(AgentBuddyColors.line1))
-    }
-}
 
 @Composable
 private fun Legend(items: List<Pair<String, Color>>) {

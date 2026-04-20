@@ -45,6 +45,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.Source
@@ -57,6 +58,12 @@ import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import com.mikepenz.agentbuddy.ui.theme.WarnYellow
 import com.mikepenz.agentbuddy.ui.theme.riskColor
 import com.mikepenz.agentbuddy.ui.theme.sourceColor
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.mikepenz.agentbuddy.ui.icons.FeatherExternalLink
+import com.mikepenz.agentbuddy.ui.icons.LucideClock
+import com.mikepenz.agentbuddy.ui.icons.LucideCopy
 
 // ── ToolTag ─────────────────────────────────────────────────────────────────
 // Colored badge with tool name, monospace font
@@ -423,6 +430,200 @@ fun DesignToggle(
     }
 }
 
+// ── MetadataField ───────────────────────────────────────────────────────────
+// Uppercase label (optional leading icon) + content slot. Used for detail
+// fields and meta tiles (approvals detail, history expanded view, stats).
+
+@Composable
+fun MetadataField(
+    label: String,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    labelGap: Dp = 5.dp,
+    content: @Composable () -> Unit,
+) {
+    Column(modifier = modifier) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = AgentBuddyColors.inkMuted,
+                    modifier = Modifier.size(10.dp),
+                )
+            }
+            Text(
+                text = label.uppercase(),
+                color = AgentBuddyColors.inkMuted,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.5.sp,
+            )
+        }
+        Spacer(Modifier.height(labelGap))
+        content()
+    }
+}
+
+// ── HorizontalHairline ──────────────────────────────────────────────────────
+// Canonical 1dp divider. Defaults to fillMaxWidth + AgentBuddyColors.line1.
+
+@Composable
+fun HorizontalHairline(
+    modifier: Modifier = Modifier,
+    color: Color = AgentBuddyColors.line1,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(color),
+    )
+}
+
+// ── IconActionButton ────────────────────────────────────────────────────────
+// Small icon-only button with hover background. Used for copy / refresh /
+// open-in-browser / dismiss actions across detail panels.
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun IconActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    size: Dp = 24.dp,
+    iconSize: Dp = 12.dp,
+    tint: Color = AgentBuddyColors.inkSecondary,
+    hoverBackground: Color = AgentBuddyColors.surface3,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val liveHover by interactionSource.collectIsHoveredAsState()
+    val hovered = LocalPreviewHoverOverride.current ?: liveHover
+    val bg = if (enabled && hovered) hoverBackground else Color.Transparent
+    val effectiveTint = if (enabled) tint else tint.copy(alpha = 0.38f)
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(RoundedCornerShape(4.dp))
+            .background(bg)
+            .then(
+                if (enabled) Modifier
+                    .hoverable(interactionSource)
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        role = Role.Button,
+                    ) { onClick() }
+                else Modifier
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = effectiveTint,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+// ── BadgeChip ───────────────────────────────────────────────────────────────
+// Small tinted label for counts, tags, inline markers. Padding/font differ
+// from ToolTag (which also carries tool-colour semantics and monospace).
+
+@Composable
+fun BadgeChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    background: Color = AgentBuddyColors.surface,
+    textColor: Color = AgentBuddyColors.inkMuted,
+    mono: Boolean = false,
+    fontSize: androidx.compose.ui.unit.TextUnit = 10.5.sp,
+    horizontalPadding: Dp = 5.dp,
+    verticalPadding: Dp = 1.dp,
+    radius: Dp = 3.dp,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(radius))
+            .background(background)
+            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+    ) {
+        Text(
+            text = text,
+            color = textColor,
+            fontSize = fontSize,
+            fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
+            maxLines = 1,
+        )
+    }
+}
+
+// ── ColoredIconTile ─────────────────────────────────────────────────────────
+// Square tile with tinted background + centered icon. Used for integration
+// plugs, category markers, error glyphs. The content-slot overload lets
+// callers place a Text (risk level) or any glyph inside.
+
+@Composable
+fun ColoredIconTile(
+    icon: ImageVector,
+    tint: Color,
+    contentDescription: String? = null,
+    modifier: Modifier = Modifier,
+    size: Dp = 36.dp,
+    iconSize: Dp = 16.dp,
+    radius: Dp = 8.dp,
+    bgAlpha: Float = 0.14f,
+    borderAlpha: Float = 0.22f,
+) {
+    ColoredIconTile(
+        tint = tint,
+        modifier = modifier,
+        size = size,
+        radius = radius,
+        bgAlpha = bgAlpha,
+        borderAlpha = borderAlpha,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+@Composable
+fun ColoredIconTile(
+    tint: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 36.dp,
+    radius: Dp = 8.dp,
+    bgAlpha: Float = 0.14f,
+    borderAlpha: Float = 0.22f,
+    content: @Composable () -> Unit,
+) {
+    val shape = RoundedCornerShape(radius)
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(shape)
+            .background(tint.copy(alpha = bgAlpha))
+            .then(
+                if (borderAlpha > 0f) Modifier.border(1.dp, tint.copy(alpha = borderAlpha), shape)
+                else Modifier
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
 // ── Previews ─────────────────────────────────────────────────────────────────
 
 @Preview(widthDp = 480, heightDp = 200)
@@ -547,6 +748,131 @@ private fun PreviewSectionLabels() {
             SectionLabel(text = "Up next")
             SectionLabel(text = "Connected")
             SectionLabel(text = "Settings")
+        }
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 120)
+@Composable
+private fun PreviewHorizontalHairline() {
+    PreviewScaffold {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("above", color = AgentBuddyColors.inkPrimary, fontSize = 12.sp)
+            HorizontalHairline()
+            Text("below", color = AgentBuddyColors.inkPrimary, fontSize = 12.sp)
+            HorizontalHairline(color = AccentEmerald.copy(alpha = 0.4f))
+        }
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 220)
+@Composable
+private fun PreviewMetadataField() {
+    PreviewScaffold {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            MetadataField(label = "File") {
+                Text("/src/main/kotlin/App.kt", color = AgentBuddyColors.inkPrimary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            }
+            MetadataField(label = "Source", icon = FeatherExternalLink) {
+                Text("claude-code", color = AgentBuddyColors.inkPrimary, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Preview(widthDp = 520, heightDp = 200)
+@Composable
+private fun PreviewBadgeChip() {
+    PreviewScaffold {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BadgeChip(text = "12", mono = true)
+                BadgeChip(
+                    text = "3",
+                    background = AgentBuddyColors.surface3,
+                    textColor = AgentBuddyColors.inkSecondary,
+                    mono = true,
+                )
+                BadgeChip(
+                    text = "protected",
+                    background = WarnYellow.copy(alpha = 0.12f),
+                    textColor = WarnYellow,
+                    mono = true,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BadgeChip(
+                    text = "new",
+                    background = AccentEmerald.copy(alpha = 0.14f),
+                    textColor = AccentEmerald,
+                )
+                BadgeChip(
+                    text = "info",
+                    background = InfoBlue.copy(alpha = 0.14f),
+                    textColor = InfoBlue,
+                )
+                BadgeChip(
+                    text = "danger",
+                    background = DangerRed.copy(alpha = 0.14f),
+                    textColor = DangerRed,
+                )
+            }
+        }
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 160)
+@Composable
+private fun PreviewColoredIconTile() {
+    PreviewScaffold {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ColoredIconTile(icon = FeatherExternalLink, tint = AccentEmerald, contentDescription = "Ok")
+                ColoredIconTile(icon = LucideCopy, tint = InfoBlue, contentDescription = "Copy")
+                ColoredIconTile(icon = LucideClock, tint = WarnYellow, contentDescription = "Clock")
+                ColoredIconTile(icon = FeatherExternalLink, tint = DangerRed, contentDescription = "Danger")
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ColoredIconTile(tint = AccentEmerald) {
+                    Text("2", color = AccentEmerald, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                }
+                ColoredIconTile(tint = WarnYellow) {
+                    Text("4", color = WarnYellow, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                }
+                ColoredIconTile(tint = DangerRed, borderAlpha = 0f, bgAlpha = 0.12f) {
+                    Text("5", color = DangerRed, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                }
+            }
+        }
+    }
+}
+
+@Preview(widthDp = 320, heightDp = 120)
+@Composable
+private fun PreviewIconActionButton() {
+    PreviewScaffold {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconActionButton(LucideCopy, "Copy", {})
+                IconActionButton(LucideClock, "Recent", {})
+                IconActionButton(FeatherExternalLink, "Open", {})
+            }
+            // Hover state (preview override)
+            CompositionLocalProvider(LocalPreviewHoverOverride provides true) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconActionButton(LucideCopy, "Copy", {})
+                    IconActionButton(LucideClock, "Recent", {})
+                    IconActionButton(FeatherExternalLink, "Open", {})
+                }
+            }
+            // Disabled
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconActionButton(LucideCopy, "Copy", {}, enabled = false)
+                IconActionButton(LucideClock, "Recent", {}, enabled = false)
+            }
         }
     }
 }

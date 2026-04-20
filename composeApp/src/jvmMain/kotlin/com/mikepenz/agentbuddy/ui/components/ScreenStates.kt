@@ -135,21 +135,14 @@ fun ScreenErrorState(
                 .border(1.dp, DangerRed.copy(alpha = 0.30f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 24.dp, vertical = 20.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(DangerRed.copy(alpha = 0.15f))
-                    .border(1.dp, DangerRed.copy(alpha = 0.30f), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = LucideX,
-                    contentDescription = null,
-                    tint = DangerRed,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+            ColoredIconTile(
+                icon = LucideX,
+                tint = DangerRed,
+                radius = 10.dp,
+                bgAlpha = 0.15f,
+                borderAlpha = 0.30f,
+                iconSize = 18.dp,
+            )
             Text(
                 text = title,
                 color = AgentBuddyColors.inkPrimary,
