@@ -3,6 +3,7 @@ package com.mikepenz.agentbuddy.ui
 import com.mikepenz.agentbuddy.di.AppEnvironment
 import com.mikepenz.agentbuddy.hook.CopilotBridge
 import com.mikepenz.agentbuddy.hook.HookRegistry
+import com.mikepenz.agentbuddy.hook.RegistrationEvents
 import com.mikepenz.agentbuddy.model.ApprovalRequest
 import com.mikepenz.agentbuddy.model.HookInput
 import com.mikepenz.agentbuddy.model.Source
@@ -78,7 +79,7 @@ class AppViewModelTest {
     @Test
     fun `tabState reflects pending count and away mode`() = runTest {
         val state = AppStateManager()
-        val vm = AppViewModel(state, env(devMode = false), FakeHookRegistry, FakeCopilotBridge)
+        val vm = AppViewModel(state, env(devMode = false), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
         runCurrent()
 
         assertEquals(0, vm.tabState.value.pendingCount)
@@ -99,7 +100,7 @@ class AppViewModelTest {
 
     @Test
     fun `selectTab updates the selected index`() = runTest {
-        val vm = AppViewModel(AppStateManager(), env(), FakeHookRegistry, FakeCopilotBridge)
+        val vm = AppViewModel(AppStateManager(), env(), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
         runCurrent()
 
         assertEquals(0, vm.selectedTab.value)
@@ -109,7 +110,7 @@ class AppViewModelTest {
 
     @Test
     fun `devMode flag comes from environment`() = runTest {
-        val vm = AppViewModel(AppStateManager(), env(devMode = true), FakeHookRegistry, FakeCopilotBridge)
+        val vm = AppViewModel(AppStateManager(), env(devMode = true), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
         runCurrent()
         assertTrue(vm.tabState.value.devMode)
     }
