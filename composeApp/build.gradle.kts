@@ -87,7 +87,6 @@ kotlin {
             implementation(libs.nucleus.decorated.window.material3)
             implementation(libs.nucleus.notification.macos)
             implementation(libs.nucleus.notification.linux)
-            implementation(libs.nucleus.global.hotkey)
             implementation(libs.composenativetray)
             implementation(libs.kotlinx.coroutines.jdk8)
             implementation(libs.copilot.sdk.java)

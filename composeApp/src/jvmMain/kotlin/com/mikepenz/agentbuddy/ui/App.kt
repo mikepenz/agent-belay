@@ -30,7 +30,6 @@ import com.mikepenz.agentbuddy.ui.shell.LocalCommandPaletteController
 import com.mikepenz.agentbuddy.ui.slim.SlimHost
 import com.mikepenz.agentbuddy.ui.statistics.StatisticsTabHost
 import dev.zacsweers.metrox.viewmodel.metroViewModel
-import androidx.compose.ui.input.key.*
 
 /**
  * Top-level Compose entry point. Owns nothing beyond TabRow rendering and tab
@@ -58,24 +57,7 @@ fun App(
 
     val paletteController = LocalCommandPaletteController.current
 
-    BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .onPreviewKeyEvent { event ->
-                    // Fallback when no OS-level hotkey is registered (e.g.
-                    // Linux without X11/portal). When the Nucleus global
-                    // hotkey is active it already toggles the palette for
-                    // us — firing here too would race and cancel out.
-                    if (!paletteController.globalHotkeyActive &&
-                        event.type == KeyEventType.KeyDown &&
-                        event.key == Key.K &&
-                        (event.isMetaPressed || event.isCtrlPressed)
-                    ) {
-                        paletteController.toggle()
-                        true
-                    } else false
-                }
-        ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val slim = maxWidth < SLIM_THRESHOLD_DP.dp
             // Between 500–730dp collapse AppSidebar to icon-only so the
             // content pane retains enough room to render.

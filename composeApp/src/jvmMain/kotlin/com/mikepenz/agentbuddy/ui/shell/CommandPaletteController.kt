@@ -13,14 +13,6 @@ class CommandPaletteController {
     var isOpen by mutableStateOf(false)
         private set
 
-    /**
-     * Set to `true` when a global (OS-level) hotkey is wired for the
-     * palette. The in-window Compose handler checks this to avoid
-     * double-toggling when the app window happens to be focused — if the
-     * global hotkey is active it already fires regardless of focus.
-     */
-    var globalHotkeyActive by mutableStateOf(false)
-
     fun open() { isOpen = true }
     fun close() { isOpen = false }
     fun toggle() { isOpen = !isOpen }

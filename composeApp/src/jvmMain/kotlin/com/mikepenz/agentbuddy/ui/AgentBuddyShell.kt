@@ -21,6 +21,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -41,7 +47,6 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.mikepenz.agentbuddy.app.AgentBuddyTray
 import com.mikepenz.agentbuddy.app.ApprovalServerRunner
-import com.mikepenz.agentbuddy.app.GlobalHotkeyController
 import com.mikepenz.agentbuddy.app.rememberPersistedWindowState
 import com.mikepenz.agentbuddy.ui.shell.LocalCommandPaletteController
 import com.mikepenz.agentbuddy.ui.shell.rememberCommandPaletteController
@@ -81,29 +86,10 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
     val trayManager = graph.trayManager
     val isVisible by trayManager.visible.collectAsState()
 
-    // Shared command-palette state. Created at the shell level (above the
-    // window visibility gate) so the global hotkey can drive it even while
-    // the window is hidden in the tray.
+    // Shared command-palette state. Toggled by the in-window ⌘K / Ctrl+K
+    // handler in `App.kt` (focus-scoped only — no OS-level hotkey).
     val paletteController = rememberCommandPaletteController()
 
-    // Register the OS-level ⌘K / Ctrl+K hotkey via Nucleus. Falls back to
-    // the in-window Compose `onPreviewKeyEvent` handler when registration
-    // fails (e.g. Linux setups without X11 nor a GlobalShortcuts portal).
-    DisposableEffect(Unit) {
-        val controller = GlobalHotkeyController()
-        val registered = controller.tryRegister {
-            // Bring the window forward so the palette is actually visible
-            // to the user, even if Agent Buddy is currently backgrounded
-            // or hidden to the tray.
-            trayManager.show()
-            paletteController.toggle()
-        }
-        paletteController.globalHotkeyActive = registered
-        onDispose {
-            controller.shutdown()
-            paletteController.globalHotkeyActive = false
-        }
-    }
     var showPortError by remember { mutableStateOf(false) }
     var popOutState by remember { mutableStateOf<Pair<String, String>?>(null) }
     var showLicenses by remember { mutableStateOf(false) }
@@ -125,6 +111,14 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
     LaunchedEffect(Unit) {
         ViewModelProvider.create(viewModelStoreOwner, graph.metroViewModelFactory)[ApprovalsViewModel::class]
     }
+
+    // Hoist AppViewModel so the window-level key handler can drive tab
+    // selection (⌘1…⌘5 / Ctrl+1…Ctrl+5) without waiting for any Compose
+    // descendant to hold focus.
+    val appViewModel = remember {
+        ViewModelProvider.create(viewModelStoreOwner, graph.metroViewModelFactory)[AppViewModel::class]
+    }
+    val visibleTabCount = visibleTabs(devMode).size
 
     // Start the risk analyzer lifecycle on the application coroutine scope so
     // it survives the main window being closed. Stopped by the DisposableEffect
@@ -202,6 +196,29 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
                 onCloseRequest = { trayManager.hide() },
                 title = "Agent Buddy",
                 state = windowState,
+                onPreviewKeyEvent = { event ->
+                    if (event.type != KeyEventType.KeyDown ||
+                        !(event.isMetaPressed || event.isCtrlPressed)
+                    ) {
+                        false
+                    } else when (event.key) {
+                        Key.K -> { paletteController.toggle(); true }
+                        Key.One, Key.Two, Key.Three, Key.Four, Key.Five -> {
+                            val index = when (event.key) {
+                                Key.One -> 0
+                                Key.Two -> 1
+                                Key.Three -> 2
+                                Key.Four -> 3
+                                else -> 4
+                            }
+                            if (index < visibleTabCount) {
+                                appViewModel.selectTab(index)
+                                true
+                            } else false
+                        }
+                        else -> false
+                    }
+                },
             ) {
                 LaunchedEffect(appState.settings.alwaysOnTop) {
                     window.isAlwaysOnTop = appState.settings.alwaysOnTop
@@ -210,15 +227,6 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
                     // Enforce a sensible minimum so the tab row and content
                     // never collapse below their usable width.
                     window.minimumSize = Dimension(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
-                }
-                // When the palette opens via the global hotkey while the
-                // window is backgrounded, pull the window forward so the
-                // palette is actually visible and receiving keystrokes.
-                LaunchedEffect(paletteController.isOpen) {
-                    if (paletteController.isOpen) {
-                        window.toFront()
-                        window.requestFocus()
-                    }
                 }
                 MaterialTitleBar {
                     Row(
