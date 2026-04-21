@@ -41,7 +41,7 @@ fun Route.copilotPreToolUseRoute(
 
         val severity = protectionEngine.highestSeverity(hits)
         val combinedMessage = hits.joinToString("; ") { "[${it.moduleId}/${it.ruleId}] ${it.message}" }
-        val primaryHit = hits.first()
+        val primaryHit = hits.minByOrNull { it.mode.ordinal } ?: hits.first()
 
         when (severity) {
             ProtectionMode.AUTO_BLOCK -> {

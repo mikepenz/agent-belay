@@ -1,26 +1,36 @@
 package com.mikepenz.agentbuddy.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.AppSettings
+import com.mikepenz.agentbuddy.ui.components.ColoredIconTile
+import com.mikepenz.agentbuddy.ui.components.DecisionStatus
+import com.mikepenz.agentbuddy.ui.components.DesignToggle
+import com.mikepenz.agentbuddy.ui.components.HorizontalHairline
+import com.mikepenz.agentbuddy.ui.components.OutlineButton
+import com.mikepenz.agentbuddy.ui.components.PrimaryButton
+import com.mikepenz.agentbuddy.ui.components.StatusPill
+import com.mikepenz.agentbuddy.ui.components.TagSize
+import com.mikepenz.agentbuddy.ui.icons.LucidePlug
+import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
+import com.mikepenz.agentbuddy.ui.theme.VioletPurple
 
 @Composable
 fun IntegrationsSettingsContent(
@@ -33,103 +43,137 @@ fun IntegrationsSettingsContent(
     onRegisterCopilot: () -> Unit,
     onUnregisterCopilot: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    SettingSection(
+        title = "Integrations",
+        desc = "Agents that route approvals through Agent Buddy.",
     ) {
-        SectionHeader("Integration")
-
-        // Claude Code card
-        IntegrationCard(
-            title = "Claude Code",
-            isRegistered = isHookRegistered,
-            description = "Hook in ~/.claude/settings.json",
-            onRegister = onRegisterHook,
-            onUnregister = onUnregisterHook,
-        )
-
-        // GitHub Copilot card
-        IntegrationCard(
-            title = "GitHub Copilot",
-            isRegistered = isCopilotRegistered,
-            description = "User-scoped hook in ~/.copilot/hooks/agent-buddy.json " +
-                "(PreToolUse + PermissionRequest, requires Copilot CLI ≥ v1.0.21)",
-            onRegister = onRegisterCopilot,
-            onUnregister = onUnregisterCopilot,
-        ) {
-            CopilotFailClosedToggle(
-                failClosed = settings.copilotFailClosed,
-                onChange = { onSettingsChange(settings.copy(copilotFailClosed = it)) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun CopilotFailClosedToggle(
-    failClosed: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Fail closed when unreachable", style = MaterialTheme.typography.bodyMedium)
-            Text(
-                if (failClosed) {
-                    "Copilot blocks the action if Agent Buddy isn't running."
-                } else {
-                    "Copilot proceeds normally if Agent Buddy isn't running (default)."
+        val items = listOf(
+            IntegrationItemData(
+                id = "claude",
+                name = "Claude Code",
+                desc = "Hook in ~/.claude/settings.json",
+                color = Color(0xFFD97757),
+                registered = isHookRegistered,
+                onRegister = onRegisterHook,
+                onUnregister = onUnregisterHook,
+            ),
+            IntegrationItemData(
+                id = "copilot",
+                name = "GitHub Copilot",
+                desc = "User-scoped hook in ~/.copilot/hooks/agent-buddy.json " +
+                    "(PreToolUse + PermissionRequest, requires Copilot CLI \u2265 v1.0.21)",
+                color = VioletPurple,
+                registered = isCopilotRegistered,
+                onRegister = onRegisterCopilot,
+                onUnregister = onUnregisterCopilot,
+                extra = {
+                    CopilotFailClosedCard(
+                        failClosed = settings.copilotFailClosed,
+                        onChange = { onSettingsChange(settings.copy(copilotFailClosed = it)) },
+                    )
                 },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            ),
+        )
+        items.forEachIndexed { idx, it -> IntegrationRow(item = it, first = idx == 0) }
+    }
+}
+
+private data class IntegrationItemData(
+    val id: String,
+    val name: String,
+    val desc: String,
+    val color: Color,
+    val registered: Boolean,
+    val onRegister: () -> Unit,
+    val onUnregister: () -> Unit,
+    val extra: (@Composable () -> Unit)? = null,
+)
+
+@Composable
+private fun IntegrationRow(item: IntegrationItemData, first: Boolean) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (!first) {
+            HorizontalHairline()
         }
-        Switch(checked = failClosed, onCheckedChange = onChange)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            ColoredIconTile(
+                icon = LucidePlug,
+                tint = item.color,
+                contentDescription = null,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = item.name,
+                        color = AgentBuddyColors.inkPrimary,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    StatusPill(
+                        status = if (item.registered) DecisionStatus.APPROVED
+                        else DecisionStatus.TIMEOUT,
+                        size = TagSize.SMALL,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = item.desc,
+                    color = AgentBuddyColors.inkTertiary,
+                    fontSize = 11.5.sp,
+                    lineHeight = 17.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 4,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                if (item.extra != null && item.registered) {
+                    Spacer(Modifier.height(12.dp))
+                    item.extra.invoke()
+                }
+            }
+            if (item.registered) {
+                OutlineButton(text = "Unregister", onClick = item.onUnregister)
+            } else {
+                PrimaryButton(text = "Register", onClick = item.onRegister)
+            }
+        }
     }
 }
 
 @Composable
-private fun IntegrationCard(
-    title: String,
-    isRegistered: Boolean,
-    description: String,
-    onRegister: () -> Unit,
-    onUnregister: () -> Unit,
-    extraContent: @Composable (() -> Unit)? = null,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+private fun CopilotFailClosedCard(failClosed: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(AgentBuddyColors.surface2)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, style = MaterialTheme.typography.titleSmall)
-                StatusBadge(
-                    text = if (isRegistered) "Registered" else "Not registered",
-                    color = if (isRegistered) Color(0xFF4CAF50) else Color(0xFF9E9E9E),
-                )
-            }
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "Fail-closed when unreachable",
+                color = AgentBuddyColors.inkPrimary,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
             )
-            extraContent?.invoke()
-            Button(
-                onClick = if (isRegistered) onUnregister else onRegister,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isRegistered) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                ),
-            ) {
-                Text(if (isRegistered) "Unregister" else "Register")
-            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Copilot blocks the action if Agent Buddy isn't running.",
+                color = AgentBuddyColors.inkTertiary,
+                fontSize = 11.sp,
+            )
         }
+        DesignToggle(checked = failClosed, onCheckedChange = onChange)
     }
 }
+

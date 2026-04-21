@@ -43,7 +43,9 @@ import com.mikepenz.agentbuddy.model.HookInput
 import com.mikepenz.agentbuddy.model.PlanReviewData
 import com.mikepenz.agentbuddy.model.Source
 import com.mikepenz.agentbuddy.model.ToolType
-import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.components.SlimAllowButton
+import com.mikepenz.agentbuddy.ui.components.SlimDenyButton
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import kotlinx.datetime.Clock
 
 @Composable
@@ -53,6 +55,7 @@ fun PlanCard(
     onApprove: (String?) -> Unit,
     onDeny: (String) -> Unit,
     onPopOut: ((title: String, content: String) -> Unit)? = null,
+    slimButtons: Boolean = false,
 ) {
     var feedback by remember { mutableStateOf("") }
     var planExpanded by remember { mutableStateOf(false) }
@@ -179,33 +182,60 @@ fun PlanCard(
         // Button logic: if feedback present, show "Refine Plan"; otherwise "Reject" + "Approve Plan"
         val hasMessage = feedback.isNotBlank()
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (hasMessage) {
-                Spacer(Modifier.weight(1f))
-                OutlinedButton(
-                    onClick = { onDeny(feedback) },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.tertiary,
-                    ),
-                ) {
-                    Text("Refine Plan")
+        if (slimButtons) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (hasMessage) {
+                    Spacer(Modifier.weight(1f))
+                    SlimDenyButton(
+                        label = "Refine Plan",
+                        icon = null,
+                        onClick = { onDeny(feedback) },
+                    )
+                } else {
+                    SlimDenyButton(
+                        modifier = Modifier.weight(1f),
+                        label = "Reject",
+                        onClick = { onDeny("") },
+                    )
+                    SlimAllowButton(
+                        modifier = Modifier.weight(1f),
+                        label = "Approve Plan",
+                        onClick = { onApprove(null) },
+                    )
                 }
-            } else {
-                OutlinedButton(
-                    onClick = { onDeny("") },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) {
-                    Text("Reject")
-                }
-                Button(
-                    onClick = { onApprove(null) },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Approve Plan")
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (hasMessage) {
+                    Spacer(Modifier.weight(1f))
+                    OutlinedButton(
+                        onClick = { onDeny(feedback) },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.tertiary,
+                        ),
+                    ) {
+                        Text("Refine Plan")
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { onDeny("") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) {
+                        Text("Reject")
+                    }
+                    Button(
+                        onClick = { onApprove(null) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Approve Plan")
+                    }
                 }
             }
         }
@@ -215,38 +245,100 @@ fun PlanCard(
 @Preview
 @Composable
 private fun PreviewPlanCard() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                PlanCard(
-                    request = ApprovalRequest(
-                        id = "preview-plan",
-                        source = Source.CLAUDE_CODE,
-                        toolType = ToolType.PLAN,
-                        hookInput = HookInput(
-                            sessionId = "sess-abc123",
-                            toolName = "ExitPlanMode",
-                            toolInput = mapOf(
-                                "plan" to kotlinx.serialization.json.JsonPrimitive(
-                                    "## Implementation Plan\n\n1. Add data models\n2. Set up database\n3. Implement API\n4. Add auth\n5. Write tests"
-                                ),
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            PlanCard(
+                request = ApprovalRequest(
+                    id = "preview-plan",
+                    source = Source.CLAUDE_CODE,
+                    toolType = ToolType.PLAN,
+                    hookInput = HookInput(
+                        sessionId = "sess-abc123",
+                        toolName = "ExitPlanMode",
+                        toolInput = mapOf(
+                            "plan" to kotlinx.serialization.json.JsonPrimitive(
+                                "## Implementation Plan\n\n1. Add data models\n2. Set up database\n3. Implement API\n4. Add auth\n5. Write tests"
                             ),
-                            cwd = "/home/user/project",
                         ),
-                        timestamp = Clock.System.now(),
-                        rawRequestJson = "{}",
+                        cwd = "/home/user/project",
                     ),
-                    planData = PlanReviewData(
-                        plan = "## Implementation Plan\n\n1. Add data models\n2. Set up database\n3. Implement API\n4. Add auth\n5. Write tests",
-                        allowedPrompts = listOf(
-                            AllowedPrompt(tool = "Edit", prompt = "Modify source files"),
-                            AllowedPrompt(tool = "Bash", prompt = "Run tests"),
-                        ),
+                    timestamp = Clock.System.now(),
+                    rawRequestJson = "{}",
+                ),
+                planData = PlanReviewData(
+                    plan = "## Implementation Plan\n\n1. Add data models\n2. Set up database\n3. Implement API\n4. Add auth\n5. Write tests",
+                    allowedPrompts = listOf(
+                        AllowedPrompt(tool = "Edit", prompt = "Modify source files"),
+                        AllowedPrompt(tool = "Bash", prompt = "Run tests"),
                     ),
-                    onApprove = {},
-                    onDeny = {},
-                )
-            }
+                ),
+                onApprove = {},
+                onDeny = {},
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun PreviewPlanCardSlimButtons() {
+    // Slim-styled buttons for use in the chromeless slim window.
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            PlanCard(
+                request = ApprovalRequest(
+                    id = "preview-plan-slim",
+                    source = Source.CLAUDE_CODE,
+                    toolType = ToolType.PLAN,
+                    hookInput = HookInput(
+                        sessionId = "sess-slim",
+                        toolName = "ExitPlanMode",
+                        toolInput = emptyMap(),
+                        cwd = "/home/user/project",
+                    ),
+                    timestamp = Clock.System.now(),
+                    rawRequestJson = "{}",
+                ),
+                planData = PlanReviewData(
+                    plan = "## Implementation Plan\n\n1. Add data models\n2. Set up database\n3. Implement API",
+                    allowedPrompts = listOf(
+                        AllowedPrompt(tool = "Edit", prompt = "Modify source files"),
+                    ),
+                ),
+                onApprove = {},
+                onDeny = {},
+                slimButtons = true,
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun PreviewPlanCardLongPlan() {
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            PlanCard(
+                request = ApprovalRequest(
+                    id = "preview-plan-long",
+                    source = Source.CLAUDE_CODE,
+                    toolType = ToolType.PLAN,
+                    hookInput = HookInput(
+                        sessionId = "sess-abc123",
+                        toolName = "ExitPlanMode",
+                        toolInput = emptyMap(),
+                        cwd = "/home/user/project",
+                    ),
+                    timestamp = Clock.System.now(),
+                    rawRequestJson = "{}",
+                ),
+                planData = PlanReviewData(
+                    plan = "## Migration Plan\n\n1. Audit existing code\n2. Freeze dependencies\n3. Run baseline tests\n4. Apply migrations\n5. Update documentation\n6. Re-run integration suite\n7. Ship release notes",
+                    allowedPrompts = emptyList(),
+                ),
+                onApprove = {},
+                onDeny = {},
+            )
         }
     }
 }

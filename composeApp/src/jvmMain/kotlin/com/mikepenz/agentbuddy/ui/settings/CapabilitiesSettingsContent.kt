@@ -1,38 +1,44 @@
 package com.mikepenz.agentbuddy.ui.settings
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.capability.CapabilityModule
 import com.mikepenz.agentbuddy.capability.modules.ResponseCompressionCapability
 import com.mikepenz.agentbuddy.model.CapabilityModuleSettings
 import com.mikepenz.agentbuddy.model.CapabilitySettings
 import com.mikepenz.agentbuddy.model.CompressionIntensity
+import com.mikepenz.agentbuddy.ui.components.DesignToggle
+import com.mikepenz.agentbuddy.ui.components.PillSegmented
+import com.mikepenz.agentbuddy.ui.icons.LucideBrain
+import com.mikepenz.agentbuddy.ui.icons.LucideShield
+import com.mikepenz.agentbuddy.ui.icons.LucideSliders
+import com.mikepenz.agentbuddy.ui.icons.LucideZap
+import com.mikepenz.agentbuddy.ui.theme.AccentEmerald
+import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
+import com.mikepenz.agentbuddy.ui.theme.InfoBlue
+import com.mikepenz.agentbuddy.ui.theme.VioletPurple
+import com.mikepenz.agentbuddy.ui.theme.WarnYellow
 
 @Composable
 fun CapabilitiesSettingsContent(
@@ -40,128 +46,137 @@ fun CapabilitiesSettingsContent(
     settings: CapabilitySettings,
     onSettingsChange: (CapabilitySettings) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    SettingSection(
+        title = "Session capabilities",
+        desc = "Instructions injected at the start of every session with participating agents.",
     ) {
         if (modules.isEmpty()) {
-            Text(
-                "No capabilities available.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                textAlign = TextAlign.Center,
-            )
-        }
-
-        modules.forEach { module ->
-            val moduleSettings = settings.modules[module.id] ?: CapabilityModuleSettings()
-            var expanded by remember(module.id) { mutableStateOf(false) }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
             ) {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { expanded = !expanded }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(module.name, style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                module.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        val badgeText = if (moduleSettings.enabled) "On" else "Off"
-                        val badgeColor =
-                            if (moduleSettings.enabled) Color(0xFF4CAF50) else Color(0xFF9E9E9E)
-                        StatusBadge(text = badgeText, color = badgeColor)
-                        Switch(
-                            checked = moduleSettings.enabled,
-                            onCheckedChange = { enabled ->
-                                val updated = moduleSettings.copy(enabled = enabled)
-                                onSettingsChange(
-                                    settings.copy(modules = settings.modules + (module.id to updated))
-                                )
-                            },
-                        )
-                    }
-
-                    AnimatedVisibility(visible = expanded) {
-                        Column(
-                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            if (module.id == ResponseCompressionCapability.id) {
-                                IntensitySelector(
-                                    current = moduleSettings.intensity ?: CompressionIntensity.FULL,
-                                    enabled = moduleSettings.enabled,
-                                    onChange = { newIntensity ->
-                                        val updated = moduleSettings.copy(intensity = newIntensity)
-                                        onSettingsChange(
-                                            settings.copy(modules = settings.modules + (module.id to updated))
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
+                Text(
+                    text = "No capabilities available.",
+                    color = AgentBuddyColors.inkTertiary,
+                    fontSize = 12.sp,
+                )
             }
+            return@SettingSection
         }
-    }
-}
-
-@Composable
-private fun IntensitySelector(
-    current: CompressionIntensity,
-    enabled: Boolean,
-    onChange: (CompressionIntensity) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            "Intensity",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            CompressionIntensity.entries.forEach { intensity ->
-                FilterChip(
-                    selected = current == intensity,
-                    onClick = { if (enabled) onChange(intensity) },
-                    enabled = enabled,
-                    label = {
-                        Text(
-                            when (intensity) {
-                                CompressionIntensity.LITE -> "Lite"
-                                CompressionIntensity.FULL -> "Full"
-                                CompressionIntensity.ULTRA -> "Ultra"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            modules.forEach { module ->
+                val moduleSettings =
+                    settings.modules[module.id] ?: CapabilityModuleSettings()
+                CapabilityCard(
+                    module = module,
+                    moduleSettings = moduleSettings,
+                    onToggle = { enabled ->
+                        onSettingsChange(
+                            settings.copy(
+                                modules = settings.modules +
+                                    (module.id to moduleSettings.copy(enabled = enabled)),
+                            ),
+                        )
+                    },
+                    onIntensityChange = { intensity ->
+                        onSettingsChange(
+                            settings.copy(
+                                modules = settings.modules +
+                                    (module.id to moduleSettings.copy(intensity = intensity)),
+                            ),
                         )
                     },
                 )
             }
         }
-        Text(
-            when (current) {
-                CompressionIntensity.LITE -> "Filler removed, grammar intact. ~25–35% fewer output tokens."
-                CompressionIntensity.FULL -> "Fragments, no articles. ~60–70% fewer output tokens."
-                CompressionIntensity.ULTRA -> "Telegraphic, heavy abbreviation. ~75%+ fewer output tokens."
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    }
+}
+
+private fun iconFor(moduleId: String): Pair<ImageVector, Color> = when (moduleId) {
+    "response-compression" -> LucideZap to WarnYellow
+    "socratic-thinking" -> LucideBrain to VioletPurple
+    "safety-checklist" -> LucideShield to AccentEmerald
+    else -> LucideSliders to InfoBlue
+}
+
+@Composable
+private fun CapabilityCard(
+    module: CapabilityModule,
+    moduleSettings: CapabilityModuleSettings,
+    onToggle: (Boolean) -> Unit,
+    onIntensityChange: (CompressionIntensity) -> Unit,
+) {
+    val (icon, color) = iconFor(module.id)
+    val checked = moduleSettings.enabled
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (checked) AgentBuddyColors.surface2 else AgentBuddyColors.background)
+            .border(
+                1.dp,
+                if (checked) color.copy(alpha = 0.3f) else AgentBuddyColors.line1,
+                RoundedCornerShape(8.dp),
+            )
+            .clickable { onToggle(!checked) }
+            .padding(14.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(color.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = module.name,
+                    color = AgentBuddyColors.inkPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.size(3.dp))
+                Text(
+                    text = module.description,
+                    color = AgentBuddyColors.inkTertiary,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+            DesignToggle(checked = checked, onCheckedChange = onToggle)
+        }
+        if (checked && module.id == ResponseCompressionCapability.id) {
+            Spacer(Modifier.size(12.dp))
+            Row(
+                modifier = Modifier.padding(start = 44.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Intensity",
+                    color = AgentBuddyColors.inkTertiary,
+                    fontSize = 11.5.sp,
+                )
+                PillSegmented(
+                    options = listOf(
+                        CompressionIntensity.LITE to "Lite",
+                        CompressionIntensity.FULL to "Full",
+                        CompressionIntensity.ULTRA to "Ultra",
+                    ),
+                    selected = moduleSettings.intensity ?: CompressionIntensity.FULL,
+                    onSelect = onIntensityChange,
+                )
+            }
+        }
     }
 }

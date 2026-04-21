@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -51,7 +52,7 @@ import com.mikepenz.agentbuddy.model.PermissionSuggestion
 import com.mikepenz.agentbuddy.model.Source
 import com.mikepenz.agentbuddy.model.ToolType
 import com.mikepenz.agentbuddy.ui.icons.FontAwesomeCaretDown
-import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.highlightedCodeBlock
 import com.mikepenz.markdown.compose.elements.highlightedCodeFence
@@ -293,33 +294,150 @@ fun FallbackContent(toolInput: Map<String, JsonElement>) {
     }
 }
 
-@Preview
+@Preview(widthDp = 404, heightDp = 360)
 @Composable
 private fun PreviewBashCard() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                DefaultCard(
-                    request = ApprovalRequest(
-                        id = "preview-1",
-                        source = Source.CLAUDE_CODE,
-                        toolType = ToolType.DEFAULT,
-                        hookInput = HookInput(
-                            sessionId = "sess-abc123",
+    val req = ApprovalRequest(
+        id = "preview-1",
+        source = Source.CLAUDE_CODE,
+        toolType = ToolType.DEFAULT,
+        hookInput = HookInput(
+            sessionId = "sess-abc123",
+            toolName = "Bash",
+            toolInput = mapOf(
+                "command" to JsonPrimitive("git status && git diff HEAD"),
+                "description" to JsonPrimitive("Show working tree status"),
+            ),
+            cwd = "/home/user/project",
+        ),
+        timestamp = Clock.System.now(),
+        rawRequestJson = "{}",
+    )
+    PreviewScaffold {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = req,
+                riskResult = com.mikepenz.agentbuddy.model.RiskAnalysis(
+                    risk = 2,
+                    label = "Low",
+                    message = "Read-only git inspection",
+                ),
+                riskStatus = RiskStatus.COMPLETED,
+                riskError = null,
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = false, onCancelAutoDeny = {},
+            )
+          }
+        }
+    }
+}
+
+@Preview(widthDp = 404, heightDp = 420)
+@Composable
+private fun PreviewBashCardWithSuggestions() {
+    val req = ApprovalRequest(
+        id = "preview-2",
+        source = Source.CLAUDE_CODE,
+        toolType = ToolType.DEFAULT,
+        hookInput = HookInput(
+            sessionId = "sess-abc123",
+            toolName = "Bash",
+            toolInput = mapOf("command" to JsonPrimitive("pnpm install")),
+            cwd = "/home/user/project",
+            permissionSuggestions = listOf(
+                com.mikepenz.agentbuddy.model.PermissionSuggestion(
+                    type = "addRules",
+                    destination = "projectSettings",
+                    rules = listOf(
+                        com.mikepenz.agentbuddy.model.RuleEntry(
                             toolName = "Bash",
-                            toolInput = mapOf("command" to JsonPrimitive("git status && git diff HEAD")),
-                            cwd = "/home/user/project",
+                            ruleContent = "pnpm install",
                         ),
-                        timestamp = Clock.System.now(),
-                        rawRequestJson = "{}",
                     ),
-                    onApprove = {},
-                    onDeny = {},
-                    popOutContent = "ls -la",
-                ) {
-                    FallbackContent(mapOf("command" to JsonPrimitive("git status && git diff HEAD")))
-                }
-            }
+                ),
+            ),
+        ),
+        timestamp = Clock.System.now(),
+        rawRequestJson = "{}",
+    )
+    PreviewScaffold {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = req,
+                riskResult = com.mikepenz.agentbuddy.model.RiskAnalysis(
+                    risk = 1,
+                    label = "Safe",
+                    message = "Well-known package manager install",
+                ),
+                riskStatus = RiskStatus.COMPLETED,
+                riskError = null,
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = false, onCancelAutoDeny = {},
+            )
+          }
+        }
+    }
+}
+
+@Preview(widthDp = 404, heightDp = 420)
+@Composable
+private fun PreviewBashCardProminentAlways() {
+    val req = ApprovalRequest(
+        id = "preview-3",
+        source = Source.CLAUDE_CODE,
+        toolType = ToolType.DEFAULT,
+        hookInput = HookInput(
+            sessionId = "sess-abc123",
+            toolName = "Bash",
+            toolInput = mapOf("command" to JsonPrimitive("pnpm test")),
+            cwd = "/home/user/project",
+            permissionSuggestions = listOf(
+                com.mikepenz.agentbuddy.model.PermissionSuggestion(
+                    type = "addRules",
+                    destination = "projectSettings",
+                    rules = listOf(
+                        com.mikepenz.agentbuddy.model.RuleEntry(
+                            toolName = "Bash",
+                            ruleContent = "pnpm test",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        timestamp = Clock.System.now(),
+        rawRequestJson = "{}",
+    )
+    PreviewScaffold {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+          Box(modifier = Modifier.width(380.dp)) {
+            ApprovalCard(
+                request = req,
+                riskResult = com.mikepenz.agentbuddy.model.RiskAnalysis(
+                    risk = 1,
+                    label = "Safe",
+                    message = "Repeated test command",
+                ),
+                riskStatus = RiskStatus.COMPLETED,
+                riskError = null,
+                timeoutSeconds = 120,
+                onApprove = {}, onDeny = {}, onAlwaysAllow = {}, onApproveWithInput = {}, onDismiss = {},
+                autoDenyActive = false, onCancelAutoDeny = {},
+                prominentAlwaysAllow = true,
+            )
+          }
         }
     }
 }

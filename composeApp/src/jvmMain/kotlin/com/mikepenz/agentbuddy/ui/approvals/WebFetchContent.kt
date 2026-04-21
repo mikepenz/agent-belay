@@ -22,7 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mikepenz.agentbuddy.ui.icons.FeatherExternalLink
-import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import com.mikepenz.agentbuddy.ui.theme.ToolWebColor
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -100,16 +100,14 @@ fun WebFetchContent(toolInput: Map<String, JsonElement>) {
 @Preview
 @Composable
 private fun PreviewWebFetchWithPrompt() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                WebFetchContent(
-                    toolInput = mapOf(
-                        "url" to JsonPrimitive("https://mvnrepository.com/artifact/com.android.tools.layoutlib/layoutlib-runtime"),
-                        "prompt" to JsonPrimitive("What is the latest version of layoutlib-runtime? List the recent versions."),
-                    ),
-                )
-            }
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            WebFetchContent(
+                toolInput = mapOf(
+                    "url" to JsonPrimitive("https://mvnrepository.com/artifact/com.android.tools.layoutlib/layoutlib-runtime"),
+                    "prompt" to JsonPrimitive("What is the latest version of layoutlib-runtime? List the recent versions."),
+                ),
+            )
         }
     }
 }
@@ -117,16 +115,14 @@ private fun PreviewWebFetchWithPrompt() {
 @Preview
 @Composable
 private fun PreviewWebFetchGitHub() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                WebFetchContent(
-                    toolInput = mapOf(
-                        "url" to JsonPrimitive("https://github.com/cashapp/paparazzi/blob/master/paparazzi/src/main/java/app/cash/paparazzi/Paparazzi.kt"),
-                        "prompt" to JsonPrimitive("Extract the full class structure, key methods, how layoutlib is invoked, how rendering is set up, and how snapshots are captured."),
-                    ),
-                )
-            }
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            WebFetchContent(
+                toolInput = mapOf(
+                    "url" to JsonPrimitive("https://github.com/cashapp/paparazzi/blob/master/paparazzi/src/main/java/app/cash/paparazzi/Paparazzi.kt"),
+                    "prompt" to JsonPrimitive("Extract the full class structure, key methods, how layoutlib is invoked, how rendering is set up, and how snapshots are captured."),
+                ),
+            )
         }
     }
 }
@@ -134,15 +130,13 @@ private fun PreviewWebFetchGitHub() {
 @Preview
 @Composable
 private fun PreviewWebFetchNoPrompt() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                WebFetchContent(
-                    toolInput = mapOf(
-                        "url" to JsonPrimitive("https://www.google.com"),
-                    ),
-                )
-            }
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            WebFetchContent(
+                toolInput = mapOf(
+                    "url" to JsonPrimitive("https://www.google.com"),
+                ),
+            )
         }
     }
 }

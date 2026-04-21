@@ -5,6 +5,7 @@ import com.mikepenz.agentbuddy.capability.modules.ResponseCompressionCapability
 import com.mikepenz.agentbuddy.capability.modules.SocraticThinkingCapability
 import com.mikepenz.agentbuddy.hook.CopilotBridge
 import com.mikepenz.agentbuddy.hook.HookRegistry
+import com.mikepenz.agentbuddy.hook.RegistrationEvents
 import com.mikepenz.agentbuddy.model.CapabilityModuleSettings
 import com.mikepenz.agentbuddy.model.CapabilitySettings
 import com.mikepenz.agentbuddy.model.ModuleSettings
@@ -124,6 +125,7 @@ class SettingsViewModelTest {
             protectionEngine = engine,
             capabilityEngine = capEngine,
             hookRegistry = registry,
+            registrationEvents = RegistrationEvents(),
             ioDispatcher = mainDispatcher, // run "IO" on the test dispatcher so runCurrent advances it
         )
         return Triple(vm, state, registry)

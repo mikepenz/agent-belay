@@ -1,17 +1,43 @@
 package com.mikepenz.agentbuddy.ui.settings
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,7 +48,24 @@ import com.mikepenz.agentbuddy.model.ProtectionSettings
 import com.mikepenz.agentbuddy.protection.ProtectionModule
 import com.mikepenz.agentbuddy.risk.CopilotInitState
 import com.mikepenz.agentbuddy.risk.OllamaInitState
-import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.components.LocalPreviewHoverOverride
+import com.mikepenz.agentbuddy.ui.components.SectionLabel
+import com.mikepenz.agentbuddy.ui.icons.LucideBrain
+import com.mikepenz.agentbuddy.ui.icons.LucidePlug
+import com.mikepenz.agentbuddy.ui.icons.LucideShield
+import com.mikepenz.agentbuddy.ui.icons.LucideSliders
+import com.mikepenz.agentbuddy.ui.icons.LucideZap
+import com.mikepenz.agentbuddy.ui.theme.AccentEmerald
+import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
+
+private enum class SettingsSubTab(val label: String, val icon: ImageVector) {
+    General("General", LucideSliders),
+    Integrations("Integrations", LucidePlug),
+    Risk("Risk Analysis", LucideBrain),
+    Protections("Protections", LucideShield),
+    Capabilities("Capabilities", LucideZap),
+}
 
 @Composable
 fun SettingsTab(
@@ -46,39 +89,187 @@ fun SettingsTab(
     capabilityModules: List<CapabilityModule> = emptyList(),
     onCapabilitySettingsChange: (CapabilitySettings) -> Unit = {},
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabTitles = listOf("General", "Integrations", "Risk Analysis", "Protections", "Capabilities")
+    var tab by remember { mutableStateOf(SettingsSubTab.General) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab,
-            modifier = Modifier.fillMaxWidth(),
-            edgePadding = 0.dp,
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(AgentBuddyColors.background)) {
+        // Content pane needs ~460dp to render cards comfortably; below this
+        // the settings sidebar collapses to icons so the content keeps room.
+        val compactSidebar = maxWidth < 680.dp
+        val horizontalPad by animateDpAsState(
+            targetValue = if (maxWidth < 600.dp) 16.dp else 36.dp,
+            animationSpec = tween(220),
+            label = "settings-hpad",
+        )
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            SettingsSidebar(selected = tab, onSelect = { tab = it }, compact = compactSidebar)
+            // Use BoxWithConstraints so we know the actual viewport width,
+            // then give the Column an explicit width = max(viewport, minWidth).
+            // Without this, fillMaxWidth() inside SettingSection expands to
+            // its 780dp cap in the unconstrained horizontalScroll context,
+            // making the pane always 780dp wide regardless of widthIn(min).
+            val hScroll = rememberScrollState()
+            BoxWithConstraints(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            ) {
+            val contentWidth = maxOf(maxWidth, 340.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .horizontalScroll(hScroll),
+            ) {
+            Column(
+                modifier = Modifier
+                    .width(contentWidth)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = horizontalPad, end = horizontalPad, top = 28.dp, bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(28.dp),
+            ) {
+            when (tab) {
+                SettingsSubTab.General -> GeneralSettingsContent(
+                    settings = settings,
+                    historyCount = historyCount,
+                    onSettingsChange = onSettingsChange,
+                    onClearHistory = onClearHistory,
+                    onShowLicenses = onShowLicenses,
+                )
+                SettingsSubTab.Integrations -> IntegrationsSettingsContent(
+                    settings = settings,
+                    isHookRegistered = isHookRegistered,
+                    isCopilotRegistered = isCopilotRegistered,
+                    onSettingsChange = onSettingsChange,
+                    onRegisterHook = onRegisterHook,
+                    onUnregisterHook = onUnregisterHook,
+                    onRegisterCopilot = onRegisterCopilot,
+                    onUnregisterCopilot = onUnregisterCopilot,
+                )
+                SettingsSubTab.Risk -> RiskAnalysisSettingsContent(
+                    settings = settings,
+                    copilotModels = copilotModels,
+                    copilotInitState = copilotInitState,
+                    ollamaModels = ollamaModels,
+                    ollamaInitState = ollamaInitState,
+                    onSettingsChange = onSettingsChange,
+                )
+                SettingsSubTab.Protections -> ProtectionsSettingsContent(
+                    modules = protectionModules,
+                    settings = settings.protectionSettings,
+                    onSettingsChange = onProtectionSettingsChange,
+                )
+                SettingsSubTab.Capabilities -> CapabilitiesSettingsContent(
+                    modules = capabilityModules,
+                    settings = settings.capabilitySettings,
+                    onSettingsChange = onCapabilitySettingsChange,
+                )
+            }
+            }
+            } // end horizontalScroll Box
+            } // end BoxWithConstraints
+        }
+    }
+}
+
+@Composable
+private fun SettingsSidebar(
+    selected: SettingsSubTab,
+    onSelect: (SettingsSubTab) -> Unit,
+    compact: Boolean = false,
+) {
+    val sidebarWidth by animateDpAsState(
+        targetValue = if (compact) 56.dp else 210.dp,
+        animationSpec = tween(220),
+        label = "settings-sidebar-width",
+    )
+    val sidebarHPad by animateDpAsState(
+        targetValue = if (compact) 8.dp else 10.dp,
+        animationSpec = tween(220),
+        label = "settings-sidebar-hpad",
+    )
+
+    Row(
+        modifier = Modifier
+            .width(sidebarWidth)
+            .fillMaxHeight()
+            .background(AgentBuddyColors.background),
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .padding(vertical = 20.dp, horizontal = sidebarHPad),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
-            tabTitles.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = { Text(title, fontSize = 11.sp, maxLines = 1) },
+            if (!compact) {
+                SectionLabel(
+                    text = "Settings",
+                    modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 12.dp),
+                )
+            }
+            SettingsSubTab.entries.forEach { tab ->
+                SidebarItem(
+                    tab = tab,
+                    active = selected == tab,
+                    compact = compact,
+                    onClick = { onSelect(tab) },
                 )
             }
         }
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .fillMaxHeight()
+                .background(AgentBuddyColors.line1),
+        )
+    }
+}
 
-        when (selectedTab) {
-            0 -> GeneralSettingsContent(settings, historyCount, onSettingsChange, onClearHistory, onShowLicenses)
-            1 -> IntegrationsSettingsContent(
-                settings = settings,
-                isHookRegistered = isHookRegistered,
-                isCopilotRegistered = isCopilotRegistered,
-                onSettingsChange = onSettingsChange,
-                onRegisterHook = onRegisterHook,
-                onUnregisterHook = onUnregisterHook,
-                onRegisterCopilot = onRegisterCopilot,
-                onUnregisterCopilot = onUnregisterCopilot,
+@Composable
+private fun SidebarItem(
+    tab: SettingsSubTab,
+    active: Boolean,
+    compact: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val liveHovered by interactionSource.collectIsHoveredAsState()
+    val hovered = LocalPreviewHoverOverride.current ?: liveHovered
+    val bg = when {
+        active -> AgentBuddyColors.surface3
+        hovered -> AgentBuddyColors.surface2
+        else -> Color.Transparent
+    }
+    val fg = if (active) AgentBuddyColors.inkPrimary else AgentBuddyColors.inkSecondary
+    val iconColor = if (active) AccentEmerald else AgentBuddyColors.inkTertiary
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(32.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .hoverable(interactionSource)
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .padding(horizontal = if (compact) 0.dp else 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (compact) Arrangement.Center else Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            imageVector = tab.icon,
+            contentDescription = tab.label,
+            tint = iconColor,
+            modifier = Modifier.size(14.dp),
+        )
+        if (!compact) {
+            Text(
+                text = tab.label,
+                color = fg,
+                fontSize = 13.sp,
+                fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
+                letterSpacing = (-0.05).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            2 -> RiskAnalysisSettingsContent(settings, copilotModels, copilotInitState, ollamaModels, ollamaInitState, onSettingsChange)
-            3 -> ProtectionsSettingsContent(protectionModules, settings.protectionSettings, onProtectionSettingsChange)
-            4 -> CapabilitiesSettingsContent(capabilityModules, settings.capabilitySettings, onCapabilitySettingsChange)
         }
     }
 }
@@ -88,7 +279,7 @@ fun SettingsTab(
 @Preview
 @Composable
 private fun PreviewRegistered() {
-    AgentBuddyTheme {
+    PreviewScaffold {
         SettingsTab(
             settings = AppSettings(),
             isHookRegistered = true,
@@ -104,7 +295,7 @@ private fun PreviewRegistered() {
 @Preview
 @Composable
 private fun PreviewUnregistered() {
-    AgentBuddyTheme {
+    PreviewScaffold {
         SettingsTab(
             settings = AppSettings(),
             isHookRegistered = false,

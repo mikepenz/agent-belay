@@ -46,4 +46,11 @@ class HistoryViewModel(
         )
         stateManager.addPending(cloned)
     }
+
+    /** Looks up a history row by request id and replays it. Returns whether the id was found. */
+    fun replayById(id: String): Boolean {
+        val result = stateManager.state.value.history.firstOrNull { it.request.id == id } ?: return false
+        replay(result)
+        return true
+    }
 }

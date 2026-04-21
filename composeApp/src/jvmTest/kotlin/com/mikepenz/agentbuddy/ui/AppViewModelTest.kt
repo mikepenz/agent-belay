@@ -1,6 +1,9 @@
 package com.mikepenz.agentbuddy.ui
 
 import com.mikepenz.agentbuddy.di.AppEnvironment
+import com.mikepenz.agentbuddy.hook.CopilotBridge
+import com.mikepenz.agentbuddy.hook.HookRegistry
+import com.mikepenz.agentbuddy.hook.RegistrationEvents
 import com.mikepenz.agentbuddy.model.ApprovalRequest
 import com.mikepenz.agentbuddy.model.HookInput
 import com.mikepenz.agentbuddy.model.Source
@@ -43,6 +46,27 @@ class AppViewModelTest {
         appScope = CoroutineScope(SupervisorJob()),
     )
 
+    private object FakeHookRegistry : HookRegistry {
+        override fun isRegistered(port: Int): Boolean = false
+        override fun register(port: Int) {}
+        override fun unregister(port: Int) {}
+        override fun isCapabilityHookRegistered(port: Int): Boolean = false
+        override fun registerCapabilityHook(port: Int) {}
+        override fun unregisterCapabilityHook(port: Int) {}
+        override fun isSessionStartHookRegistered(port: Int): Boolean = false
+        override fun registerSessionStartHook(port: Int) {}
+        override fun unregisterSessionStartHook(port: Int) {}
+    }
+
+    private object FakeCopilotBridge : CopilotBridge {
+        override fun isRegistered(port: Int): Boolean = false
+        override fun register(port: Int, failClosed: Boolean) {}
+        override fun unregister(port: Int) {}
+        override fun isCapabilityHookRegistered(port: Int): Boolean = false
+        override fun registerCapabilityHook(port: Int, failClosed: Boolean) {}
+        override fun unregisterCapabilityHook(port: Int) {}
+    }
+
     private fun newRequest(id: String = "r-1") = ApprovalRequest(
         id = id,
         source = Source.CLAUDE_CODE,
@@ -55,7 +79,7 @@ class AppViewModelTest {
     @Test
     fun `tabState reflects pending count and away mode`() = runTest {
         val state = AppStateManager()
-        val vm = AppViewModel(state, env(devMode = false))
+        val vm = AppViewModel(state, env(devMode = false), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
         runCurrent()
 
         assertEquals(0, vm.tabState.value.pendingCount)
@@ -76,7 +100,7 @@ class AppViewModelTest {
 
     @Test
     fun `selectTab updates the selected index`() = runTest {
-        val vm = AppViewModel(AppStateManager(), env())
+        val vm = AppViewModel(AppStateManager(), env(), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
         runCurrent()
 
         assertEquals(0, vm.selectedTab.value)
@@ -86,7 +110,7 @@ class AppViewModelTest {
 
     @Test
     fun `devMode flag comes from environment`() = runTest {
-        val vm = AppViewModel(AppStateManager(), env(devMode = true))
+        val vm = AppViewModel(AppStateManager(), env(devMode = true), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
         runCurrent()
         assertTrue(vm.tabState.value.devMode)
     }

@@ -52,6 +52,26 @@ Single module project: `:composeApp` with `commonMain` (shared models) and `jvmM
 | `hook/` | Claude Code hook registration in `~/.claude/settings.json` |
 | `platform/` | OS-specific features (tray, startup, icons) |
 | `ui/` | Compose UI components organized by tab |
+| `ui/theme/` | Theme tokens — `AgentBuddyColors` semantic palette (dark/light), `AgentBuddyDimens` iconography + density, `PreviewScaffold` (accepts `ThemeMode`) |
+| `ui/components/` | Shared primitives — `PillSegmented`, `AgentBuddyCard`, `StatusPill`/`RiskPill`/`ToolTag`/`SourceTag`, `DesignToggle`, `ScreenLoadingState` / `ScreenErrorState`, `Kbd` |
+
+### Design System & Previews
+
+See [`composeApp/DESIGN.md`](composeApp/DESIGN.md) for the full token
+table, state-matrix coverage, and preview-authoring playbook. Previews
+are rendered headlessly with
+[compose-buddy-cli](https://github.com/mikepenz/compose-buddy) — set
+`COMPOSE_BUDDY_CLI` to the installed binary and run:
+
+```bash
+$COMPOSE_BUDDY_CLI render \
+  --project . --module :composeApp --renderer desktop \
+  --output /tmp/agent-approver-previews \
+  --build --format agent --hierarchy --semantics all
+```
+
+The manifest.json carries per-node bounds + semantics; that feeds the
+iter-5 a11y audit (touch targets, `contentDescription`, `Role.*`).
 
 ### Data Compatibility
 

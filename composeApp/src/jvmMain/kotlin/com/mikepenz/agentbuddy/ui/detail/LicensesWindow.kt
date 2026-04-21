@@ -14,9 +14,11 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
+import androidx.compose.ui.tooling.preview.Preview
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
 import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import io.github.kdroidfilter.nucleus.window.material.MaterialDecoratedWindow
 import io.github.kdroidfilter.nucleus.window.material.MaterialTitleBar
 import org.jetbrains.compose.resources.ExperimentalResourceApi
@@ -53,15 +55,57 @@ fun LicensesWindow(
                     style = MaterialTheme.typography.titleSmall,
                 )
             }
-            Surface(
+            LicensesBody(libraries = libraries)
+        }
+    }
+}
+
+/**
+ * Pure content portion of [LicensesWindow] — pulled out so we can preview the
+ * body without needing to mount a native window. [libraries] is nullable to
+ * mirror the async loading path in the real window.
+ */
+@Composable
+fun LicensesBody(libraries: Libs?) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        if (libraries == null) {
+            androidx.compose.foundation.layout.Box(
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background,
+                contentAlignment = Alignment.Center,
             ) {
-                LibrariesContainer(
-                    libraries = libraries,
-                    modifier = Modifier.fillMaxSize(),
+                Text(
+                    text = "Loading licenses…",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        } else {
+            LibrariesContainer(
+                libraries = libraries,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
+    }
+}
+
+// ── Previews (iter 3) ──────────────────────────────────────────────────────
+
+@OptIn(ExperimentalResourceApi::class)
+@Preview(widthDp = 600, heightDp = 700)
+@Composable
+private fun PreviewLicensesBodyLoading() {
+    PreviewScaffold {
+        LicensesBody(libraries = null)
+    }
+}
+
+@OptIn(ExperimentalResourceApi::class)
+@Preview(widthDp = 600, heightDp = 700)
+@Composable
+private fun PreviewLicensesBodyLoadingLight() {
+    PreviewScaffold(themeMode = com.mikepenz.agentbuddy.model.ThemeMode.LIGHT) {
+        LicensesBody(libraries = null)
     }
 }

@@ -1,16 +1,17 @@
 package com.mikepenz.agentbuddy.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Badge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -23,53 +24,119 @@ import com.mikepenz.agentbuddy.ui.approvals.ApprovalsTabHost
 import com.mikepenz.agentbuddy.ui.history.HistoryTabHost
 import com.mikepenz.agentbuddy.ui.protectionlog.ProtectionLogTabHost
 import com.mikepenz.agentbuddy.ui.settings.SettingsTabHost
+import com.mikepenz.agentbuddy.ui.shell.AppSidebar
+import com.mikepenz.agentbuddy.ui.shell.CommandPaletteHost
+import com.mikepenz.agentbuddy.ui.shell.LocalCommandPaletteController
+import com.mikepenz.agentbuddy.ui.slim.SlimHost
 import com.mikepenz.agentbuddy.ui.statistics.StatisticsTabHost
 import dev.zacsweers.metrox.viewmodel.metroViewModel
+import androidx.compose.ui.input.key.*
 
 /**
  * Top-level Compose entry point. Owns nothing beyond TabRow rendering and tab
  * routing — every tab's state and side effects live in its own ViewModel,
  * accessed via [metroViewModel] inside the per-tab `*TabHost` composables.
  */
+/**
+ * Below this width the app renders the chromeless slim approvals view
+ * (sidebar + tab content are too cramped to be useful). Matches the 340dp
+ * slim window shown in the Claude design handoff, with a small buffer.
+ */
+private const val SLIM_THRESHOLD_DP = 500
+
 @Composable
 fun App(
     onPopOut: ((title: String, content: String) -> Unit)? = null,
     onShowLicenses: () -> Unit = {},
+    onExpand: () -> Unit = {},
 ) {
     val appViewModel: AppViewModel = metroViewModel()
     val tabState by appViewModel.tabState.collectAsState()
     val selectedTab by appViewModel.selectedTab.collectAsState()
     val visibleTabs = visibleTabs(tabState.devMode)
+    val currentTab = resolveTab(selectedTab, tabState.devMode)
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (tabState.awayMode) {
-            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    "Away Mode — Timeouts disabled",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+    val paletteController = LocalCommandPaletteController.current
+
+    BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .onPreviewKeyEvent { event ->
+                    // Fallback when no OS-level hotkey is registered (e.g.
+                    // Linux without X11/portal). When the Nucleus global
+                    // hotkey is active it already toggles the palette for
+                    // us — firing here too would race and cancel out.
+                    if (!paletteController.globalHotkeyActive &&
+                        event.type == KeyEventType.KeyDown &&
+                        event.key == Key.K &&
+                        (event.isMetaPressed || event.isCtrlPressed)
+                    ) {
+                        paletteController.toggle()
+                        true
+                    } else false
+                }
+        ) {
+            val slim = maxWidth < SLIM_THRESHOLD_DP.dp
+            // Between 500–730dp collapse AppSidebar to icon-only so the
+            // content pane retains enough room to render.
+            val compactSidebar = !slim && maxWidth < 730.dp
+
+            if (slim) {
+                SlimHost(
+                    onExpand = onExpand,
+                    modifier = Modifier.fillMaxSize(),
                 )
-            }
-        }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (tabState.awayMode) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                "Away Mode — Timeouts disabled",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
+                    }
 
-        TabRow(selectedTabIndex = selectedTab) {
-            visibleTabs.forEachIndexed { index, tab ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { appViewModel.selectTab(index) },
-                    text = { TabLabel(tab, tabState) },
-                )
-            }
-        }
+                    Row(modifier = Modifier.fillMaxSize().weight(1f)) {
+                        AppSidebar(
+                            selectedTab = currentTab,
+                            onTabSelect = { tab ->
+                                val index = visibleTabs.indexOf(tab)
+                                if (index >= 0) appViewModel.selectTab(index)
+                            },
+                            pendingCount = tabState.pendingCount,
+                            appVersion = tabState.appVersion,
+                            serverPort = tabState.serverPort,
+                            agentRegistrations = tabState.agentRegistrations,
+                            compact = compactSidebar,
+                        )
 
-        when (resolveTab(selectedTab, tabState.devMode)) {
-            AppTab.Approvals -> ApprovalsTabHost(onPopOut = onPopOut)
-            AppTab.History -> HistoryTabHost(onJumpToApprovals = { appViewModel.selectTab(0) })
-            AppTab.Statistics -> StatisticsTabHost()
-            AppTab.ProtectionLog -> ProtectionLogTabHost()
-            AppTab.Settings -> SettingsTabHost(onShowLicenses = onShowLicenses)
-        }
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            when (currentTab) {
+                                AppTab.Approvals -> ApprovalsTabHost(onPopOut = onPopOut)
+                                AppTab.History -> HistoryTabHost(onJumpToApprovals = { appViewModel.selectTab(0) })
+                                AppTab.Statistics -> StatisticsTabHost()
+                                AppTab.ProtectionLog -> ProtectionLogTabHost()
+                                AppTab.Settings -> SettingsTabHost(onShowLicenses = onShowLicenses)
+                            }
+                        }
+                    }
+                }
+            }
+
+        CommandPaletteHost(
+            controller = paletteController,
+            onNavigate = { tab ->
+                val index = visibleTabs.indexOf(tab)
+                if (index >= 0) appViewModel.selectTab(index)
+            },
+            onShowLicenses = onShowLicenses,
+        )
     }
 }
 

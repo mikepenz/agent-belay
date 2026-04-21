@@ -21,8 +21,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.Box
+import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
@@ -33,7 +41,10 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.mikepenz.agentbuddy.app.AgentBuddyTray
 import com.mikepenz.agentbuddy.app.ApprovalServerRunner
+import com.mikepenz.agentbuddy.app.GlobalHotkeyController
 import com.mikepenz.agentbuddy.app.rememberPersistedWindowState
+import com.mikepenz.agentbuddy.ui.shell.LocalCommandPaletteController
+import com.mikepenz.agentbuddy.ui.shell.rememberCommandPaletteController
 import com.mikepenz.agentbuddy.di.AppGraph
 import kotlinx.coroutines.cancel
 import com.mikepenz.agentbuddy.ui.approvals.ApprovalsViewModel
@@ -69,6 +80,30 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
     val stateManager = graph.stateManager
     val trayManager = graph.trayManager
     val isVisible by trayManager.visible.collectAsState()
+
+    // Shared command-palette state. Created at the shell level (above the
+    // window visibility gate) so the global hotkey can drive it even while
+    // the window is hidden in the tray.
+    val paletteController = rememberCommandPaletteController()
+
+    // Register the OS-level ⌘K / Ctrl+K hotkey via Nucleus. Falls back to
+    // the in-window Compose `onPreviewKeyEvent` handler when registration
+    // fails (e.g. Linux setups without X11 nor a GlobalShortcuts portal).
+    DisposableEffect(Unit) {
+        val controller = GlobalHotkeyController()
+        val registered = controller.tryRegister {
+            // Bring the window forward so the palette is actually visible
+            // to the user, even if Agent Buddy is currently backgrounded
+            // or hidden to the tray.
+            trayManager.show()
+            paletteController.toggle()
+        }
+        paletteController.globalHotkeyActive = registered
+        onDispose {
+            controller.shutdown()
+            paletteController.globalHotkeyActive = false
+        }
+    }
     var showPortError by remember { mutableStateOf(false) }
     var popOutState by remember { mutableStateOf<Pair<String, String>?>(null) }
     var showLicenses by remember { mutableStateOf(false) }
@@ -176,18 +211,35 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
                     // never collapse below their usable width.
                     window.minimumSize = Dimension(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
                 }
+                // When the palette opens via the global hotkey while the
+                // window is backgrounded, pull the window forward so the
+                // palette is actually visible and receiving keystrokes.
+                LaunchedEffect(paletteController.isOpen) {
+                    if (paletteController.isOpen) {
+                        window.toFront()
+                        window.requestFocus()
+                    }
+                }
                 MaterialTitleBar {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     ) {
                         Text(
                             "Agent Buddy",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.titleSmall,
+                            color = AgentBuddyColors.inkSecondary,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = (-0.1).sp,
                         )
                         if (devMode) {
+                            Box(
+                                modifier = Modifier
+                                    .size(3.dp)
+                                    .clip(CircleShape)
+                                    .background(AgentBuddyColors.inkSubtle),
+                            )
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
                                 color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
@@ -209,10 +261,18 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
                     CompositionLocalProvider(
                         LocalViewModelStoreOwner provides viewModelStoreOwner,
                         LocalMetroViewModelFactory provides graph.metroViewModelFactory,
+                        LocalCommandPaletteController provides paletteController,
                     ) {
                         App(
                             onPopOut = { title, content -> popOutState = title to content },
                             onShowLicenses = { showLicenses = true },
+                            onExpand = {
+                                val targetPx = (800 * window.graphicsConfiguration.defaultTransform.scaleX).toInt()
+                                if (window.width < targetPx) {
+                                    window.setSize(targetPx, window.height.coerceAtLeast(600))
+                                    window.setLocationRelativeTo(null)
+                                }
+                            },
                         )
                     }
                 }
@@ -230,6 +290,89 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
             content = content,
             onClose = { popOutState = null },
         )
+    }
+}
+
+// ── Previews (iter 3) ──────────────────────────────────────────────────────
+
+@androidx.compose.ui.tooling.preview.Preview(widthDp = 1280, heightDp = 860)
+@Composable
+private fun PreviewShellComposition() {
+    com.mikepenz.agentbuddy.ui.theme.PreviewScaffold {
+        androidx.compose.runtime.CompositionLocalProvider(
+            com.mikepenz.agentbuddy.ui.shell.LocalCommandPaletteController provides
+                remember { com.mikepenz.agentbuddy.ui.shell.CommandPaletteController() },
+        ) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                com.mikepenz.agentbuddy.ui.shell.AppSidebar(
+                    selectedTab = AppTab.Approvals,
+                    onTabSelect = {},
+                    pendingCount = 3,
+                    appVersion = "1.0.0",
+                    serverPort = 19532,
+                    agentRegistrations = listOf(
+                        com.mikepenz.agentbuddy.ui.AgentRegistration("Claude Code", true),
+                        com.mikepenz.agentbuddy.ui.AgentRegistration("GitHub Copilot", true),
+                    ),
+                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    com.mikepenz.agentbuddy.ui.approvals.ApprovalsScreen(
+                        items = listOf(
+                            com.mikepenz.agentbuddy.ui.approvals.ApprovalQueueItem(
+                                id = "1",
+                                tool = "Bash",
+                                source = com.mikepenz.agentbuddy.model.Source.CLAUDE_CODE,
+                                summary = "rm -rf node_modules && pnpm install",
+                                risk = 3, via = "claude", timestamp = "14:02:11",
+                                elapsedSeconds = 18, ttlSeconds = 60, session = "abc",
+                                prompt = "", workingDir = "/project",
+                                riskAssessment = "Filesystem delete, approved 3x recently.",
+                            ),
+                            com.mikepenz.agentbuddy.ui.approvals.ApprovalQueueItem(
+                                id = "2",
+                                tool = "Edit",
+                                source = com.mikepenz.agentbuddy.model.Source.COPILOT,
+                                summary = "Write src/foo.kt (+12 / −3)",
+                                risk = 1, via = "copilot", timestamp = "14:01:44",
+                                elapsedSeconds = 45, ttlSeconds = 60, session = "def",
+                                prompt = "", workingDir = "/project",
+                                riskAssessment = "Safe edit.",
+                            ),
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(widthDp = 1280, heightDp = 860)
+@Composable
+private fun PreviewShellCompositionLight() {
+    com.mikepenz.agentbuddy.ui.theme.PreviewScaffold(
+        themeMode = com.mikepenz.agentbuddy.model.ThemeMode.LIGHT,
+    ) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            com.mikepenz.agentbuddy.ui.shell.LocalCommandPaletteController provides
+                remember { com.mikepenz.agentbuddy.ui.shell.CommandPaletteController() },
+        ) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                com.mikepenz.agentbuddy.ui.shell.AppSidebar(
+                    selectedTab = AppTab.History,
+                    onTabSelect = {},
+                    pendingCount = 0,
+                    appVersion = "1.0.0",
+                    serverPort = 19532,
+                    agentRegistrations = listOf(
+                        com.mikepenz.agentbuddy.ui.AgentRegistration("Claude Code", true),
+                        com.mikepenz.agentbuddy.ui.AgentRegistration("GitHub Copilot", false),
+                    ),
+                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    com.mikepenz.agentbuddy.ui.approvals.ApprovalsScreen(items = emptyList())
+                }
+            }
+        }
     }
 }
 

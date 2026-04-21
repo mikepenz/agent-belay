@@ -22,7 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import com.mikepenz.agentbuddy.ui.theme.ToolSearchColor
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -112,20 +112,18 @@ fun SmallBadge(text: String, color: Color) {
 @Preview
 @Composable
 private fun PreviewGrepWithBadges() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                SearchContent(
-                    toolName = "Grep",
-                    toolInput = mapOf(
-                        "pattern" to JsonPrimitive("NATIVE_LIB_VERSION\\s*=|const val NATIVE|VERSION\\s*=\\s*\""),
-                        "path" to JsonPrimitive("/tmp/paparazzi/paparazzi-gradle-plugin"),
-                        "glob" to JsonPrimitive("*.kt"),
-                        "output_mode" to JsonPrimitive("content"),
-                        "context" to JsonPrimitive(2),
-                    ),
-                )
-            }
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            SearchContent(
+                toolName = "Grep",
+                toolInput = mapOf(
+                    "pattern" to JsonPrimitive("NATIVE_LIB_VERSION\\s*=|const val NATIVE|VERSION\\s*=\\s*\""),
+                    "path" to JsonPrimitive("/tmp/paparazzi/paparazzi-gradle-plugin"),
+                    "glob" to JsonPrimitive("*.kt"),
+                    "output_mode" to JsonPrimitive("content"),
+                    "context" to JsonPrimitive(2),
+                ),
+            )
         }
     }
 }
@@ -133,18 +131,16 @@ private fun PreviewGrepWithBadges() {
 @Preview
 @Composable
 private fun PreviewGrepSimple() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                SearchContent(
-                    toolName = "Grep",
-                    toolInput = mapOf(
-                        "pattern" to JsonPrimitive("layoutlib"),
-                        "path" to JsonPrimitive("/tmp/paparazzi/gradle/libs.versions.toml"),
-                        "output_mode" to JsonPrimitive("content"),
-                    ),
-                )
-            }
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            SearchContent(
+                toolName = "Grep",
+                toolInput = mapOf(
+                    "pattern" to JsonPrimitive("layoutlib"),
+                    "path" to JsonPrimitive("/tmp/paparazzi/gradle/libs.versions.toml"),
+                    "output_mode" to JsonPrimitive("content"),
+                ),
+            )
         }
     }
 }
@@ -152,17 +148,15 @@ private fun PreviewGrepSimple() {
 @Preview
 @Composable
 private fun PreviewGlob() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                SearchContent(
-                    toolName = "Glob",
-                    toolInput = mapOf(
-                        "pattern" to JsonPrimitive("**/*.kt"),
-                        "path" to JsonPrimitive("/tmp/paparazzi/paparazzi-gradle-plugin/src"),
-                    ),
-                )
-            }
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            SearchContent(
+                toolName = "Glob",
+                toolInput = mapOf(
+                    "pattern" to JsonPrimitive("**/*.kt"),
+                    "path" to JsonPrimitive("/tmp/paparazzi/paparazzi-gradle-plugin/src"),
+                ),
+            )
         }
     }
 }

@@ -1,30 +1,30 @@
 package com.mikepenz.agentbuddy.ui.settings
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,10 +33,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.AppSettings
@@ -44,12 +47,17 @@ import com.mikepenz.agentbuddy.model.RiskAnalysisBackend
 import com.mikepenz.agentbuddy.risk.CopilotInitState
 import com.mikepenz.agentbuddy.risk.OllamaInitState
 import com.mikepenz.agentbuddy.risk.RiskMessageBuilder
+import com.mikepenz.agentbuddy.ui.components.DecisionStatus
+import com.mikepenz.agentbuddy.ui.components.GhostButton
+import com.mikepenz.agentbuddy.ui.components.OutlineButton
+import com.mikepenz.agentbuddy.ui.components.DesignToggle
+import com.mikepenz.agentbuddy.ui.components.PillSegmented
+import com.mikepenz.agentbuddy.ui.components.StatusPill
+import com.mikepenz.agentbuddy.ui.components.TagSize
+import com.mikepenz.agentbuddy.ui.icons.LucideChevronDown
+import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
+import com.mikepenz.agentbuddy.ui.theme.WarnYellow
 
-/**
- * Open [url] in the user's default browser, no-op on platforms or headless
- * environments where AWT Desktop is unavailable. Swallows exceptions so a
- * failed browser launch never crashes the settings tab.
- */
 private fun openBrowserSafely(url: String) {
     try {
         if (!java.awt.Desktop.isDesktopSupported()) return
@@ -57,7 +65,6 @@ private fun openBrowserSafely(url: String) {
         if (!desktop.isSupported(java.awt.Desktop.Action.BROWSE)) return
         desktop.browse(java.net.URI(url))
     } catch (_: Exception) {
-        // Best-effort: do not crash the settings screen if the browser launch fails.
     }
 }
 
@@ -70,386 +77,464 @@ fun RiskAnalysisSettingsContent(
     ollamaInitState: OllamaInitState = OllamaInitState.IDLE,
     onSettingsChange: (AppSettings) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    SettingSection(
+        title = "Risk analysis",
+        desc = "An optional LLM pre-screens each request and assigns a risk level 1\u20135.",
     ) {
-        SettingsSwitch(
+        SettingItem(
             label = "Enable risk analysis",
-            checked = settings.riskAnalysisEnabled,
-            onCheckedChange = { onSettingsChange(settings.copy(riskAnalysisEnabled = it)) },
+            desc = "Calls the backend below for every tool request.",
+            first = true,
+            right = {
+                DesignToggle(
+                    checked = settings.riskAnalysisEnabled,
+                    onCheckedChange = { onSettingsChange(settings.copy(riskAnalysisEnabled = it)) },
+                )
+            },
         )
+        SettingItem(label = "Backend", right = {
+            PillSegmented(
+                options = listOf(
+                    RiskAnalysisBackend.CLAUDE to "Claude",
+                    RiskAnalysisBackend.COPILOT to "Copilot",
+                    RiskAnalysisBackend.OLLAMA to "Ollama",
+                ),
+                selected = settings.riskAnalysisBackend,
+                onSelect = { onSettingsChange(settings.copy(riskAnalysisBackend = it)) },
+            )
+        })
+        SettingItem(label = "Model", right = {
+            ModelPicker(
+                settings = settings,
+                copilotModels = copilotModels,
+                ollamaModels = ollamaModels,
+                ollamaReady = ollamaInitState == OllamaInitState.READY,
+                onSettingsChange = onSettingsChange,
+            )
+        })
+    }
 
-        // Backend selector
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Backend", style = MaterialTheme.typography.bodyMedium)
-            val backends = RiskAnalysisBackend.entries
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                backends.forEachIndexed { index, backend ->
-                    SegmentedButton(
-                        selected = settings.riskAnalysisBackend == backend,
-                        onClick = { onSettingsChange(settings.copy(riskAnalysisBackend = backend)) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = backends.size),
-                        enabled = settings.riskAnalysisEnabled,
-                    ) {
-                        Text(
-                            when (backend) {
-                                RiskAnalysisBackend.CLAUDE -> "Claude"
-                                RiskAnalysisBackend.COPILOT -> "Copilot"
-                                RiskAnalysisBackend.OLLAMA -> "Ollama"
-                            },
-                            fontSize = 12.sp,
-                        )
-                    }
-                }
-            }
+    AnimatedVisibility(
+        visible = settings.riskAnalysisBackend == RiskAnalysisBackend.CLAUDE &&
+            settings.riskAnalysisEnabled,
+    ) {
+        NoticeBanner(
+            text = "On macOS, the Claude CLI may trigger file-access permission prompts. " +
+                "These can safely be denied \u2014 the app does not need file access to perform risk analysis.",
+            color = WarnYellow,
+        )
+    }
+
+    AnimatedVisibility(
+        visible = settings.riskAnalysisBackend == RiskAnalysisBackend.COPILOT &&
+            settings.riskAnalysisEnabled,
+    ) {
+        CopilotSection(
+            settings = settings,
+            copilotInitState = copilotInitState,
+            copilotModelsLoaded = copilotModels.isNotEmpty(),
+            onSettingsChange = onSettingsChange,
+        )
+    }
+
+    AnimatedVisibility(
+        visible = settings.riskAnalysisBackend == RiskAnalysisBackend.OLLAMA &&
+            settings.riskAnalysisEnabled,
+    ) {
+        OllamaSection(
+            settings = settings,
+            ollamaInitState = ollamaInitState,
+            onSettingsChange = onSettingsChange,
+        )
+    }
+
+    SettingSection(
+        title = "Auto-decision bands",
+        desc = "Skip the approval prompt for requests that fall outside this range.",
+    ) {
+        SettingItem(
+            label = "Auto-approve up to",
+            first = true,
+            right = {
+                PillSegmented(
+                    options = listOf(0 to "Off", 1 to "1", 2 to "2", 3 to "3"),
+                    selected = settings.autoApproveLevel,
+                    onSelect = { onSettingsChange(settings.copy(autoApproveLevel = it)) },
+                )
+            },
+        )
+        SettingItem(
+            label = "Auto-deny at or above",
+            right = {
+                PillSegmented(
+                    options = listOf(0 to "Off", 5 to "5", 4 to "4"),
+                    selected = settings.autoDenyLevel,
+                    onSelect = { onSettingsChange(settings.copy(autoDenyLevel = it)) },
+                )
+            },
+        )
+    }
+
+    SystemPromptSection(settings = settings, onSettingsChange = onSettingsChange)
+}
+
+@Composable
+private fun NoticeBanner(text: String, color: Color) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 780.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(color.copy(alpha = 0.10f))
+            .border(1.dp, color.copy(alpha = 0.22f), RoundedCornerShape(7.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(text = text, color = color, fontSize = 12.sp, lineHeight = 17.sp)
+    }
+}
+
+@Composable
+private fun ModelPicker(
+    settings: AppSettings,
+    copilotModels: List<Pair<String, String>>,
+    ollamaModels: List<String>,
+    ollamaReady: Boolean,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    when (settings.riskAnalysisBackend) {
+        RiskAnalysisBackend.CLAUDE -> {
+            PillSegmented(
+                options = listOf("haiku" to "Haiku", "sonnet" to "Sonnet", "opus" to "Opus"),
+                selected = settings.riskAnalysisModel,
+                onSelect = { onSettingsChange(settings.copy(riskAnalysisModel = it)) },
+            )
         }
-
-        // Claude backend macOS file-access warning
-        AnimatedVisibility(visible = settings.riskAnalysisBackend == RiskAnalysisBackend.CLAUDE && settings.riskAnalysisEnabled) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFFF9800).copy(alpha = 0.10f),
-                shape = MaterialTheme.shapes.small,
-            ) {
-                Text(
-                    "On macOS, the Claude CLI may trigger file-access permission prompts. " +
-                        "These can safely be denied \u2014 the app does not need file access to perform risk analysis.",
-                    modifier = Modifier.padding(8.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFFF9800),
+        RiskAnalysisBackend.COPILOT -> {
+            val models = copilotModels.ifEmpty {
+                listOf(
+                    "gpt-4.1-mini" to "GPT-4.1 Mini",
+                    "gpt-4.1" to "GPT-4.1",
+                    "claude-sonnet-4.5" to "Sonnet 4.5",
+                )
+            }
+            val label = models.find { it.first == settings.riskAnalysisCopilotModel }?.second
+                ?: settings.riskAnalysisCopilotModel
+            DropdownField(
+                value = label,
+                options = models.map { it.first to it.second },
+                onSelect = { id -> onSettingsChange(settings.copy(riskAnalysisCopilotModel = id)) },
+                width = 220.dp,
+            )
+        }
+        RiskAnalysisBackend.OLLAMA -> {
+            if (ollamaReady && ollamaModels.isNotEmpty()) {
+                DropdownField(
+                    value = settings.riskAnalysisOllamaModel,
+                    options = ollamaModels.map { it to it },
+                    onSelect = { onSettingsChange(settings.copy(riskAnalysisOllamaModel = it)) },
+                    width = 220.dp,
+                )
+            } else {
+                SettingsTextInput(
+                    value = settings.riskAnalysisOllamaModel,
+                    onChange = { onSettingsChange(settings.copy(riskAnalysisOllamaModel = it)) },
+                    width = 220.dp,
+                    mono = true,
                 )
             }
         }
+    }
+}
 
-        // Model selector
+@Composable
+private fun <T> DropdownField(
+    value: String,
+    options: List<Pair<T, String>>,
+    onSelect: (T) -> Unit,
+    width: androidx.compose.ui.unit.Dp,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier
+                .width(width)
+                .height(34.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .background(AgentBuddyColors.surface)
+                .border(1.dp, AgentBuddyColors.line1, RoundedCornerShape(7.dp))
+                .clickable { open = true }
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(text = value, color = AgentBuddyColors.inkPrimary, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = LucideChevronDown,
+                contentDescription = null,
+                tint = AgentBuddyColors.inkMuted,
+                modifier = Modifier.size(12.dp),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEach { (id, label) ->
+                DropdownMenuItem(
+                    text = { Text(label, fontSize = 12.5.sp) },
+                    onClick = {
+                        onSelect(id)
+                        open = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CopilotSection(
+    settings: AppSettings,
+    copilotInitState: CopilotInitState,
+    copilotModelsLoaded: Boolean,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    var ghAuthStatus by remember { mutableStateOf<String?>(null) }
+    var ghAuthOk by remember { mutableStateOf<Boolean?>(null) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val home = System.getProperty("user.home")
+                val process = ProcessBuilder("/bin/sh", "-c", "gh auth status").apply {
+                    redirectErrorStream(true)
+                    val path = environment()["PATH"] ?: ""
+                    val extraPaths = listOf(
+                        "/usr/local/bin",
+                        "/opt/homebrew/bin",
+                        "$home/.local/bin",
+                        "$home/bin",
+                    )
+                    environment()["PATH"] = (extraPaths + path.split(":")).distinct().joinToString(":")
+                }.start()
+                process.inputStream.bufferedReader().readText()
+                val exitCode = process.waitFor()
+                ghAuthOk = exitCode == 0
+                ghAuthStatus = if (exitCode == 0) "Authenticated" else "Not authenticated"
+            } catch (_: Exception) {
+                ghAuthOk = false
+                ghAuthStatus = "gh CLI not found"
+            }
+        }
+    }
+
+    SettingSection(title = "Copilot backend") {
+        SettingItem(label = "Copilot CLI", first = true, right = {
+            when (copilotInitState) {
+                CopilotInitState.LOADING -> CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp), strokeWidth = 2.dp,
+                )
+                CopilotInitState.READY -> StatusPill(
+                    status = DecisionStatus.APPROVED, size = TagSize.SMALL,
+                )
+                CopilotInitState.ERROR -> StatusPill(
+                    status = DecisionStatus.DENIED, size = TagSize.SMALL,
+                )
+                CopilotInitState.IDLE -> Text(
+                    text = "Idle", color = AgentBuddyColors.inkMuted, fontSize = 11.5.sp,
+                )
+            }
+        })
+        SettingItem(
+            label = "GitHub auth",
+            desc = "Requires GitHub CLI (gh) and a Copilot subscription.",
+            right = {
+                when (ghAuthOk) {
+                    true -> StatusPill(
+                        status = DecisionStatus.APPROVED, size = TagSize.SMALL,
+                    )
+                    false -> StatusPill(
+                        status = DecisionStatus.DENIED, size = TagSize.SMALL,
+                    )
+                    null -> Text(
+                        text = ghAuthStatus ?: "\u2026",
+                        color = AgentBuddyColors.inkMuted,
+                        fontSize = 11.5.sp,
+                    )
+                }
+            },
+        )
+        if (ghAuthOk != true) {
+            SettingItem(
+                label = "Login with GitHub",
+                desc = "Opens the gh auth login documentation.",
+                right = {
+                    OutlineButton(text = "Open", onClick = {
+                        openBrowserSafely("https://cli.github.com/manual/gh_auth_login")
+                    })
+                },
+            )
+        }
+        if (copilotInitState != CopilotInitState.READY || !copilotModelsLoaded) {
+            SettingItem(
+                label = "Copilot CLI path",
+                desc = "Leave empty to auto-detect on PATH.",
+                right = {
+                    SettingsTextInput(
+                        value = settings.riskAnalysisCopilotCliPath,
+                        onChange = { onSettingsChange(settings.copy(riskAnalysisCopilotCliPath = it)) },
+                        width = 220.dp,
+                        mono = true,
+                    )
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun OllamaSection(
+    settings: AppSettings,
+    ollamaInitState: OllamaInitState,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    SettingSection(title = "Ollama backend") {
+        SettingItem(label = "Connection", first = true, right = {
+            when (ollamaInitState) {
+                OllamaInitState.LOADING -> CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp), strokeWidth = 2.dp,
+                )
+                OllamaInitState.READY -> StatusPill(
+                    status = DecisionStatus.APPROVED, size = TagSize.SMALL,
+                )
+                OllamaInitState.ERROR -> StatusPill(
+                    status = DecisionStatus.TIMEOUT, size = TagSize.SMALL,
+                )
+                OllamaInitState.IDLE -> Text(
+                    text = "Idle", color = AgentBuddyColors.inkMuted, fontSize = 11.5.sp,
+                )
+            }
+        })
+        SettingItem(
+            label = "Base URL",
+            desc = "Install Ollama from ollama.com, then run `ollama pull llama3.2`.",
+            right = {
+                SettingsTextInput(
+                    value = settings.riskAnalysisOllamaUrl,
+                    onChange = { onSettingsChange(settings.copy(riskAnalysisOllamaUrl = it)) },
+                    width = 220.dp,
+                    mono = true,
+                )
+            },
+        )
+        SettingItem(
+            label = "Download Ollama",
+            desc = "Opens ollama.com/download in your browser.",
+            right = { OutlineButton(text = "Open", onClick = { openBrowserSafely("https://ollama.com/download") }) },
+        )
+    }
+}
+
+@Composable
+private fun SystemPromptSection(
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    var show by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
+    val effectivePrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskMessageBuilder.DEFAULT_SYSTEM_PROMPT }
+
+    SettingSection(
+        title = "System prompt",
+        desc = "Used by the risk grader. Empty = default.",
+    ) {
+        SettingItem(
+            label = "Custom prompt",
+            desc = "Leave empty to fall back to the default system prompt.",
+            first = true,
+            right = {},
+        )
         Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         ) {
-            Text("Model", style = MaterialTheme.typography.bodyMedium)
-            if (settings.riskAnalysisBackend == RiskAnalysisBackend.CLAUDE) {
-                val models = listOf("haiku", "sonnet", "opus")
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    models.forEachIndexed { index, model ->
-                        SegmentedButton(
-                            selected = settings.riskAnalysisModel == model,
-                            onClick = { onSettingsChange(settings.copy(riskAnalysisModel = model)) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = models.size),
-                            enabled = settings.riskAnalysisEnabled,
-                        ) {
-                            Text(model.replaceFirstChar { it.uppercase() }, fontSize = 12.sp)
-                        }
-                    }
-                }
-            } else if (settings.riskAnalysisBackend == RiskAnalysisBackend.OLLAMA) {
-                if (ollamaModels.isNotEmpty() && ollamaInitState == OllamaInitState.READY) {
-                    var expanded by remember { mutableStateOf(false) }
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedButton(
-                            onClick = { expanded = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = settings.riskAnalysisEnabled,
-                        ) {
-                            Text(settings.riskAnalysisOllamaModel, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
-                            Text("\u25BE", fontSize = 12.sp)
-                        }
-                        DropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false },
-                        ) {
-                            ollamaModels.forEach { name ->
-                                DropdownMenuItem(
-                                    text = { Text(name, fontSize = 12.sp) },
-                                    onClick = {
-                                        onSettingsChange(settings.copy(riskAnalysisOllamaModel = name))
-                                        expanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    // Free-text fallback when daemon offline so user can still type a model name and retry.
-                    OutlinedTextField(
-                        value = settings.riskAnalysisOllamaModel,
-                        onValueChange = { onSettingsChange(settings.copy(riskAnalysisOllamaModel = it)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("e.g. llama3.2", fontSize = 12.sp) },
-                        textStyle = MaterialTheme.typography.bodySmall,
-                        singleLine = true,
-                        enabled = settings.riskAnalysisEnabled,
-                    )
-                }
-            } else {
-                val models = copilotModels.ifEmpty {
-                    listOf("gpt-4.1-mini" to "GPT-4.1 Mini", "gpt-4.1" to "GPT-4.1", "claude-sonnet-4.5" to "Sonnet 4.5")
-                }
-                val selectedLabel = models.find { it.first == settings.riskAnalysisCopilotModel }?.second
-                    ?: settings.riskAnalysisCopilotModel
-                var expanded by remember { mutableStateOf(false) }
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(
-                        onClick = { expanded = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = settings.riskAnalysisEnabled,
-                    ) {
-                        Text(selectedLabel, fontSize = 12.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
-                        Text("\u25BE", fontSize = 12.sp)
-                    }
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false },
-                    ) {
-                        models.forEach { (id, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label, fontSize = 12.sp) },
-                                onClick = {
-                                    onSettingsChange(settings.copy(riskAnalysisCopilotModel = id))
-                                    expanded = false
-                                },
-                            )
-                        }
-                    }
-                }
+            MultilineTextInput(
+                value = settings.riskAnalysisCustomPrompt,
+                onChange = { onSettingsChange(settings.copy(riskAnalysisCustomPrompt = it)) },
+                placeholder = "Uses default prompt if empty\u2026",
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlineButton(
+                    text = if (show) "Hide default" else "View default",
+                    onClick = { show = !show },
+                )
+                GhostButton(
+                    text = "Copy default",
+                    onClick = { clipboardManager.setText(AnnotatedString(effectivePrompt)) },
+                )
             }
-        }
-
-        // Copilot auth section
-        AnimatedVisibility(visible = settings.riskAnalysisBackend == RiskAnalysisBackend.COPILOT && settings.riskAnalysisEnabled) {
-            var ghAuthStatus by remember { mutableStateOf<String?>(null) }
-            var ghAuthOk by remember { mutableStateOf<Boolean?>(null) }
-
-            androidx.compose.runtime.LaunchedEffect(Unit) {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    try {
-                        val home = System.getProperty("user.home")
-                        val process = ProcessBuilder("/bin/sh", "-c", "gh auth status").apply {
-                            redirectErrorStream(true)
-                            val path = environment()["PATH"] ?: ""
-                            val extraPaths = listOf(
-                                "/usr/local/bin",
-                                "/opt/homebrew/bin",
-                                "$home/.local/bin",
-                                "$home/bin",
-                            )
-                            environment()["PATH"] = (extraPaths + path.split(":")).distinct().joinToString(":")
-                        }.start()
-                        val output = process.inputStream.bufferedReader().readText().trim()
-                        val exitCode = process.waitFor()
-                        ghAuthOk = exitCode == 0
-                        ghAuthStatus = if (exitCode == 0) "Authenticated" else "Not authenticated"
-                    } catch (_: Exception) {
-                        ghAuthOk = false
-                        ghAuthStatus = "gh CLI not found"
-                    }
-                }
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Copilot init status
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Copilot", style = MaterialTheme.typography.titleSmall)
-                        when (copilotInitState) {
-                            CopilotInitState.LOADING -> {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                                Text("Initializing...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            CopilotInitState.READY -> StatusBadge(text = "Connected", color = Color(0xFF4CAF50))
-                            CopilotInitState.ERROR -> StatusBadge(text = "Failed", color = Color(0xFFF44336))
-                            CopilotInitState.IDLE -> {}
-                        }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("GitHub Auth", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.weight(1f))
-                        ghAuthStatus?.let { status ->
-                            StatusBadge(
-                                text = status,
-                                color = if (ghAuthOk == true) Color(0xFF4CAF50) else Color(0xFFF44336),
-                            )
-                        }
-                    }
-                    if (ghAuthOk == true) {
-                        Text(
-                            "GitHub CLI authenticated. Copilot subscription required.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        Text(
-                            "Requires GitHub CLI (gh) and a Copilot subscription.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        OutlinedButton(
-                            onClick = {
-                                java.awt.Desktop.getDesktop().browse(
-                                    java.net.URI("https://cli.github.com/")
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Install GitHub CLI", fontSize = 12.sp)
-                        }
-                    }
-                    if (ghAuthOk != true) {
-                        OutlinedButton(
-                            onClick = {
-                                java.awt.Desktop.getDesktop().browse(
-                                    java.net.URI("https://cli.github.com/manual/gh_auth_login")
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Login with GitHub (gh auth login)", fontSize = 12.sp)
-                        }
-                    }
-                    // Copilot CLI path override — hidden when models loaded successfully (auto-detect worked)
-                    AnimatedVisibility(visible = copilotInitState != CopilotInitState.READY || copilotModels.isEmpty()) {
-                        OutlinedTextField(
-                            value = settings.riskAnalysisCopilotCliPath,
-                            onValueChange = { onSettingsChange(settings.copy(riskAnalysisCopilotCliPath = it)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Copilot CLI path", fontSize = 12.sp) },
-                            placeholder = { Text("Auto-detect", fontSize = 12.sp) },
-                            textStyle = MaterialTheme.typography.bodySmall,
-                            singleLine = true,
-                        )
-                    }
-                }
-            }
-        }
-
-        // Ollama config section
-        AnimatedVisibility(visible = settings.riskAnalysisBackend == RiskAnalysisBackend.OLLAMA && settings.riskAnalysisEnabled) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Ollama", style = MaterialTheme.typography.titleSmall)
-                        when (ollamaInitState) {
-                            OllamaInitState.LOADING -> {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                                Text("Connecting...", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            OllamaInitState.READY -> StatusBadge(text = "Connected", color = Color(0xFF4CAF50))
-                            OllamaInitState.ERROR -> StatusBadge(text = "Offline", color = Color(0xFFF44336))
-                            OllamaInitState.IDLE -> {}
-                        }
-                    }
-                    OutlinedTextField(
-                        value = settings.riskAnalysisOllamaUrl,
-                        onValueChange = { onSettingsChange(settings.copy(riskAnalysisOllamaUrl = it)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Base URL", fontSize = 12.sp) },
-                        placeholder = { Text("http://localhost:11434", fontSize = 12.sp) },
-                        textStyle = MaterialTheme.typography.bodySmall,
-                        singleLine = true,
-                    )
-                    Text(
-                        "Install Ollama from ollama.com, then run `ollama pull llama3.2` (qwen2.5, mistral-nemo also work well).",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OutlinedButton(
-                        onClick = { openBrowserSafely("https://ollama.com/download") },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Download Ollama", fontSize = 12.sp)
-                    }
-                }
-            }
-        }
-
-        // System prompt viewer
-        var showSystemPrompt by remember { mutableStateOf(false) }
-        val clipboardManager = LocalClipboardManager.current
-        val effectivePrompt = settings.riskAnalysisCustomPrompt.ifBlank { RiskMessageBuilder.DEFAULT_SYSTEM_PROMPT }
-
-        OutlinedButton(
-            onClick = { showSystemPrompt = !showSystemPrompt },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = settings.riskAnalysisEnabled,
-        ) {
-            Text(if (showSystemPrompt) "Hide System Prompt" else "View System Prompt", fontSize = 12.sp)
-        }
-
-        AnimatedVisibility(visible = showSystemPrompt) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.small,
-                ) {
-                    Column(
+            AnimatedVisibility(visible = show) {
+                Column(modifier = Modifier.padding(top = 10.dp)) {
+                    Box(
                         modifier = Modifier
-                            .padding(8.dp)
+                            .fillMaxWidth()
+                            .heightIn(max = 240.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(AgentBuddyColors.background)
+                            .border(1.dp, AgentBuddyColors.line1, RoundedCornerShape(7.dp))
+                            .padding(12.dp)
                             .verticalScroll(rememberScrollState()),
                     ) {
                         Text(
                             text = effectivePrompt,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = AgentBuddyColors.inkSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
+                            fontFamily = FontFamily.Monospace,
                         )
                     }
                 }
-                OutlinedButton(
-                    onClick = { clipboardManager.setText(AnnotatedString(effectivePrompt)) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Copy to Clipboard", fontSize = 12.sp)
-                }
             }
+            Spacer(Modifier.height(8.dp))
         }
+    }
+}
 
-        // Custom system prompt
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+@Composable
+private fun MultilineTextInput(
+    value: String,
+    onChange: (String) -> Unit,
+    placeholder: String,
+) {
+    val textStyle = LocalTextStyle.current.merge(
+        TextStyle(
+            color = AgentBuddyColors.inkPrimary,
+            fontSize = 12.5.sp,
+            fontFamily = FontFamily.Monospace,
+            lineHeight = 18.sp,
+        ),
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 96.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(AgentBuddyColors.background)
+            .border(1.dp, AgentBuddyColors.line1, RoundedCornerShape(7.dp))
+            .padding(12.dp),
+    ) {
+        if (value.isEmpty()) {
             Text(
-                "Custom system prompt (leave empty for default)",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (settings.riskAnalysisEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            )
-            OutlinedTextField(
-                value = settings.riskAnalysisCustomPrompt,
-                onValueChange = { onSettingsChange(settings.copy(riskAnalysisCustomPrompt = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Uses default prompt if empty", fontSize = 12.sp) },
-                textStyle = MaterialTheme.typography.bodySmall,
-                minLines = 3,
-                maxLines = 6,
-                enabled = settings.riskAnalysisEnabled,
+                text = placeholder,
+                color = AgentBuddyColors.inkMuted,
+                fontSize = 12.5.sp,
+                fontFamily = FontFamily.Monospace,
             )
         }
-
-        SettingsDiscreteSlider(
-            label = "Auto-approve up to risk",
-            value = settings.autoApproveLevel,
-            stops = listOf(0, 1, 2, 3),
-            stopLabels = listOf("Off", "1", "2", "3"),
-            onValueChange = { onSettingsChange(settings.copy(autoApproveLevel = it)) },
-            enabled = settings.riskAnalysisEnabled,
-        )
-
-        SettingsDiscreteSlider(
-            label = "Auto-deny at or above risk",
-            value = settings.autoDenyLevel,
-            stops = listOf(0, 5, 4),
-            stopLabels = listOf("Off", "5", "4"),
-            onValueChange = { onSettingsChange(settings.copy(autoDenyLevel = it)) },
-            enabled = settings.riskAnalysisEnabled,
+        BasicTextField(
+            value = value,
+            onValueChange = onChange,
+            textStyle = textStyle,
+            cursorBrush = SolidColor(AgentBuddyColors.inkPrimary),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
+

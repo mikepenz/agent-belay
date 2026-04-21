@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.mikepenz.agentbuddy.ui.theme.AgentBuddyTheme
+import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.highlightedCodeBlock
 import com.mikepenz.markdown.compose.elements.highlightedCodeFence
@@ -74,17 +74,15 @@ fun BashContent(toolInput: Map<String, JsonElement>, cwd: String = "") {
 @Preview
 @Composable
 private fun PreviewBashSimple() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                BashContent(
-                    toolInput = mapOf(
-                        "command" to JsonPrimitive("git status && git diff HEAD"),
-                        "description" to JsonPrimitive("Show working tree status"),
-                    ),
-                    cwd = "/Users/mike/project",
-                )
-            }
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            BashContent(
+                toolInput = mapOf(
+                    "command" to JsonPrimitive("git status && git diff HEAD"),
+                    "description" to JsonPrimitive("Show working tree status"),
+                ),
+                cwd = "/Users/mike/project",
+            )
         }
     }
 }
@@ -92,19 +90,17 @@ private fun PreviewBashSimple() {
 @Preview
 @Composable
 private fun PreviewBashMultiline() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                BashContent(
-                    toolInput = mapOf(
-                        "command" to JsonPrimitive(
-                            "javap -classpath ./build/tmp/kotlin-classes/debug com.example.PreviewsKt 2>/dev/null | grep \"Preview\" | head -20"
-                        ),
-                        "description" to JsonPrimitive("Check method signatures for Preview"),
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            BashContent(
+                toolInput = mapOf(
+                    "command" to JsonPrimitive(
+                        "javap -classpath ./build/tmp/kotlin-classes/debug com.example.PreviewsKt 2>/dev/null | grep \"Preview\" | head -20"
                     ),
-                    cwd = "/Users/mike/Development/compose-buddy",
-                )
-            }
+                    "description" to JsonPrimitive("Check method signatures for Preview"),
+                ),
+                cwd = "/Users/mike/Development/compose-buddy",
+            )
         }
     }
 }
@@ -112,13 +108,11 @@ private fun PreviewBashMultiline() {
 @Preview
 @Composable
 private fun PreviewBashNoDescription() {
-    AgentBuddyTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
-                BashContent(
-                    toolInput = mapOf("command" to JsonPrimitive("ls -la")),
-                )
-            }
+    PreviewScaffold {
+        Box(modifier = Modifier.width(350.dp).padding(12.dp)) {
+            BashContent(
+                toolInput = mapOf("command" to JsonPrimitive("ls -la")),
+            )
         }
     }
 }

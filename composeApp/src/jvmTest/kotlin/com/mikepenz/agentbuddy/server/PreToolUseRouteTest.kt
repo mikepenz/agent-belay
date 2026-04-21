@@ -149,6 +149,130 @@ class PreToolUseRouteTest {
         }
     }
 
+    @Test
+    fun dynamicSettingsAreRespectedByProtectionEngine() {
+        // Build the engine with a mutable settings holder so we can swap settings
+        // after the server starts — simulating the user toggling a module in the UI.
+        var currentSettings = ProtectionSettings(
+            modules = mapOf("test-module" to ModuleSettings(mode = ProtectionMode.AUTO_BLOCK))
+        )
+        val fakeRule = object : ProtectionRule {
+            override val id = "test-rule"
+            override val name = "Test Rule"
+            override val description = "Always fires"
+            override fun evaluate(hookInput: HookInput) = ProtectionHit(
+                moduleId = "test-module", ruleId = id, message = "hit", mode = ProtectionMode.AUTO_BLOCK
+            )
+        }
+        val fakeModule = object : ProtectionModule {
+            override val id = "test-module"
+            override val name = "Test Module"
+            override val description = "Test"
+            override val corrective = false
+            override val defaultMode = ProtectionMode.AUTO_BLOCK
+            override val applicableTools = setOf("Bash")
+            override val rules = listOf(fakeRule)
+        }
+        val protectionEngine = ProtectionEngine(listOf(fakeModule)) { currentSettings }
+        val capabilityEngine = CapabilityEngine(emptyList()) { CapabilitySettings() }
+        server = ApprovalServer(
+            stateManager = stateManager,
+            protectionEngine = protectionEngine,
+            capabilityEngine = capabilityEngine,
+            databaseStorage = null,
+            onNewApproval = {},
+        )
+        port = freePort()
+        server.start(port = port, host = "127.0.0.1")
+        Thread.sleep(200)
+
+        // First request: AUTO_BLOCK → deny
+        val body = claudeCodeBody("Bash", """{"command":"echo hi"}""")
+        val resp1 = httpPost("/pre-tool-use", body)
+        val out1 = Json.parseToJsonElement(extractBody(resp1)).jsonObject["hookSpecificOutput"]?.jsonObject
+        assertEquals("deny", out1?.get("permissionDecision")?.jsonPrimitive?.content)
+
+        // Simulate user changing module to LOG_ONLY in settings
+        currentSettings = ProtectionSettings(
+            modules = mapOf("test-module" to ModuleSettings(mode = ProtectionMode.LOG_ONLY))
+        )
+
+        // Second request: same command, now LOG_ONLY → allow
+        val resp2 = httpPost("/pre-tool-use", body)
+        val out2 = Json.parseToJsonElement(extractBody(resp2)).jsonObject["hookSpecificOutput"]?.jsonObject
+        assertEquals("allow", out2?.get("permissionDecision")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun multiModuleMixedModesBlocksWhenOneModuleIsAutoBlock() {
+        // Reproduces the real-world scenario: user sets one module to LOG_ONLY
+        // but a second module (AUTO_BLOCK default) also fires on the same command.
+        // The overall decision must still be "deny" because highestSeverity = AUTO_BLOCK.
+        val logOnlyRule = object : ProtectionRule {
+            override val id = "log-rule"
+            override val name = "Log Rule"
+            override val description = "Always fires, LOG_ONLY"
+            override fun evaluate(hookInput: HookInput) = ProtectionHit(
+                moduleId = "log-module", ruleId = id, message = "log hit", mode = ProtectionMode.LOG_ONLY
+            )
+        }
+        val blockRule = object : ProtectionRule {
+            override val id = "block-rule"
+            override val name = "Block Rule"
+            override val description = "Always fires, AUTO_BLOCK"
+            override fun evaluate(hookInput: HookInput) = ProtectionHit(
+                moduleId = "block-module", ruleId = id, message = "block hit", mode = ProtectionMode.AUTO_BLOCK
+            )
+        }
+        val logModule = object : ProtectionModule {
+            override val id = "log-module"
+            override val name = "Log Module"
+            override val description = "Log"
+            override val corrective = false
+            override val defaultMode = ProtectionMode.LOG_ONLY
+            override val applicableTools = setOf("Bash")
+            override val rules = listOf(logOnlyRule)
+        }
+        val blockModule = object : ProtectionModule {
+            override val id = "block-module"
+            override val name = "Block Module"
+            override val description = "Block"
+            override val corrective = false
+            override val defaultMode = ProtectionMode.AUTO_BLOCK
+            override val applicableTools = setOf("Bash")
+            override val rules = listOf(blockRule)
+        }
+        val settings = ProtectionSettings(
+            modules = mapOf("log-module" to ModuleSettings(mode = ProtectionMode.LOG_ONLY))
+            // block-module has no entry → uses AUTO_BLOCK default
+        )
+        val protectionEngine = ProtectionEngine(listOf(logModule, blockModule)) { settings }
+        val capabilityEngine = CapabilityEngine(emptyList()) { CapabilitySettings() }
+        server = ApprovalServer(
+            stateManager = stateManager,
+            protectionEngine = protectionEngine,
+            capabilityEngine = capabilityEngine,
+            databaseStorage = null,
+            onNewApproval = {},
+        )
+        port = freePort()
+        server.start(port = port, host = "127.0.0.1")
+        Thread.sleep(200)
+
+        val body = claudeCodeBody("Bash", """{"command":"echo hi"}""")
+        val response = httpPost("/pre-tool-use", body)
+        val output = Json.parseToJsonElement(extractBody(response)).jsonObject["hookSpecificOutput"]?.jsonObject
+        assertEquals("deny", output?.get("permissionDecision")?.jsonPrimitive?.content,
+            "AUTO_BLOCK from the second module should win over LOG_ONLY from the first")
+
+        waitFor("history entry") { stateManager.state.value.history.isNotEmpty() }
+        val historyEntry = stateManager.state.value.history.first()
+        assertEquals(Decision.PROTECTION_BLOCKED, historyEntry.decision)
+        // The history record must attribute the block to the AUTO_BLOCK module, not the LOG_ONLY one.
+        assertEquals("block-module", historyEntry.protectionModule,
+            "primaryHit should be the strictest hit (AUTO_BLOCK), not the first-registered (LOG_ONLY)")
+    }
+
     // ---- Copilot /pre-tool-use-copilot ----
 
     @Test

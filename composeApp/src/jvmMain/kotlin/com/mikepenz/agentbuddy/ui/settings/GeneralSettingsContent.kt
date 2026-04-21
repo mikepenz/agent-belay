@@ -1,25 +1,7 @@
 package com.mikepenz.agentbuddy.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,15 +9,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.mikepenz.agentbuddy.model.AppSettings
 import com.mikepenz.agentbuddy.model.ThemeMode
 import com.mikepenz.agentbuddy.platform.StartupManager
+import com.mikepenz.agentbuddy.ui.components.DesignToggle
+import com.mikepenz.agentbuddy.ui.components.GhostButton
+import com.mikepenz.agentbuddy.ui.components.OutlineButton
+import com.mikepenz.agentbuddy.ui.components.PillSegmented
+import com.mikepenz.agentbuddy.ui.theme.DangerRed
 
 @Composable
 fun GeneralSettingsContent(
@@ -61,259 +43,158 @@ fun GeneralSettingsContent(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showClearDialog = false }) { Text("Cancel") }
             },
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // Theme mode selector
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Theme", style = MaterialTheme.typography.bodyMedium)
-            val modes = ThemeMode.entries
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                modes.forEachIndexed { index, mode ->
-                    SegmentedButton(
-                        selected = settings.themeMode == mode,
-                        onClick = { onSettingsChange(settings.copy(themeMode = mode)) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
-                    ) {
-                        Text(
-                            when (mode) {
-                                ThemeMode.SYSTEM -> "System"
-                                ThemeMode.DARK -> "Dark"
-                                ThemeMode.LIGHT -> "Light"
-                            },
-                            fontSize = 12.sp,
-                        )
-                    }
-                }
-            }
-        }
+    SettingSection(title = "Appearance", desc = "How Agent Buddy looks across your desktop.") {
+        SettingItem(label = "Theme", first = true, right = {
+            PillSegmented(
+                options = listOf(
+                    ThemeMode.SYSTEM to "System",
+                    ThemeMode.DARK to "Dark",
+                    ThemeMode.LIGHT to "Light",
+                ),
+                selected = settings.themeMode,
+                onSelect = { onSettingsChange(settings.copy(themeMode = it)) },
+            )
+        })
+    }
 
-        // macOS notification permission
-        if (System.getProperty("os.name", "").contains("Mac", ignoreCase = true)) {
-            var permissionStatus by remember { mutableStateOf<String?>(null) }
-            var badgeEnabled by remember { mutableStateOf<Boolean?>(null) }
-
-            // Check current permission status
-            androidx.compose.runtime.LaunchedEffect(Unit) {
-                io.github.kdroidfilter.nucleus.notification.NotificationCenter.getNotificationSettings { notifSettings ->
-                    permissionStatus = notifSettings.authorizationStatus.name
-                    badgeEnabled = notifSettings.badgeSetting == io.github.kdroidfilter.nucleus.notification.NotificationSetting.ENABLED
-                }
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Notifications", style = MaterialTheme.typography.titleSmall)
-                        permissionStatus?.let { status ->
-                            val isAuthorized = status == "AUTHORIZED"
-                            StatusBadge(
-                                text = if (isAuthorized) "Allowed" else status.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
-                                color = if (isAuthorized) Color(0xFF4CAF50) else Color(0xFFF44336),
-                            )
-                        }
-                    }
-                    if (badgeEnabled == false) {
-                        Text(
-                            "Badge permission is disabled. Enable \"Badge application icon\" in macOS notification settings.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    when (permissionStatus) {
-                        "NOT_DETERMINED" -> {
-                            Text(
-                                "Grant notification permission for dock badge and alerts.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            OutlinedButton(
-                                onClick = {
-                                    io.github.kdroidfilter.nucleus.notification.NotificationCenter.requestAuthorization(
-                                        setOf(
-                                            io.github.kdroidfilter.nucleus.notification.AuthorizationOption.BADGE,
-                                            io.github.kdroidfilter.nucleus.notification.AuthorizationOption.SOUND,
-                                            io.github.kdroidfilter.nucleus.notification.AuthorizationOption.ALERT,
-                                        )
-                                    ) { _, _ ->
-                                        io.github.kdroidfilter.nucleus.notification.NotificationCenter.getNotificationSettings { notifSettings ->
-                                            permissionStatus = notifSettings.authorizationStatus.name
-                                            badgeEnabled = notifSettings.badgeSetting == io.github.kdroidfilter.nucleus.notification.NotificationSetting.ENABLED
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Request Permission", fontSize = 12.sp)
-                            }
-                        }
-                        "DENIED" -> {
-                            Text(
-                                "Notifications were denied. Open System Settings to enable them.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            OutlinedButton(
-                                onClick = {
-                                    @Suppress("DEPRECATION")
-                                    Runtime.getRuntime().exec(
-                                        arrayOf("open", "x-apple.systempreferences:com.apple.Notifications-Settings.extension")
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Open Notification Settings", fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        SettingsSwitch(
+    SettingSection(title = "Behavior") {
+        SettingItem(
             label = "Always on top",
-            checked = settings.alwaysOnTop,
-            onCheckedChange = { onSettingsChange(settings.copy(alwaysOnTop = it)) },
-        )
-
-        SettingsSwitch(
-            label = "Start on boot",
-            checked = settings.startOnBoot,
-            onCheckedChange = {
-                StartupManager.setStartOnBoot(it)
-                onSettingsChange(settings.copy(startOnBoot = it))
+            desc = "Keep the window above other apps when an approval arrives.",
+            first = true,
+            right = {
+                DesignToggle(
+                    checked = settings.alwaysOnTop,
+                    onCheckedChange = { onSettingsChange(settings.copy(alwaysOnTop = it)) },
+                )
             },
         )
-
-        SettingsSwitch(
-            label = "Away mode (disable all timeouts)",
-            checked = settings.awayMode,
-            onCheckedChange = { onSettingsChange(settings.copy(awayMode = it)) },
+        SettingItem(
+            label = "Start on boot",
+            right = {
+                DesignToggle(
+                    checked = settings.startOnBoot,
+                    onCheckedChange = {
+                        StartupManager.setStartOnBoot(it)
+                        onSettingsChange(settings.copy(startOnBoot = it))
+                    },
+                )
+            },
         )
-
-        SettingsSwitch(
-            label = "Prominent always-allow button",
-            checked = settings.prominentAlwaysAllow,
-            onCheckedChange = { onSettingsChange(settings.copy(prominentAlwaysAllow = it)) },
+        SettingItem(
+            label = "Away mode",
+            desc = "Disable timeouts while you're away. Approvals wait indefinitely.",
+            right = {
+                DesignToggle(
+                    checked = settings.awayMode,
+                    onCheckedChange = { onSettingsChange(settings.copy(awayMode = it)) },
+                )
+            },
         )
-
-        // -- Server Section --
-        SectionHeader("Server")
-
-        SettingsTextField(
-            label = "Server port",
-            value = settings.serverPort.toString(),
-            onValueChange = { it.toIntOrNull()?.let { port -> onSettingsChange(settings.copy(serverPort = port)) } },
+        SettingItem(
+            label = "Prominent \"always allow\" button",
+            desc = "Surface the sticky-approve option in the approval footer.",
+            right = {
+                DesignToggle(
+                    checked = settings.prominentAlwaysAllow,
+                    onCheckedChange = { onSettingsChange(settings.copy(prominentAlwaysAllow = it)) },
+                )
+            },
         )
+    }
 
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Bind address", style = MaterialTheme.typography.bodyMedium)
-            val hostOptions = listOf(
-                "127.0.0.1" to "Loopback",
-                "0.0.0.0" to "All interfaces",
-            )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                hostOptions.forEachIndexed { index, (host, label) ->
-                    SegmentedButton(
-                        selected = settings.serverHost == host,
-                        onClick = { onSettingsChange(settings.copy(serverHost = host)) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = hostOptions.size),
-                    ) {
-                        Text(label, fontSize = 12.sp)
+    SettingSection(title = "Server", desc = "Local approval endpoint used by your agents.") {
+        SettingItem(label = "Listening port", first = true, right = {
+            SettingsTextInput(
+                value = settings.serverPort.toString(),
+                onChange = { raw ->
+                    raw.toIntOrNull()?.let { port ->
+                        onSettingsChange(settings.copy(serverPort = port))
                     }
-                }
-            }
-            Text(
-                "\"All interfaces\" exposes the approval server to your local network. " +
-                    "There is currently no authentication — only enable on trusted networks. " +
-                    "Restart the app to apply.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                },
+                mono = true,
             )
-        }
-
-        SettingsTextField(
-            label = "Default timeout (seconds)",
-            value = settings.defaultTimeoutSeconds.toString(),
-            onValueChange = { it.toIntOrNull()?.let { timeout -> onSettingsChange(settings.copy(defaultTimeoutSeconds = timeout)) } },
+        })
+        SettingItem(
+            label = "Bind address",
+            desc = "\"All interfaces\" exposes the approval server to your LAN. " +
+                "No authentication \u2014 only enable on trusted networks.",
+            right = {
+                PillSegmented(
+                    options = listOf(
+                        "127.0.0.1" to "Loopback",
+                        "0.0.0.0" to "All interfaces",
+                    ),
+                    selected = settings.serverHost,
+                    onSelect = { onSettingsChange(settings.copy(serverHost = it)) },
+                )
+            },
         )
-
-        // -- Data Section --
-        SectionHeader("Data")
-
-        Text(
-            "History entries: $historyCount / ${settings.maxHistoryEntries}",
-            style = MaterialTheme.typography.bodyMedium,
+        SettingItem(
+            label = "Default timeout",
+            desc = "How long an approval waits before the agent falls back to a default.",
+            right = {
+                SettingsTextInput(
+                    value = settings.defaultTimeoutSeconds.toString(),
+                    onChange = { raw ->
+                        raw.toIntOrNull()?.let { t ->
+                            onSettingsChange(settings.copy(defaultTimeoutSeconds = t))
+                        }
+                    },
+                    suffix = "sec",
+                    mono = true,
+                    width = 140.dp,
+                )
+            },
         )
+    }
 
-        SettingsTextField(
-            label = "Max history entries",
-            value = settings.maxHistoryEntries.toString(),
-            onValueChange = { it.toIntOrNull()?.let { max -> onSettingsChange(settings.copy(maxHistoryEntries = max)) } },
+    SettingSection(title = "Data", desc = "Stored locally; nothing leaves your machine.") {
+        SettingItem(
+            label = "History",
+            desc = "$historyCount of ${settings.maxHistoryEntries} entries used.",
+            first = true,
+            right = { OutlineButton(text = "Export JSON", onClick = {}) },
         )
+        SettingItem(
+            label = "Clear history",
+            desc = "Permanently removes all recorded decisions and protections.",
+            right = {
+                GhostButton(
+                    text = "Clear\u2026",
+                    color = DangerRed,
+                    onClick = { showClearDialog = true },
+                )
+            },
+        )
+    }
 
-        Button(
-            onClick = { showClearDialog = true },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-        ) {
-            Text("Clear History")
-        }
-
-        // -- Diagnostics --
-        SectionHeader("Diagnostics")
-
-        SettingsSwitch(
+    SettingSection(title = "Diagnostics") {
+        SettingItem(
             label = "Verbose logging",
-            checked = settings.verboseLogging,
-            onCheckedChange = { onSettingsChange(settings.copy(verboseLogging = it)) },
+            desc = "Include commands, file paths, and request/response details in logs. " +
+                "Keep off unless diagnosing an issue \u2014 sensitive content may appear in log files.",
+            first = true,
+            right = {
+                DesignToggle(
+                    checked = settings.verboseLogging,
+                    onCheckedChange = { onSettingsChange(settings.copy(verboseLogging = it)) },
+                )
+            },
         )
-        Text(
-            "Include commands, file paths, and request/response details in logs. " +
-                "Keep off unless diagnosing an issue — sensitive content may appear in log files.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    }
+
+    SettingSection(title = "About", desc = "Agent Buddy v${com.mikepenz.agentbuddy.VERSION}") {
+        SettingItem(
+            label = "Open source libraries",
+            desc = "View third-party licenses bundled with Agent Buddy.",
+            first = true,
+            right = { OutlineButton(text = "View\u2026", onClick = onShowLicenses) },
         )
-
-        // -- About --
-        SectionHeader("About")
-
-        OutlinedButton(
-            onClick = onShowLicenses,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Open Source Libraries")
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Agent Buddy v${com.mikepenz.agentbuddy.VERSION}",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }

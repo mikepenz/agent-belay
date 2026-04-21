@@ -3,6 +3,7 @@ package com.mikepenz.agentbuddy.ui.statistics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mikepenz.agentbuddy.di.AppScope
+import com.mikepenz.agentbuddy.model.ApprovalResult
 import com.mikepenz.agentbuddy.state.AppStateManager
 import com.mikepenz.agentbuddy.storage.DatabaseStorage
 import com.mikepenz.agentbuddy.storage.StatsSummary
@@ -40,6 +41,8 @@ enum class TimeWindow(val sinceOffset: Duration?) {
 data class StatsUiState(
     val window: TimeWindow = TimeWindow.Last7Days,
     val summary: StatsSummary = StatsSummary.EMPTY,
+    val previousSummary: StatsSummary? = null,
+    val decidedInWindow: List<ApprovalResult> = emptyList(),
     val loading: Boolean = false,
 )
 
@@ -48,7 +51,7 @@ data class StatsUiState(
 @ContributesIntoMap(AppScope::class)
 class StatisticsViewModel(
     private val databaseStorage: DatabaseStorage,
-    stateManager: AppStateManager,
+    private val stateManager: AppStateManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StatsUiState())
@@ -85,9 +88,23 @@ class StatisticsViewModel(
             _uiState.value = _uiState.value.copy(loading = true)
             try {
                 val window = _uiState.value.window
-                val since: Instant? = window.sinceOffset?.let { Clock.System.now() - it }
+                val now = Clock.System.now()
+                val since: Instant? = window.sinceOffset?.let { now - it }
                 val summary = withContext(Dispatchers.IO) { databaseStorage.queryStats(since) }
-                _uiState.value = _uiState.value.copy(summary = summary)
+                // Query the mirror period immediately before the current window for delta comparison.
+                // AllTime has no meaningful prior period → null.
+                val previousSummary: StatsSummary? = window.sinceOffset?.let { offset ->
+                    val prevUntil = now - offset
+                    val prevSince = prevUntil - offset
+                    withContext(Dispatchers.IO) { databaseStorage.queryStats(prevSince, prevUntil) }
+                }
+                val history = stateManager.state.value.history
+                val decidedInWindow = if (since == null) history else history.filter { it.decidedAt >= since }
+                _uiState.value = _uiState.value.copy(
+                    summary = summary,
+                    previousSummary = previousSummary,
+                    decidedInWindow = decidedInWindow,
+                )
             } catch (e: Exception) {
                 // Don't let SQLite errors (busy/IO) propagate up and tear down the
                 // ViewModel scope. Stale summary stays visible until the next refresh.
