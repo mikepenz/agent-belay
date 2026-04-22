@@ -161,6 +161,57 @@ fun HistoryScreen(
     val hScroll = rememberScrollState()
 
     BoxWithConstraints(modifier = modifier.fillMaxSize().background(AgentBuddyColors.background)) {
+        // Compact layout drops the horizontal scroll table in favour of a
+        // two-line row that fits any width without truncating the key info.
+        // Threshold matches the wide-mode content min (868.dp) minus slack so
+        // we switch before columns start visually crunching.
+        val compact = maxWidth < 720.dp
+
+        if (compact) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                HistoryHeader(
+                    total = ui.total,
+                    showing = ui.entries.size,
+                    scope = ui.scope,
+                    counts = ui.counts,
+                    onScopeChange = onScopeChange,
+                    sourceFilter = ui.sourceFilter,
+                    onSourceFilterChange = onSourceFilterChange,
+                    query = ui.query,
+                    onQueryChange = onQueryChange,
+                    compact = true,
+                )
+
+                if (ui.entries.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "No matching events.",
+                            color = AgentBuddyColors.inkMuted,
+                            fontSize = 13.sp,
+                        )
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                        itemsIndexed(
+                            items = ui.entries,
+                            key = { _, entry -> entry.id },
+                        ) { idx, entry ->
+                            HistoryRowCompact(
+                                entry = entry,
+                                expanded = expandedId == entry.id,
+                                onToggle = {
+                                    expandedId = if (expandedId == entry.id) null else entry.id
+                                },
+                                isLast = idx == ui.entries.lastIndex,
+                                onReplay = onReplay,
+                            )
+                        }
+                    }
+                }
+            }
+            return@BoxWithConstraints
+        }
+
         val contentWidth = maxOf(maxWidth, 868.dp)
         Box(modifier = Modifier.fillMaxSize().horizontalScroll(hScroll)) {
             Column(modifier = Modifier.fillMaxHeight().width(contentWidth)) {
@@ -315,8 +366,10 @@ private fun HistoryHeader(
     onSourceFilterChange: (HistorySourceFilter) -> Unit,
     query: String,
     onQueryChange: (String) -> Unit,
+    compact: Boolean = false,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(start = 28.dp, end = 28.dp, top = 18.dp)) {
+    val hPad = if (compact) 16.dp else 28.dp
+    Column(modifier = Modifier.fillMaxWidth().padding(start = hPad, end = hPad, top = 18.dp)) {
         // Title row — title+subtitle on the left, toolbar (source pill, search, filters) on the right.
         // FlowRow wraps the toolbar below the title at narrow widths so the
         // two halves never overlap. SpaceBetween keeps them flush at desktop
@@ -408,6 +461,9 @@ private fun FilterSearchField(
                     color = AgentBuddyColors.inkMuted,
                     fontSize = 13.sp,
                     letterSpacing = (-0.05).sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             BasicTextField(
@@ -620,6 +676,107 @@ private fun HistoryRow(
         }
         if (expanded) {
             HistoryExpandedDetails(entry, onReplay = onReplay)
+        }
+        if (!isLast) {
+            HorizontalHairline()
+        }
+    }
+}
+
+/**
+ * Slim two-line row used when the screen width can't fit the table layout
+ * without truncating. Line 1 carries the primary scan-info (tool, target,
+ * time), line 2 carries the metadata tags (source, outcome, risk, protection
+ * tag). No horizontal scroll.
+ */
+@Composable
+private fun HistoryRowCompact(
+    entry: HistoryEntry,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    isLast: Boolean,
+    onReplay: ((id: String) -> Unit)? = null,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val liveHover by interactionSource.collectIsHoveredAsState()
+    val isHovered = LocalPreviewHoverOverride.current ?: liveHover
+
+    val rowBg = when {
+        expanded -> AgentBuddyColors.surface
+        isHovered -> AgentBuddyColors.surface
+        else -> Color.Transparent
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowBg)
+            .clickable(interactionSource = interactionSource, indication = null) { onToggle() }
+            .hoverable(interactionSource),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            // Line 1: chevron + tool + summary (weighted) + time.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = if (expanded) LucideChevronDown else LucideChevronRight,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = AgentBuddyColors.inkMuted,
+                    modifier = Modifier.size(12.dp),
+                )
+                ToolTag(toolName = entry.tool, size = TagSize.SMALL)
+                Text(
+                    text = entry.summary,
+                    color = AgentBuddyColors.inkPrimary,
+                    fontSize = 12.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    letterSpacing = (-0.1).sp,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = entry.time,
+                    color = AgentBuddyColors.inkTertiary,
+                    fontSize = 11.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                )
+            }
+            // Line 2: source + status + risk + optional protection tag.
+            // FlowRow lets the pills wrap gracefully on very narrow widths.
+            androidx.compose.foundation.layout.FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(start = 22.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                SourceTag(source = entry.source)
+                StatusPill(status = entry.status, size = TagSize.SMALL)
+                if (entry.risk != null && entry.via != null) {
+                    RiskPill(level = entry.risk, via = entry.via)
+                }
+                if (entry.tag != null) {
+                    BadgeChip(
+                        text = entry.tag,
+                        background = com.mikepenz.agentbuddy.ui.theme.WarnYellow.copy(alpha = 0.12f),
+                        textColor = com.mikepenz.agentbuddy.ui.theme.WarnYellow,
+                        mono = true,
+                        fontSize = 10.sp,
+                        horizontalPadding = 6.dp,
+                    )
+                }
+            }
+        }
+        if (expanded) {
+            HistoryExpandedDetails(entry, onReplay = onReplay, compact = true)
         }
         if (!isLast) {
             HorizontalHairline()
@@ -954,6 +1111,42 @@ private fun PreviewHistoryNarrowWidth() {
     // letter per line (T-A-R-G-E-T) and Outcome was crushed. The table
     // now sits in a horizontalScroll with a min content width.
     PreviewScaffold {
+        HistoryScreen(items = sampleHistory(), initialExpandedId = null)
+    }
+}
+
+@Preview(widthDp = 520, heightDp = 700)
+@Composable
+private fun PreviewHistoryCompact() {
+    // Below the 720.dp threshold the table layout is replaced by a slim
+    // two-line row that does not require horizontal scrolling.
+    PreviewScaffold {
+        HistoryScreen(items = sampleHistory(), initialExpandedId = null)
+    }
+}
+
+@Preview(widthDp = 380, heightDp = 700)
+@Composable
+private fun PreviewHistoryCompactSidePanel() {
+    // Very narrow side-panel width (~350-380dp is the design target in
+    // CLAUDE.md). Pills on line 2 wrap via FlowRow.
+    PreviewScaffold {
+        HistoryScreen(items = sampleHistory(), initialExpandedId = null)
+    }
+}
+
+@Preview(widthDp = 520, heightDp = 820)
+@Composable
+private fun PreviewHistoryCompactExpanded() {
+    PreviewScaffold {
+        HistoryScreen(items = sampleHistory(), initialExpandedId = "1")
+    }
+}
+
+@Preview(widthDp = 520, heightDp = 700)
+@Composable
+private fun PreviewHistoryCompactLight() {
+    PreviewScaffold(themeMode = com.mikepenz.agentbuddy.model.ThemeMode.LIGHT) {
         HistoryScreen(items = sampleHistory(), initialExpandedId = null)
     }
 }

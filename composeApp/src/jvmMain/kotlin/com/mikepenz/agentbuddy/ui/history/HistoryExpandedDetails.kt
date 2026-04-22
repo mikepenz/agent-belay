@@ -66,11 +66,16 @@ private val prettyJson = Json { prettyPrint = true; ignoreUnknownKeys = true }
 internal fun HistoryExpandedDetails(
     entry: HistoryEntry,
     onReplay: ((id: String) -> Unit)? = null,
+    compact: Boolean = false,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 64.dp, end = 28.dp, bottom = 20.dp),
+            .padding(
+                start = if (compact) 16.dp else 64.dp,
+                end = if (compact) 16.dp else 28.dp,
+                bottom = if (compact) 14.dp else 20.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (onReplay != null) {
