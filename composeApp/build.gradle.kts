@@ -15,7 +15,7 @@ plugins {
     alias(baseLibs.plugins.aboutLibraries)
     alias(libs.plugins.nucleus)
     alias(libs.plugins.metro)
-    id("dev.mikepenz.composebuddy") version "0.3.0-a01"
+    id("dev.mikepenz.composebuddy") version "0.3.0"
 }
 
 configurations.all {
