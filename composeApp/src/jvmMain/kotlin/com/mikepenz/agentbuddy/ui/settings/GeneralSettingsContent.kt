@@ -1,14 +1,18 @@
 package com.mikepenz.agentbuddy.ui.settings
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import com.mikepenz.agentbuddy.model.AppSettings
 import com.mikepenz.agentbuddy.model.ThemeMode
@@ -17,7 +21,15 @@ import com.mikepenz.agentbuddy.ui.components.DesignToggle
 import com.mikepenz.agentbuddy.ui.components.GhostButton
 import com.mikepenz.agentbuddy.ui.components.OutlineButton
 import com.mikepenz.agentbuddy.ui.components.PillSegmented
+import com.mikepenz.agentbuddy.ui.theme.AccentEmerald
+import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
 import com.mikepenz.agentbuddy.ui.theme.DangerRed
+import com.mikepenz.agentbuddy.ui.theme.WarnYellow
+import io.github.kdroidfilter.nucleus.notification.AuthorizationOption
+import io.github.kdroidfilter.nucleus.notification.AuthorizationStatus
+import io.github.kdroidfilter.nucleus.notification.NotificationCenter
+
+private val isMacOs = System.getProperty("os.name", "").contains("Mac", ignoreCase = true)
 
 @Composable
 fun GeneralSettingsContent(
@@ -106,6 +118,16 @@ fun GeneralSettingsContent(
                 )
             },
         )
+    }
+
+    if (isMacOs) {
+        SettingSection(
+            title = "Notifications",
+            desc = "macOS dock badge requires notification permission. " +
+                "Without it the pending-approval count won't show on the dock icon.",
+        ) {
+            NotificationPermissionItem()
+        }
     }
 
     SettingSection(title = "Server", desc = "Local approval endpoint used by your agents.") {
@@ -197,4 +219,74 @@ fun GeneralSettingsContent(
             right = { OutlineButton(text = "View\u2026", onClick = onShowLicenses) },
         )
     }
+}
+
+@Composable
+private fun NotificationPermissionItem() {
+    var status by remember { mutableStateOf<AuthorizationStatus?>(null) }
+    var badgeEnabled by remember { mutableStateOf(false) }
+
+    fun refresh() {
+        NotificationCenter.getNotificationSettings { settings ->
+            status = settings.authorizationStatus
+            badgeEnabled = settings.badgeSetting ==
+                io.github.kdroidfilter.nucleus.notification.NotificationSetting.ENABLED
+        }
+    }
+
+    LaunchedEffect(Unit) { refresh() }
+
+    val (label, color) = when (status) {
+        AuthorizationStatus.AUTHORIZED, AuthorizationStatus.PROVISIONAL,
+        AuthorizationStatus.EPHEMERAL -> "Granted" to AccentEmerald
+        AuthorizationStatus.DENIED -> "Denied" to DangerRed
+        AuthorizationStatus.NOT_DETERMINED -> "Not requested" to WarnYellow
+        null -> "Checking\u2026" to AgentBuddyColors.inkTertiary
+    }
+
+    val desc = when (status) {
+        AuthorizationStatus.DENIED ->
+            "Notifications are blocked. Open System Settings \u203a Notifications \u203a " +
+                "Agent Buddy to allow badges."
+        AuthorizationStatus.AUTHORIZED, AuthorizationStatus.PROVISIONAL,
+        AuthorizationStatus.EPHEMERAL ->
+            if (badgeEnabled) "Dock badge is allowed."
+            else "Permission granted, but the badge sub-setting is disabled in System Settings."
+        AuthorizationStatus.NOT_DETERMINED ->
+            "Permission has not been requested yet. Grant to enable the dock badge."
+        null -> null
+    }
+
+    SettingItem(
+        label = "Permission status",
+        desc = desc,
+        first = true,
+        right = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StatusBadge(text = label, color = color)
+                when (status) {
+                    AuthorizationStatus.NOT_DETERMINED -> OutlineButton(
+                        text = "Grant",
+                        onClick = {
+                            NotificationCenter.requestAuthorization(
+                                setOf(
+                                    AuthorizationOption.BADGE,
+                                    AuthorizationOption.ALERT,
+                                    AuthorizationOption.SOUND,
+                                ),
+                            ) { _, _ -> refresh() }
+                        },
+                    )
+                    AuthorizationStatus.DENIED -> OutlineButton(
+                        text = "Recheck",
+                        onClick = { refresh() },
+                    )
+                    else -> Unit
+                }
+            }
+        },
+    )
 }
