@@ -366,7 +366,7 @@ private fun CopilotSection(
                     modifier = Modifier.size(14.dp), strokeWidth = 2.dp,
                 )
                 CopilotInitState.READY -> StatusPill(
-                    status = DecisionStatus.APPROVED, size = TagSize.SMALL,
+                    status = DecisionStatus.APPROVED, size = TagSize.SMALL, text = "Connected",
                 )
                 CopilotInitState.ERROR -> StatusPill(
                     status = DecisionStatus.DENIED, size = TagSize.SMALL,
@@ -382,7 +382,7 @@ private fun CopilotSection(
             right = {
                 when (ghAuthOk) {
                     true -> StatusPill(
-                        status = DecisionStatus.APPROVED, size = TagSize.SMALL,
+                        status = DecisionStatus.APPROVED, size = TagSize.SMALL, text = "Verified",
                     )
                     false -> StatusPill(
                         status = DecisionStatus.DENIED, size = TagSize.SMALL,
@@ -463,7 +463,7 @@ private fun OllamaSection(
                         modifier = Modifier.size(14.dp), strokeWidth = 2.dp,
                     )
                     OllamaInitState.READY -> StatusPill(
-                        status = DecisionStatus.APPROVED, size = TagSize.SMALL,
+                        status = DecisionStatus.APPROVED, size = TagSize.SMALL, text = "Connected",
                     )
                     OllamaInitState.ERROR -> StatusPill(
                         status = DecisionStatus.TIMEOUT, size = TagSize.SMALL,
