@@ -89,7 +89,7 @@ Commit the updated `gradle/verification-metadata.xml` alongside dependency chang
 
 ### Nucleus Native Binary Audit (April 2026, refreshed for v1.12.0)
 
-Nucleus (`io.github.kdroidfilter:nucleus.*`) ships pre-compiled native binaries (.dylib/.so/.dll) across several JARs at v1.12.0. Direct modules used here: `decorated-window-core`, `decorated-window-jni`, `decorated-window-material3`, `notification-macos`, `notification-linux` (the `global-hotkey` module was dropped when the command palette switched to a focus-scoped Compose handler). Security audit findings are unchanged:
+Nucleus (`io.github.kdroidfilter:nucleus.*`) ships pre-compiled native binaries (.dylib/.so/.dll) across several JARs at v1.12.0. Direct modules used here: `decorated-window-core`, `decorated-window-jni`, `decorated-window-material3`, `notification-macos`, `notification-linux`, and `global-hotkey` (re-introduced for the OS-level approve/deny shortcut feature). Security audit findings are unchanged:
 
 - **Source**: Open-source (MIT), single maintainer (Elie Gambache / `kdroidFilter`), ~173 stars, created Feb 2026.
 - **Build pipeline**: Natives are compiled from source in GitHub Actions CI (`build-natives.yaml`), not committed to the repo. Standard `clang`/`gcc` invocations.

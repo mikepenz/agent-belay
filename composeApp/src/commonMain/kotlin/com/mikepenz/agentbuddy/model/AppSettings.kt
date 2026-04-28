@@ -54,6 +54,13 @@ data class AppSettings(
      * a cancel overlay during this window so the user can intervene.
      */
     val autoDenyCountdownSeconds: Int = 15,
+    /**
+     * Optional OS-level hotkey that approves the oldest pending request from
+     * any application. Null = disabled (default).
+     */
+    val approveOldestHotkey: GlobalHotkey? = null,
+    /** Same as [approveOldestHotkey] but denies the oldest pending request. */
+    val denyOldestHotkey: GlobalHotkey? = null,
     val awayMode: Boolean = false,
     val newestApprovalFirst: Boolean = false,
     val prominentAlwaysAllow: Boolean = false,

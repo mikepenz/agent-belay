@@ -35,6 +35,8 @@ private val isMacOs = System.getProperty("os.name", "").contains("Mac", ignoreCa
 fun GeneralSettingsContent(
     settings: AppSettings,
     historyCount: Int,
+    approveHotkeyError: String? = null,
+    denyHotkeyError: String? = null,
     onSettingsChange: (AppSettings) -> Unit,
     onClearHistory: () -> Unit,
     onShowLicenses: () -> Unit,
@@ -115,6 +117,36 @@ fun GeneralSettingsContent(
                 DesignToggle(
                     checked = settings.prominentAlwaysAllow,
                     onCheckedChange = { onSettingsChange(settings.copy(prominentAlwaysAllow = it)) },
+                )
+            },
+        )
+    }
+
+    SettingSection(
+        title = "Global hotkeys",
+        desc = "Resolve the oldest pending request from anywhere on your desktop. " +
+            "Click a row to record a key combination, click again or press the X to clear.",
+    ) {
+        SettingItem(
+            label = "Approve oldest",
+            desc = approveHotkeyError,
+            first = true,
+            right = {
+                HotkeyCaptureField(
+                    hotkey = settings.approveOldestHotkey,
+                    onChange = { onSettingsChange(settings.copy(approveOldestHotkey = it)) },
+                    hasError = approveHotkeyError != null,
+                )
+            },
+        )
+        SettingItem(
+            label = "Deny oldest",
+            desc = denyHotkeyError,
+            right = {
+                HotkeyCaptureField(
+                    hotkey = settings.denyOldestHotkey,
+                    onChange = { onSettingsChange(settings.copy(denyOldestHotkey = it)) },
+                    hasError = denyHotkeyError != null,
                 )
             },
         )

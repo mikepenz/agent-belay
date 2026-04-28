@@ -1,6 +1,7 @@
 package com.mikepenz.agentbuddy.di
 
 import com.mikepenz.agentbuddy.app.ApprovalServerRunner
+import com.mikepenz.agentbuddy.app.GlobalHotkeyManager
 import com.mikepenz.agentbuddy.app.RiskAnalyzerLifecycle
 import com.mikepenz.agentbuddy.app.TrayManager
 import com.mikepenz.agentbuddy.app.TrayNotificationsManager
@@ -44,6 +45,7 @@ interface AppGraph : ViewModelGraph {
     val trayNotificationsManager: TrayNotificationsManager
     val capabilityEngine: CapabilityEngine
     val riskAnalyzerLifecycle: RiskAnalyzerLifecycle
+    val globalHotkeyManager: GlobalHotkeyManager
     val approvalServerRunner: ApprovalServerRunner
 
     @DependencyGraph.Factory

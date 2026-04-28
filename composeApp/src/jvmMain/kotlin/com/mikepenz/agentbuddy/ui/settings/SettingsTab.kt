@@ -81,6 +81,8 @@ fun SettingsTab(
     ollamaLastError: String? = null,
     ollamaLastMetrics: OllamaMetrics? = null,
     ollamaVersion: String? = null,
+    approveHotkeyError: String? = null,
+    denyHotkeyError: String? = null,
     onRefreshOllamaModels: () -> Unit = {},
     onSettingsChange: (AppSettings) -> Unit,
     onRegisterHook: () -> Unit,
@@ -135,6 +137,8 @@ fun SettingsTab(
                 SettingsSubTab.General -> GeneralSettingsContent(
                     settings = settings,
                     historyCount = historyCount,
+                    approveHotkeyError = approveHotkeyError,
+                    denyHotkeyError = denyHotkeyError,
                     onSettingsChange = onSettingsChange,
                     onClearHistory = onClearHistory,
                     onShowLicenses = onShowLicenses,

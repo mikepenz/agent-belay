@@ -30,6 +30,8 @@ fun SettingsTabHost(onShowLicenses: () -> Unit) {
         ollamaLastError = ui.ollamaLastError,
         ollamaLastMetrics = ui.ollamaLastMetrics,
         ollamaVersion = ui.ollamaVersion,
+        approveHotkeyError = ui.approveHotkeyError,
+        denyHotkeyError = ui.denyHotkeyError,
         onRefreshOllamaModels = viewModel::refreshOllamaModels,
         onSettingsChange = viewModel::updateSettings,
         onRegisterHook = viewModel::registerHook,

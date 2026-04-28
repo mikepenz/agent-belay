@@ -127,12 +127,14 @@ class SettingsViewModelTest {
         val lifecycle = com.mikepenz.agentbuddy.app.RiskAnalyzerLifecycle(
             state, claudeAnalyzer, activeHolder, copilotState, ollamaState, env,
         )
+        val hotkeyManager = com.mikepenz.agentbuddy.app.GlobalHotkeyManager(state, env)
         val vm = SettingsViewModel(
             stateManager = state,
             copilotBridge = bridge,
             copilotStateHolder = copilotState,
             ollamaStateHolder = ollamaState,
             riskAnalyzerLifecycle = lifecycle,
+            globalHotkeyManager = hotkeyManager,
             protectionEngine = engine,
             capabilityEngine = capEngine,
             hookRegistry = registry,

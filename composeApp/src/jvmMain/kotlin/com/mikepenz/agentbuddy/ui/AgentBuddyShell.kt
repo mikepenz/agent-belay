@@ -125,6 +125,7 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
     // it survives the main window being closed. Stopped by the DisposableEffect
     // below.
     LaunchedEffect(Unit) { graph.riskAnalyzerLifecycle.start() }
+    LaunchedEffect(Unit) { graph.globalHotkeyManager.start() }
 
     // macOS dock-icon click + Quit handler.
     LaunchedEffect(Unit) {
@@ -179,6 +180,7 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
         onDispose {
             graph.approvalServerRunner.stop()
             graph.riskAnalyzerLifecycle.shutdown()
+            graph.globalHotkeyManager.shutdown()
             graph.databaseStorage.close()
             graph.environment.appScope.cancel()
         }

@@ -178,6 +178,37 @@ class ModelSerializationTest {
     }
 
     @Test
+    fun appSettingsGlobalHotkeysRoundTrip() {
+        val approve = com.mikepenz.agentbuddy.model.GlobalHotkey(
+            keyCode = java.awt.event.KeyEvent.VK_A,
+            modifiers = setOf(
+                com.mikepenz.agentbuddy.model.HotkeyModifier.CONTROL,
+                com.mikepenz.agentbuddy.model.HotkeyModifier.SHIFT,
+            ),
+        )
+        val deny = com.mikepenz.agentbuddy.model.GlobalHotkey(
+            keyCode = java.awt.event.KeyEvent.VK_D,
+            modifiers = setOf(com.mikepenz.agentbuddy.model.HotkeyModifier.META),
+        )
+        val settings = AppSettings(approveOldestHotkey = approve, denyOldestHotkey = deny)
+        val encoded = json.encodeToString(AppSettings.serializer(), settings)
+        val decoded = json.decodeFromString(AppSettings.serializer(), encoded)
+        assertEquals(approve, decoded.approveOldestHotkey)
+        assertEquals(deny, decoded.denyOldestHotkey)
+    }
+
+    @Test
+    fun appSettingsBackwardCompatDefaultsHotkeys() {
+        // Older settings.json files that pre-date the global-hotkey feature
+        // must continue to load with both hotkeys disabled (null).
+        val oldJson = """{"themeMode":"SYSTEM","serverPort":19532,"alwaysOnTop":true,"defaultTimeoutSeconds":240}"""
+        val lenientJson = Json { ignoreUnknownKeys = true }
+        val decoded = lenientJson.decodeFromString(AppSettings.serializer(), oldJson)
+        assertEquals(null, decoded.approveOldestHotkey)
+        assertEquals(null, decoded.denyOldestHotkey)
+    }
+
+    @Test
     fun appSettingsRoundTrip() {
         val settings = AppSettings()
         val encoded = json.encodeToString(AppSettings.serializer(), settings)

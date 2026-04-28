@@ -12,6 +12,7 @@ import com.mikepenz.agentbuddy.hook.RegistrationEvents
 import com.mikepenz.agentbuddy.model.AppSettings
 import com.mikepenz.agentbuddy.model.CapabilitySettings
 import com.mikepenz.agentbuddy.model.ProtectionSettings
+import com.mikepenz.agentbuddy.app.GlobalHotkeyManager
 import com.mikepenz.agentbuddy.app.RiskAnalyzerLifecycle
 import com.mikepenz.agentbuddy.protection.ProtectionEngine
 import com.mikepenz.agentbuddy.protection.ProtectionModule
@@ -61,6 +62,7 @@ class SettingsViewModel(
     private val copilotStateHolder: CopilotStateHolder,
     private val ollamaStateHolder: OllamaStateHolder,
     private val riskAnalyzerLifecycle: RiskAnalyzerLifecycle,
+    private val globalHotkeyManager: GlobalHotkeyManager,
     protectionEngine: ProtectionEngine,
     capabilityEngine: CapabilityEngine,
     private val hookRegistry: HookRegistry,
@@ -101,25 +103,36 @@ class SettingsViewModel(
         OllamaSnapshot(models, state, error, metrics, version)
     }
 
+    /** Pre-combined hotkey error state, exposed to the settings UI. */
+    private val hotkeyErrors: kotlinx.coroutines.flow.Flow<Pair<String?, String?>> =
+        combine(globalHotkeyManager.approveError, globalHotkeyManager.denyError) { a, d -> a to d }
+
     val uiState: StateFlow<SettingsUiState> = combine(
-        stateManager.state,
-        isHookRegistered,
-        isCopilotRegistered,
-        copilotState,
-        ollamaState,
-    ) { state, hookRegistered, copilotRegistered, copilot, ollama ->
+        combine(
+            stateManager.state,
+            isHookRegistered,
+            isCopilotRegistered,
+            copilotState,
+            ollamaState,
+        ) { state, hookRegistered, copilotRegistered, copilot, ollama ->
+            UiBase(state, hookRegistered, copilotRegistered, copilot, ollama)
+        },
+        hotkeyErrors,
+    ) { base, hotkeys ->
         SettingsUiState(
-            settings = state.settings,
-            historyCount = state.history.size,
-            isHookRegistered = hookRegistered,
-            isCopilotRegistered = copilotRegistered,
-            copilotModels = copilot.first,
-            copilotInitState = copilot.second,
-            ollamaModels = ollama.models,
-            ollamaInitState = ollama.initState,
-            ollamaLastError = ollama.lastError,
-            ollamaLastMetrics = ollama.lastMetrics,
-            ollamaVersion = ollama.version,
+            settings = base.state.settings,
+            historyCount = base.state.history.size,
+            isHookRegistered = base.hookRegistered,
+            isCopilotRegistered = base.copilotRegistered,
+            copilotModels = base.copilot.first,
+            copilotInitState = base.copilot.second,
+            ollamaModels = base.ollama.models,
+            ollamaInitState = base.ollama.initState,
+            ollamaLastError = base.ollama.lastError,
+            ollamaLastMetrics = base.ollama.lastMetrics,
+            ollamaVersion = base.ollama.version,
+            approveHotkeyError = hotkeys.first,
+            denyHotkeyError = hotkeys.second,
         )
     }.stateIn(
         viewModelScope,
@@ -136,6 +149,8 @@ class SettingsViewModel(
             ollamaLastError = ollamaStateHolder.lastError.value,
             ollamaLastMetrics = ollamaStateHolder.lastMetrics.value,
             ollamaVersion = ollamaStateHolder.version.value,
+            approveHotkeyError = globalHotkeyManager.approveError.value,
+            denyHotkeyError = globalHotkeyManager.denyError.value,
         ),
     )
 
@@ -342,4 +357,14 @@ data class SettingsUiState(
     val ollamaLastError: String? = null,
     val ollamaLastMetrics: OllamaMetrics? = null,
     val ollamaVersion: String? = null,
+    val approveHotkeyError: String? = null,
+    val denyHotkeyError: String? = null,
+)
+
+private data class UiBase(
+    val state: com.mikepenz.agentbuddy.state.AppState,
+    val hookRegistered: Boolean,
+    val copilotRegistered: Boolean,
+    val copilot: Pair<List<Pair<String, String>>, CopilotInitState>,
+    val ollama: OllamaSnapshot,
 )
