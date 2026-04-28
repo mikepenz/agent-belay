@@ -277,25 +277,29 @@ private val modifierKeys = setOf(
 )
 
 private fun composeKeyToAwt(event: KeyEvent): Int {
-    // Compose's `Key` wraps the AWT keycode in the high bits of a Long on
-    // desktop. We rely on `nativeKeyCode` (the public extension) when
-    // available; fall back to deriving from the codepoint as a last resort.
-    val native = runCatching { event.key.nativeKeyCodeOrZero() }.getOrDefault(0)
-    if (native != 0) return native
+    // Pull the underlying AWT KeyEvent out of Compose's wrapper so we get the
+    // actual VK_* code. `nativeKeyEvent` on Desktop is an `InternalKeyEvent`
+    // whose own `nativeEvent` field is the java.awt.event.KeyEvent — older
+    // Compose versions exposed the AWT event directly. Try both shapes.
+    val awt = event.nativeKeyEvent.unwrapAwtKeyEvent()
+    if (awt != null && awt.keyCode != AwtKeyEvent.VK_UNDEFINED) return awt.keyCode
+
+    // Fallback: derive a code from the codepoint — only really useful for
+    // letters/digits where AWT VK_* values numerically equal the upper-case
+    // ASCII code.
     val codePoint = event.utf16CodePoint
-    if (codePoint in 0x21..0x7E) {
-        // Map ASCII letters to their VK_* equivalents (which numerically equal
-        // the upper-case ASCII code).
-        val upper = codePoint.toChar().uppercaseChar().code
-        return upper
-    }
+    if (codePoint in 0x21..0x7E) return codePoint.toChar().uppercaseChar().code
     return AwtKeyEvent.VK_UNDEFINED
 }
 
-// Compose Desktop exposes `Key.nativeKeyCode` as an Int via reflection on the
-// Long value — but the property is platform-internal. Read it via the public
-// `keyCode` Long and shift down 32 bits, which is the documented encoding.
-private fun Key.nativeKeyCodeOrZero(): Int {
-    val packed = this.keyCode
-    return (packed shr 32).toInt()
+private fun Any.unwrapAwtKeyEvent(): AwtKeyEvent? {
+    if (this is AwtKeyEvent) return this
+    // Compose Desktop wraps the AWT event inside an InternalKeyEvent whose
+    // `nativeEvent` property holds the original. Reach it via reflection so
+    // we don't take a hard dep on the internal class.
+    val getter = runCatching {
+        val prop = this::class.java.methods.firstOrNull { it.name == "getNativeEvent" }
+        prop?.invoke(this)
+    }.getOrNull()
+    return getter as? AwtKeyEvent
 }
