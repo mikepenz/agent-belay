@@ -112,7 +112,17 @@ internal fun UpdateCheckRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 StatusBadge(text = "Failed", color = DangerRed)
-                OutlineButton(text = "Retry", onClick = onDismissError)
+                OutlineButton(
+                    text = "Retry",
+                    onClick = {
+                        // Clear the Failed state, then immediately re-check.
+                        // `check()` itself overwrites state to Checking, but
+                        // resetting first keeps the manager's `inFlight` job
+                        // canceled and avoids any hand-off ambiguity.
+                        onDismissError()
+                        onCheck()
+                    },
+                )
             }
         })
     }

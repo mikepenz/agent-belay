@@ -139,6 +139,7 @@ class SettingsViewModelTest {
             capabilityEngine = capEngine,
             hookRegistry = registry,
             registrationEvents = RegistrationEvents(),
+            updateManager = com.mikepenz.agentbuddy.update.UpdateManager(env.appScope),
             ioDispatcher = mainDispatcher, // run "IO" on the test dispatcher so runCurrent advances it
         )
         return Triple(vm, state, registry)

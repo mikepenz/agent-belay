@@ -514,13 +514,24 @@ jobs:
           set -euo pipefail
 
           VERSION="${GITHUB_REF_NAME#v}"
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+          NAME_RE='^[A-Za-z0-9._+-]+$'
+          # Defense-in-depth: VERSION ends up inside a YAML scalar, so refuse
+          # anything outside the whitelist even though Git ref rules already
+          # forbid most injection-relevant characters.
+          if ! [[ "$VERSION" =~ $NAME_RE ]]; then
+            echo "::error::Unsafe VERSION derived from tag: $VERSION" >&2
+            exit 1
+          fi
+          # Channel classifier MUST match the `prerelease:` rule in the
+          # release job below (line ~696). If they diverge, a tag that
+          # produces only beta-*.yml could land on a release marked stable —
+          # then `releases/latest/download/latest-*.yml` 404s for users.
+          if [[ "$GITHUB_REF_NAME" == *-rc* || "$GITHUB_REF_NAME" == *-b* || "$GITHUB_REF_NAME" == *-a* ]]; then
             CHANNEL="beta"
           else
             CHANNEL="latest"
           fi
           RELEASE_DATE="$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")"
-          NAME_RE='^[A-Za-z0-9._+-]+$'
 
           mkdir -p ../yml-out
 
