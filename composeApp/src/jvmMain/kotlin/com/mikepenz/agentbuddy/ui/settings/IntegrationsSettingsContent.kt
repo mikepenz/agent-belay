@@ -122,6 +122,7 @@ private fun IntegrationRow(item: IntegrationItemData, first: Boolean) {
                         status = if (item.registered) DecisionStatus.APPROVED
                         else DecisionStatus.TIMEOUT,
                         size = TagSize.SMALL,
+                        text = if (item.registered) "Registered" else DecisionStatus.TIMEOUT.label,
                     )
                 }
                 Spacer(Modifier.height(4.dp))

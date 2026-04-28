@@ -129,6 +129,7 @@ fun StatusPill(
     status: DecisionStatus,
     size: TagSize = TagSize.MEDIUM,
     modifier: Modifier = Modifier,
+    text: String = status.label,
 ) {
     val color = when (status) {
         DecisionStatus.PENDING -> WarnYellow
@@ -170,7 +171,7 @@ fun StatusPill(
                 .background(color.copy(alpha = if (pulse) alpha else 1f)),
         )
         Text(
-            text = status.label,
+            text = text,
             color = color,
             fontSize = fontSize,
             lineHeight = fontSize,
