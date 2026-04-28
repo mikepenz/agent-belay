@@ -55,10 +55,10 @@ This project uses [Gradle dependency verification](https://docs.gradle.org/curre
 **When adding or updating dependencies**, regenerate the verification metadata:
 
 ```bash
-./gradlew --write-verification-metadata sha256 :composeApp:jvmJar :composeApp:jvmTest
+./gradlew --write-verification-metadata sha256 resolveDependencies
 ```
 
-This updates `gradle/verification-metadata.xml` with checksums for any new or changed artifacts. **Commit the updated file** alongside your dependency changes.
+The `resolveDependencies` task walks every project and forces resolution of every resolvable configuration (buildscript + project), so the run captures dependencies that wouldn't otherwise be touched by a normal `jvmJar`/`jvmTest` build. This makes the generated metadata stable across host systems (Linux/macOS/Windows). **Commit the updated file** alongside your dependency changes.
 
 > **Note:** Platform-specific artifacts (Compose Desktop runtimes, Skiko) and CI-injected dependencies are covered by `<trusted-artifacts>` rules in the config since they vary by OS/arch and can't be captured from a single machine.
 
