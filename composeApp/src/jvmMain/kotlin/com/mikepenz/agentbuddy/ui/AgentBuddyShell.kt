@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,7 +37,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Box
 import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
 import androidx.compose.ui.window.ApplicationScope
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import androidx.lifecycle.ViewModelProvider
@@ -187,7 +185,11 @@ fun ApplicationScope.AgentBuddyShell(graph: AppGraph, devMode: Boolean, exitAppl
     }
 
     if (showPortError) {
-        PortInUseWindow(themeMode = stateManager.state.value.settings.themeMode, onExit = exitApplication)
+        PortInUseWindow(
+            themeMode = stateManager.state.value.settings.themeMode,
+            port = stateManager.state.value.settings.serverPort,
+            onExit = exitApplication,
+        )
     }
 
     val windowState = rememberPersistedWindowState(stateManager)
@@ -399,29 +401,98 @@ private fun PreviewShellCompositionLight() {
 }
 
 @Composable
-private fun PortInUseWindow(themeMode: com.mikepenz.agentbuddy.model.ThemeMode, onExit: () -> Unit) {
-    Window(
-        onCloseRequest = onExit,
-        title = "Port In Use",
-        state = rememberWindowState(
-            size = DpSize(400.dp, 200.dp),
-            position = WindowPosition(Alignment.Center),
-        ),
-    ) {
-        AgentBuddyTheme(themeMode = themeMode) {
-            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        "The server port is already in use. Another instance may be running.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Button(onClick = onExit) { Text("Exit") }
-                }
+private fun PortInUseWindow(
+    themeMode: com.mikepenz.agentbuddy.model.ThemeMode,
+    port: Int,
+    onExit: () -> Unit,
+) {
+    val windowState = rememberWindowState(
+        size = DpSize(460.dp, 320.dp),
+        position = WindowPosition(Alignment.Center),
+    )
+    AgentBuddyTheme(themeMode = themeMode) {
+        MaterialDecoratedWindow(
+            onCloseRequest = onExit,
+            title = "Agent Buddy",
+            state = windowState,
+        ) {
+            MaterialTitleBar {
+                Text(
+                    "Agent Buddy",
+                    color = AgentBuddyColors.inkSecondary,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.1).sp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
             }
+            PortInUseBody(port = port, onExit = onExit)
         }
+    }
+}
+
+@Composable
+private fun PortInUseBody(port: Int, onExit: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = AgentBuddyColors.background,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(com.mikepenz.agentbuddy.ui.theme.DangerRed.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "!",
+                    color = com.mikepenz.agentbuddy.ui.theme.DangerRed,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Text(
+                "Port $port is already in use",
+                color = AgentBuddyColors.inkPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.1).sp,
+            )
+            Text(
+                "Another instance of Agent Buddy may already be running. Quit the other " +
+                    "instance, or change the server port in Settings, then relaunch.",
+                color = AgentBuddyColors.inkTertiary,
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            com.mikepenz.agentbuddy.ui.components.PrimaryButton(
+                text = "Exit",
+                onClick = onExit,
+            )
+        }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(widthDp = 460, heightDp = 280)
+@Composable
+private fun PreviewPortInUseBody() {
+    com.mikepenz.agentbuddy.ui.theme.PreviewScaffold {
+        PortInUseBody(port = 19532, onExit = {})
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(widthDp = 460, heightDp = 280)
+@Composable
+private fun PreviewPortInUseBodyLight() {
+    com.mikepenz.agentbuddy.ui.theme.PreviewScaffold(
+        themeMode = com.mikepenz.agentbuddy.model.ThemeMode.LIGHT,
+    ) {
+        PortInUseBody(port = 19532, onExit = {})
     }
 }
