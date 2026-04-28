@@ -25,6 +25,7 @@ import com.mikepenz.agentbuddy.ui.theme.AccentEmerald
 import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
 import com.mikepenz.agentbuddy.ui.theme.DangerRed
 import com.mikepenz.agentbuddy.ui.theme.WarnYellow
+import com.mikepenz.agentbuddy.update.UpdateUiState
 import io.github.kdroidfilter.nucleus.notification.AuthorizationOption
 import io.github.kdroidfilter.nucleus.notification.AuthorizationStatus
 import io.github.kdroidfilter.nucleus.notification.NotificationCenter
@@ -40,6 +41,12 @@ fun GeneralSettingsContent(
     onSettingsChange: (AppSettings) -> Unit,
     onClearHistory: () -> Unit,
     onShowLicenses: () -> Unit,
+    updateState: UpdateUiState = UpdateUiState.Idle,
+    isUpdateSupported: Boolean = false,
+    onCheckForUpdates: () -> Unit = {},
+    onDownloadUpdate: () -> Unit = {},
+    onInstallUpdate: () -> Unit = {},
+    onResetUpdateState: () -> Unit = {},
 ) {
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -244,10 +251,18 @@ fun GeneralSettingsContent(
     }
 
     SettingSection(title = "About", desc = "Agent Buddy v${com.mikepenz.agentbuddy.VERSION}") {
+        UpdateCheckRow(
+            state = updateState,
+            isSupported = isUpdateSupported,
+            first = true,
+            onCheck = onCheckForUpdates,
+            onDownload = onDownloadUpdate,
+            onInstall = onInstallUpdate,
+            onDismissError = onResetUpdateState,
+        )
         SettingItem(
             label = "Open source libraries",
             desc = "View third-party licenses bundled with Agent Buddy.",
-            first = true,
             right = { OutlineButton(text = "View\u2026", onClick = onShowLicenses) },
         )
     }

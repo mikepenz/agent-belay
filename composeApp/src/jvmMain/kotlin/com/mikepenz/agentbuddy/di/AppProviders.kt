@@ -27,6 +27,7 @@ import com.mikepenz.agentbuddy.storage.ColumnCipher
 import com.mikepenz.agentbuddy.storage.DatabaseStorage
 import com.mikepenz.agentbuddy.storage.DbKeyManager
 import com.mikepenz.agentbuddy.storage.SettingsStorage
+import com.mikepenz.agentbuddy.update.UpdateManager
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
@@ -110,6 +111,11 @@ interface AppProviders {
     @Provides
     @SingleIn(AppScope::class)
     fun provideHookRegistry(): HookRegistry = DefaultHookRegistry
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideUpdateManager(env: AppEnvironment): UpdateManager =
+        UpdateManager(scope = env.appScope)
 
     @Provides
     @SingleIn(AppScope::class)

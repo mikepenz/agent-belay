@@ -14,6 +14,7 @@ import com.mikepenz.agentbuddy.risk.OllamaStateHolder
 import com.mikepenz.agentbuddy.state.AppStateManager
 import com.mikepenz.agentbuddy.storage.DatabaseStorage
 import com.mikepenz.agentbuddy.storage.SettingsStorage
+import com.mikepenz.agentbuddy.update.UpdateManager
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.viewmodel.ViewModelGraph
@@ -47,6 +48,7 @@ interface AppGraph : ViewModelGraph {
     val riskAnalyzerLifecycle: RiskAnalyzerLifecycle
     val globalHotkeyManager: GlobalHotkeyManager
     val approvalServerRunner: ApprovalServerRunner
+    val updateManager: UpdateManager
 
     @DependencyGraph.Factory
     fun interface Factory {

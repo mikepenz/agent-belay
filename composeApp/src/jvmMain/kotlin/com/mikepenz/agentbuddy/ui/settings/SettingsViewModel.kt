@@ -22,6 +22,8 @@ import com.mikepenz.agentbuddy.risk.OllamaInitState
 import com.mikepenz.agentbuddy.risk.OllamaMetrics
 import com.mikepenz.agentbuddy.risk.OllamaStateHolder
 import com.mikepenz.agentbuddy.state.AppStateManager
+import com.mikepenz.agentbuddy.update.UpdateManager
+import com.mikepenz.agentbuddy.update.UpdateUiState
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
@@ -67,8 +69,17 @@ class SettingsViewModel(
     capabilityEngine: CapabilityEngine,
     private val hookRegistry: HookRegistry,
     private val registrationEvents: RegistrationEvents,
+    private val updateManager: UpdateManager,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
+
+    val updateState: StateFlow<UpdateUiState> = updateManager.state
+    val isUpdateSupported: Boolean get() = updateManager.isSupported
+
+    fun checkForUpdates() = updateManager.check()
+    fun downloadUpdate() = updateManager.downloadAvailable()
+    fun installUpdate() = updateManager.installCurrent()
+    fun resetUpdateState() = updateManager.reset()
 
     val capabilityModules: List<CapabilityModule> = capabilityEngine.modules
 

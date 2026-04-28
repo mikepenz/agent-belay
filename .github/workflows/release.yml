@@ -229,18 +229,78 @@ jobs:
           echo "Stapling notarization ticket..."
           xcrun stapler staple "$DMG_FILE"
 
+      - name: Notarize and staple .app, then build ZIP
+        env:
+          NOTARIZATION_APPLE_ID: ${{ secrets.NOTARIZATION_APPLE_ID }}
+          NOTARIZATION_PASSWORD: ${{ secrets.NOTARIZATION_PASSWORD }}
+          NOTARIZATION_TEAM_ID: ${{ secrets.NOTARIZATION_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          APP_DIR="$(pwd)/composeApp/build/compose/binaries/main/app/AgentBuddy.app"
+          if [ ! -d "$APP_DIR" ]; then
+            echo "ERROR: signed .app bundle not found at $APP_DIR"
+            exit 1
+          fi
+
+          # Submit a ZIP of the .app for notarization. The DMG notarization
+          # above stapled only the DMG file — for the auto-updater path
+          # (ZIP-based silent replace), the .app itself must carry a stapled
+          # ticket so Gatekeeper accepts it offline after our updater strips
+          # com.apple.quarantine.
+          NOTARIZE_ZIP="$RUNNER_TEMP/AgentBuddy-notarize.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "$NOTARIZE_ZIP"
+
+          SUBMIT_LOG="$RUNNER_TEMP/notarytool-zip-submit.log"
+          xcrun notarytool submit "$NOTARIZE_ZIP" \
+            --apple-id "$NOTARIZATION_APPLE_ID" \
+            --password "$NOTARIZATION_PASSWORD" \
+            --team-id "$NOTARIZATION_TEAM_ID" \
+            --wait 2>&1 | tee "$SUBMIT_LOG" || true
+
+          SUBMISSION_ID=$(grep -m1 '^\s*id:' "$SUBMIT_LOG" | awk '{print $2}')
+
+          if ! grep -q 'status: Accepted' "$SUBMIT_LOG"; then
+            echo "::error::ZIP notarization was not accepted"
+            if [ -n "${SUBMISSION_ID:-}" ]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$NOTARIZATION_APPLE_ID" \
+                --password "$NOTARIZATION_PASSWORD" \
+                --team-id "$NOTARIZATION_TEAM_ID" \
+                "$RUNNER_TEMP/notarization-zip-log.json" || true
+              cat "$RUNNER_TEMP/notarization-zip-log.json" 2>/dev/null || true
+            fi
+            exit 1
+          fi
+
+          echo "Stapling notarization ticket to .app bundle..."
+          xcrun stapler staple "$APP_DIR"
+
+          # Re-create the final ZIP from the now-stapled .app. ditto preserves
+          # macOS metadata + symlinks so the runtime's `ditto -x -k` extraction
+          # restores the bundle byte-identically.
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP_DIR="$(pwd)/composeApp/build/compose/binaries/main/zip"
+          mkdir -p "$ZIP_DIR"
+          ZIP_FILE="$ZIP_DIR/AgentBuddy-${VERSION}-macos-${{ matrix.arch }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "$ZIP_FILE"
+          rm -f "$NOTARIZE_ZIP"
+          echo "Created: $ZIP_FILE"
+
       - name: Collect artifact
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p artifacts
           cp composeApp/build/compose/binaries/main/dmg/*.dmg \
             "artifacts/AgentBuddy-${VERSION}-macos-${{ matrix.arch }}.dmg"
+          cp composeApp/build/compose/binaries/main/zip/*.zip artifacts/
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: macos-${{ matrix.arch }}-dmg
-          path: artifacts/*.dmg
+          name: macos-${{ matrix.arch }}-dist
+          path: |
+            artifacts/*.dmg
+            artifacts/*.zip
           retention-days: 1
           if-no-files-found: error
 
@@ -424,12 +484,128 @@ jobs:
           if-no-files-found: error
 
   # ──────────────────────────────────────────────────────
+  # Generate Nucleus auto-update metadata (latest-*.yml)
+  #
+  # All YAML is emitted via printf with strictly whitelisted variables:
+  #   - filenames must match ^[A-Za-z0-9._+-]+$  (we built them, but check)
+  #   - sha512 is base64 (alnum + +/=) computed via openssl
+  #   - size is digits from `stat -c%s`
+  #   - version is ${GITHUB_REF_NAME#v}
+  # No artifact-derived value is shell-eval'd or interpolated unsafely.
+  # The runtime's YamlParser only consumes `version`, `files[]`, `releaseDate`.
+  # Pre-release tags (containing `-`) emit `beta-*.yml`; stable tags emit
+  # `latest-*.yml`. This keeps stable users from auto-pulling RC builds, since
+  # the GitHub `releases/latest/download/latest-*.yml` URL skips prereleases.
+  # ──────────────────────────────────────────────────────
+  update-yml:
+    name: Generate Update YML
+    runs-on: ubuntu-latest
+    needs: [build-macos, build-windows, build-linux]
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: all-artifacts
+          merge-multiple: true
+
+      - name: Generate latest-*.yml files
+        working-directory: all-artifacts
+        run: |
+          set -euo pipefail
+
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAME_RE='^[A-Za-z0-9._+-]+$'
+          # Defense-in-depth: VERSION ends up inside a YAML scalar, so refuse
+          # anything outside the whitelist even though Git ref rules already
+          # forbid most injection-relevant characters.
+          if ! [[ "$VERSION" =~ $NAME_RE ]]; then
+            echo "::error::Unsafe VERSION derived from tag: $VERSION" >&2
+            exit 1
+          fi
+          # Channel classifier MUST match the `prerelease:` rule in the
+          # release job below (line ~696). If they diverge, a tag that
+          # produces only beta-*.yml could land on a release marked stable —
+          # then `releases/latest/download/latest-*.yml` 404s for users.
+          if [[ "$GITHUB_REF_NAME" == *-rc* || "$GITHUB_REF_NAME" == *-b* || "$GITHUB_REF_NAME" == *-a* ]]; then
+            CHANNEL="beta"
+          else
+            CHANNEL="latest"
+          fi
+          RELEASE_DATE="$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")"
+
+          mkdir -p ../yml-out
+
+          emit_yml() {
+            local out="$1"; shift
+            local files=("$@")
+            {
+              printf 'version: %s\n' "$VERSION"
+              printf 'files:\n'
+              for f in "${files[@]}"; do
+                [ -f "$f" ] || continue
+                local name
+                name="$(basename "$f")"
+                if ! [[ "$name" =~ $NAME_RE ]]; then
+                  echo "::error::Refusing to emit YAML for unsafe filename: $name" >&2
+                  exit 1
+                fi
+                local sha512 size
+                sha512="$(openssl dgst -sha512 -binary "$f" | base64 | tr -d '\n')"
+                size="$(stat -c%s "$f")"
+                # sha512 is base64 -> safe; size is digits -> safe; name was regex-checked.
+                printf '  - url: %s\n' "$name"
+                printf '    sha512: %s\n' "$sha512"
+                printf '    size: %s\n' "$size"
+              done
+              printf "releaseDate: '%s'\n" "$RELEASE_DATE"
+            } > "../yml-out/$out"
+            echo "Wrote ../yml-out/$out:"
+            cat "../yml-out/$out"
+          }
+
+          # macOS — list both DMG and ZIP. Runtime's FileSelector prefers .zip
+          # for silent updates; .dmg is kept for first-install via DMG.
+          mac_files=()
+          for f in *-macos-*.dmg *-macos-*.zip; do
+            [ -f "$f" ] && mac_files+=("$f")
+          done
+          if [ ${#mac_files[@]} -gt 0 ]; then
+            emit_yml "${CHANNEL}-mac.yml" "${mac_files[@]}"
+          fi
+
+          # Windows — MSI only.
+          win_files=()
+          for f in *-windows-*.msi; do
+            [ -f "$f" ] && win_files+=("$f")
+          done
+          if [ ${#win_files[@]} -gt 0 ]; then
+            emit_yml "${CHANNEL}.yml" "${win_files[@]}"
+          fi
+
+          # Linux — DEB only (RPM/AppImage not built today).
+          linux_files=()
+          for f in *-linux-*.deb; do
+            [ -f "$f" ] && linux_files+=("$f")
+          done
+          if [ ${#linux_files[@]} -gt 0 ]; then
+            emit_yml "${CHANNEL}-linux.yml" "${linux_files[@]}"
+          fi
+
+      - name: Upload update YML files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: update-yml
+          path: yml-out/*.yml
+          retention-days: 1
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────
   # Artifact attestations (SLSA provenance)
   # ──────────────────────────────────────────────────────
   attest:
     name: Attest Artifacts
     runs-on: ubuntu-latest
-    needs: [checksums]
+    needs: [checksums, update-yml]
     permissions:
       contents: read
       id-token: write
@@ -446,9 +622,11 @@ jobs:
         with:
           subject-path: |
             all-artifacts/*.dmg
+            all-artifacts/*.zip
             all-artifacts/*.msi
             all-artifacts/*.deb
             all-artifacts/*.jar
+            all-artifacts/*.yml
             all-artifacts/CHECKSUMS-SHA256.txt
 
   # ──────────────────────────────────────────────────────

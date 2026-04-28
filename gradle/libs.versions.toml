@@ -38,6 +38,7 @@ nucleus-decorated-window-material3 = { module = "io.github.kdroidfilter:nucleus.
 nucleus-notification-macos = { module = "io.github.kdroidfilter:nucleus.notification-macos", version.ref = "nucleus" }
 nucleus-notification-linux = { module = "io.github.kdroidfilter:nucleus.notification-linux", version.ref = "nucleus" }
 nucleus-global-hotkey = { module = "io.github.kdroidfilter:nucleus.global-hotkey", version.ref = "nucleus" }
+nucleus-updater-runtime = { module = "io.github.kdroidfilter:nucleus.updater-runtime", version.ref = "nucleus" }
 composenativetray = { module = "io.github.kdroidfilter:composenativetray", version.ref = "composenativetray" }
 copilot-sdk-java = { module = "com.github:copilot-sdk-java", version.ref = "copilot-sdk" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }

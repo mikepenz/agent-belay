@@ -59,6 +59,7 @@ import com.mikepenz.agentbuddy.ui.icons.LucideZap
 import com.mikepenz.agentbuddy.ui.theme.AccentEmerald
 import com.mikepenz.agentbuddy.ui.theme.AgentBuddyColors
 import com.mikepenz.agentbuddy.ui.theme.PreviewScaffold
+import com.mikepenz.agentbuddy.update.UpdateUiState
 
 private enum class SettingsSubTab(val label: String, val icon: ImageVector) {
     General("General", LucideSliders),
@@ -95,6 +96,12 @@ fun SettingsTab(
     onProtectionSettingsChange: (ProtectionSettings) -> Unit = {},
     capabilityModules: List<CapabilityModule> = emptyList(),
     onCapabilitySettingsChange: (CapabilitySettings) -> Unit = {},
+    updateState: UpdateUiState = UpdateUiState.Idle,
+    isUpdateSupported: Boolean = false,
+    onCheckForUpdates: () -> Unit = {},
+    onDownloadUpdate: () -> Unit = {},
+    onInstallUpdate: () -> Unit = {},
+    onResetUpdateState: () -> Unit = {},
 ) {
     var tab by remember { mutableStateOf(SettingsSubTab.General) }
 
@@ -142,6 +149,12 @@ fun SettingsTab(
                     onSettingsChange = onSettingsChange,
                     onClearHistory = onClearHistory,
                     onShowLicenses = onShowLicenses,
+                    updateState = updateState,
+                    isUpdateSupported = isUpdateSupported,
+                    onCheckForUpdates = onCheckForUpdates,
+                    onDownloadUpdate = onDownloadUpdate,
+                    onInstallUpdate = onInstallUpdate,
+                    onResetUpdateState = onResetUpdateState,
                 )
                 SettingsSubTab.Integrations -> IntegrationsSettingsContent(
                     settings = settings,

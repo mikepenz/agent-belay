@@ -17,6 +17,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 fun SettingsTabHost(onShowLicenses: () -> Unit) {
     val viewModel: SettingsViewModel = metroViewModel()
     val ui by viewModel.uiState.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
 
     SettingsTab(
         settings = ui.settings,
@@ -44,5 +45,11 @@ fun SettingsTabHost(onShowLicenses: () -> Unit) {
         onProtectionSettingsChange = viewModel::updateProtectionSettings,
         capabilityModules = viewModel.capabilityModules,
         onCapabilitySettingsChange = viewModel::updateCapabilitySettings,
+        updateState = updateState,
+        isUpdateSupported = viewModel.isUpdateSupported,
+        onCheckForUpdates = viewModel::checkForUpdates,
+        onDownloadUpdate = viewModel::downloadUpdate,
+        onInstallUpdate = viewModel::installUpdate,
+        onResetUpdateState = viewModel::resetUpdateState,
     )
 }
