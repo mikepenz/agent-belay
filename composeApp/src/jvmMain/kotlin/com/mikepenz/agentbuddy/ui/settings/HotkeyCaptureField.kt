@@ -117,22 +117,26 @@ fun HotkeyCaptureField(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        // Important: do NOT put `Modifier.weight(1f)` on these children. A
+        // weighted child inside a Row that's measured with a large max-width
+        // (which is what we get when we sit inside `SettingItem`'s right
+        // slot) fills the entire available width, which pushes the
+        // SettingItem label out to zero. Letting the Row size to content
+        // (with `widthIn(min = …)` for the empty state) keeps the label
+        // visible on the left.
         when {
             capturing -> {
                 Text(
                     text = "Press a key combination…",
                     color = AgentBuddyColors.inkSecondary,
                     fontSize = 12.sp,
-                    modifier = Modifier.weight(1f),
                 )
                 Box(
                     modifier = Modifier
                         .size(20.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .background(AgentBuddyColors.surface2)
-                        .clickable {
-                            capturing = false
-                        },
+                        .clickable { capturing = false },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -143,23 +147,18 @@ fun HotkeyCaptureField(
                     )
                 }
             }
-            hotkey != null -> {
-                HotkeyKeyCaps(hotkey, modifier = Modifier.weight(1f))
-            }
-            else -> {
-                Text(
-                    text = "Click to set a shortcut",
-                    color = AgentBuddyColors.inkMuted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            hotkey != null -> HotkeyKeyCaps(hotkey)
+            else -> Text(
+                text = "Click to set a shortcut",
+                color = AgentBuddyColors.inkMuted,
+                fontSize = 12.sp,
+            )
         }
     }
 }
 
 @Composable
-private fun HotkeyKeyCaps(hotkey: GlobalHotkey, modifier: Modifier = Modifier) {
+private fun HotkeyKeyCaps(hotkey: GlobalHotkey) {
     val parts = remember(hotkey) {
         // Stable rendering order: modifiers in CONTROL/SHIFT/ALT/META order
         // (most natural reading), then the key.
@@ -167,7 +166,6 @@ private fun HotkeyKeyCaps(hotkey: GlobalHotkey, modifier: Modifier = Modifier) {
         orderedMods + keyDisplayName(hotkey.keyCode)
     }
     Row(
-        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
