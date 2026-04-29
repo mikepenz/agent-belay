@@ -133,12 +133,26 @@ jobs:
             codesign --force --options runtime --timestamp --sign "$IDENTITY" "$lib"
           done
 
-          # [4/7] Sign main executables
-          echo "[4/7] Signing main executables..."
+          # [4/7] Sign files in Contents/MacOS
+          # Sign non-Mach-O files (e.g. Nucleus's `.nucleus-executable-type`
+          # marker) FIRST so they carry a valid signature before the main
+          # executable's seal walks the bundle. If codesign signs the main
+          # exe while a sibling in Contents/MacOS is still unsigned, the
+          # bundle seal fails with "code object is not signed at all /
+          # In subcomponent: <file>".
+          echo "[4/7] Signing files in Contents/MacOS..."
+          find "$APP_DIR/Contents/MacOS" -type f | while read -r f; do
+            if ! file "$f" | grep -q "Mach-O"; then
+              echo "  Signing (data): ${f#$APP_DIR/}"
+              codesign --force --timestamp --sign "$IDENTITY" "$f"
+            fi
+          done
           find "$APP_DIR/Contents/MacOS" -type f | while read -r exe; do
-            echo "  Signing: ${exe#$APP_DIR/}"
-            codesign --force --options runtime --timestamp \
-              --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$exe"
+            if file "$exe" | grep -q "Mach-O"; then
+              echo "  Signing (executable): ${exe#$APP_DIR/}"
+              codesign --force --options runtime --timestamp \
+                --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$exe"
+            fi
           done
 
           # [5/7] Sign runtime executables (bin/ and lib/ non-dylib executables like jspawnhelper, simengine)
