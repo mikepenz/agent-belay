@@ -45,7 +45,7 @@ Download the latest macOS DMG from [Releases](https://github.com/mikepenz/agent-
 ```bash
 git clone https://github.com/mikepenz/agent-buddy.git
 cd agent-buddy
-./gradlew :composeApp:run    # requires JDK 17+
+./gradlew :composeApp:run    # requires JDK 21+
 ```
 
 > **macOS note:** The release DMG is currently **unsigned**. On first launch, macOS will block it. Go to **System Settings > Privacy & Security** and click **Open Anyway** to allow it.
@@ -117,7 +117,7 @@ Two backends are supported:
 - **[Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/)** for the desktop UI
 - **[Ktor](https://ktor.io/)** for the embedded HTTP server that receives hook callbacks
 - **[SQLite](https://www.sqlite.org/)** for persistent history storage
-- **[Nucleus](https://github.com/niclas-4712/nucleus)** for native window decorations and macOS dock integration
+- **[Nucleus](https://github.com/kdroidFilter/Nucleus)** for native window decorations and macOS dock integration
 
 ## Design System
 
