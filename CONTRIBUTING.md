@@ -6,7 +6,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 ### Prerequisites
 
-- JDK 17 or later
+- JDK 21 or later
 - Git
 
 ### Building
