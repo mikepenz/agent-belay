@@ -53,8 +53,14 @@ object LegacyDataMigration {
         explicitNulls = false
     }
 
-    fun run(step: Step) {
-        val home = System.getProperty("user.home") ?: return
+    /**
+     * Returns `true` iff at least one step actually moved files. Callers use
+     * this signal to schedule an [IntegrationRefresh] pass that re-runs the
+     * registrars against the migrated paths so the bridge scripts come from
+     * the current build's templates rather than the stale rewritten copies.
+     */
+    fun run(step: Step): Boolean {
+        val home = System.getProperty("user.home") ?: return false
         val didAny = listOf(
             safe { migrateDataDir(step) },
             safe { migrateHookBridgeDir(home, step) },
@@ -64,6 +70,7 @@ object LegacyDataMigration {
         if (didAny) {
             logger.i { "Migrated legacy data (${step.legacyHookDirName} -> ${step.newHookDirName})" }
         }
+        return didAny
     }
 
     /**
