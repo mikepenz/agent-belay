@@ -26,17 +26,9 @@ class ApprovalServer(
     private val onNewApproval: () -> Unit,
 ) {
     private val logger = Logger.withTag("ApprovalServer")
-
-    // Harness composition: each harness owns its own adapter, registrar,
-    // transport, and capability flags. The route handlers below pull
-    // adapters and capability bits straight off these descriptors so
-    // adding a new harness in Phase 2 does not require route surgery.
-    private val claudeCode = ClaudeCodeHarness()
-    private val copilot = CopilotHarness()
-
-    private val adapter = claudeCode.adapter as ClaudeCodeAdapter
-    private val copilotAdapter = copilot.adapter as CopilotAdapter
-
+    private val adapter = ClaudeCodeAdapter()
+    private val copilotAdapter = CopilotAdapter()
+    private val openCodeAdapter = OpenCodeAdapter()
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
 
     fun start(port: Int, host: String) {
@@ -70,6 +62,8 @@ class ApprovalServer(
                     approvalRoute(stateManager, adapter, onNewApproval)
                     copilotApprovalRoute(stateManager, copilotAdapter, onNewApproval)
                     copilotPreToolUseRoute(stateManager, copilotAdapter, protectionEngine, onNewApproval)
+                    openCodeApprovalRoute(stateManager, openCodeAdapter, onNewApproval)
+                    openCodePreToolUseRoute(stateManager, openCodeAdapter, protectionEngine, onNewApproval)
                     preToolUseRoute(stateManager, adapter, protectionEngine, onNewApproval)
                     postToolUseRoute(
                         stateManager = stateManager,
