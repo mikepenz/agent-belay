@@ -124,10 +124,6 @@ interface AppProviders {
 
     @Provides
     @SingleIn(AppScope::class)
-    fun provideOpenCodeBridge(): OpenCodeBridge = DefaultOpenCodeBridge
-
-    @Provides
-    @SingleIn(AppScope::class)
     fun provideHookRegistry(): HookRegistry = DefaultHookRegistry
 
     @Provides
