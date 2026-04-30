@@ -154,12 +154,13 @@ private fun IntegrationRow(item: IntegrationItemData, first: Boolean) {
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    StatusPill(
-                        status = if (item.registered) DecisionStatus.APPROVED
-                        else DecisionStatus.TIMEOUT,
-                        size = TagSize.SMALL,
-                        text = if (item.registered) "Registered" else DecisionStatus.TIMEOUT.label,
-                    )
+                    if (item.registered) {
+                        StatusPill(
+                            status = DecisionStatus.APPROVED,
+                            size = TagSize.SMALL,
+                            text = "Registered",
+                        )
+                    }
                 }
                 if (item.registered) {
                     OutlineButton(text = "Unregister", onClick = item.onUnregister)
