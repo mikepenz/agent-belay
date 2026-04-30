@@ -9,6 +9,7 @@ import com.mikepenz.agentbelay.model.HookInput
 import com.mikepenz.agentbelay.model.Source
 import com.mikepenz.agentbelay.model.ToolType
 import com.mikepenz.agentbelay.state.AppStateManager
+import com.mikepenz.agentbelay.update.UpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -67,6 +68,8 @@ class AppViewModelTest {
         override fun unregisterCapabilityHook(port: Int) {}
     }
 
+    private fun fakeUpdateManager() = UpdateManager(scope = CoroutineScope(SupervisorJob()))
+
     private fun newRequest(id: String = "r-1") = ApprovalRequest(
         id = id,
         source = Source.CLAUDE_CODE,
@@ -79,7 +82,7 @@ class AppViewModelTest {
     @Test
     fun `tabState reflects pending count and away mode`() = runTest {
         val state = AppStateManager()
-        val vm = AppViewModel(state, env(devMode = false), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
+        val vm = AppViewModel(state, env(devMode = false), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents(), fakeUpdateManager())
         runCurrent()
 
         assertEquals(0, vm.tabState.value.pendingCount)
@@ -100,7 +103,7 @@ class AppViewModelTest {
 
     @Test
     fun `selectTab updates the selected index`() = runTest {
-        val vm = AppViewModel(AppStateManager(), env(), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
+        val vm = AppViewModel(AppStateManager(), env(), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents(), fakeUpdateManager())
         runCurrent()
 
         assertEquals(0, vm.selectedTab.value)
@@ -110,7 +113,7 @@ class AppViewModelTest {
 
     @Test
     fun `devMode flag comes from environment`() = runTest {
-        val vm = AppViewModel(AppStateManager(), env(devMode = true), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents())
+        val vm = AppViewModel(AppStateManager(), env(devMode = true), FakeHookRegistry, FakeCopilotBridge, RegistrationEvents(), fakeUpdateManager())
         runCurrent()
         assertTrue(vm.tabState.value.devMode)
     }

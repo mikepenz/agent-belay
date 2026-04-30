@@ -10,6 +10,8 @@ import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.RegistrationEvents
 import com.mikepenz.agentbelay.state.AppNotice
 import com.mikepenz.agentbelay.state.AppStateManager
+import com.mikepenz.agentbelay.update.UpdateManager
+import com.mikepenz.agentbelay.update.UpdateUiState
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
@@ -41,8 +43,21 @@ class AppViewModel(
     private val hookRegistry: HookRegistry,
     private val copilotBridge: CopilotBridge,
     private val registrationEvents: RegistrationEvents,
+    private val updateManager: UpdateManager,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
+
+    /**
+     * Surfaces the auto-update result to the in-app banner. Mirrors
+     * [UpdateManager.state] so the shell can react without depending on the
+     * Settings ViewModel (the banner is rendered above the tab content,
+     * which is shared infrastructure).
+     */
+    val updateState: StateFlow<UpdateUiState> = updateManager.state
+
+    fun downloadUpdate() = updateManager.downloadAvailable()
+    fun installUpdate() = updateManager.installCurrent()
+    fun dismissUpdate() = updateManager.reset()
 
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()

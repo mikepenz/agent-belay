@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mikepenz.agentbelay.ui.approvals.ApprovalsTabHost
 import com.mikepenz.agentbelay.ui.components.NoticeBannerStack
+import com.mikepenz.agentbelay.ui.components.UpdateBanner
 import com.mikepenz.agentbelay.ui.history.HistoryTabHost
 import com.mikepenz.agentbelay.ui.protectionlog.ProtectionLogTabHost
 import com.mikepenz.agentbelay.ui.settings.SettingsTabHost
@@ -54,6 +55,7 @@ fun App(
     val tabState by appViewModel.tabState.collectAsState()
     val selectedTab by appViewModel.selectedTab.collectAsState()
     val notices by appViewModel.notices.collectAsState()
+    val updateState by appViewModel.updateState.collectAsState()
     val visibleTabs = visibleTabs(tabState.devMode)
     val currentTab = resolveTab(selectedTab, tabState.devMode)
 
@@ -111,6 +113,12 @@ fun App(
                             }
                         }
                     }
+                    UpdateBanner(
+                        state = updateState,
+                        onDownload = appViewModel::downloadUpdate,
+                        onInstall = appViewModel::installUpdate,
+                        onDismiss = appViewModel::dismissUpdate,
+                    )
                 }
             }
 
