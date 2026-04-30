@@ -4,11 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.mikepenz.agentbelay.model.ThemeMode
 import com.mikepenz.agentbelay.ui.components.OutlineButton
 import com.mikepenz.agentbelay.ui.theme.AccentEmerald
 import com.mikepenz.agentbelay.ui.theme.AgentBelayColors
@@ -40,30 +39,19 @@ internal fun UpdateCheckRow(
     onDownload: () -> Unit,
     onInstall: () -> Unit,
     onDismissError: () -> Unit,
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
 ) {
     var confirmInstall by remember { mutableStateOf(false) }
 
     if (confirmInstall && state is UpdateUiState.Ready) {
-        AlertDialog(
-            onDismissRequest = { confirmInstall = false },
-            title = { Text("Install v${state.version}?") },
-            text = {
-                Text(
-                    "Agent Belay will close, install the update, then relaunch. " +
-                        "Any unsaved work will be lost.",
-                )
+        InstallConfirmWindow(
+            version = state.version,
+            themeMode = themeMode,
+            onConfirm = {
+                confirmInstall = false
+                onInstall()
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmInstall = false
-                    onInstall()
-                }) {
-                    Text("Install & Restart")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmInstall = false }) { Text("Cancel") }
-            },
+            onCancel = { confirmInstall = false },
         )
     }
 
