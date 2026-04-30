@@ -14,6 +14,7 @@ import com.mikepenz.agentbelay.risk.OllamaStateHolder
 import com.mikepenz.agentbelay.state.AppStateManager
 import com.mikepenz.agentbelay.storage.DatabaseStorage
 import com.mikepenz.agentbelay.storage.SettingsStorage
+import com.mikepenz.agentbelay.update.AutoUpdateChecker
 import com.mikepenz.agentbelay.update.UpdateManager
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
@@ -49,6 +50,7 @@ interface AppGraph : ViewModelGraph {
     val globalHotkeyManager: GlobalHotkeyManager
     val approvalServerRunner: ApprovalServerRunner
     val updateManager: UpdateManager
+    val autoUpdateChecker: AutoUpdateChecker
 
     @DependencyGraph.Factory
     fun interface Factory {

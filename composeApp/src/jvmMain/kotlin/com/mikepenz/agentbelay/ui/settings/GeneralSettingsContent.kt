@@ -1,7 +1,9 @@
 package com.mikepenz.agentbelay.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -261,6 +263,22 @@ fun GeneralSettingsContent(
             onDismissError = onResetUpdateState,
         )
         SettingItem(
+            label = "Check for updates automatically",
+            desc = if (isUpdateSupported) {
+                "Silently check on launch (at most once per 24h) and show a banner when " +
+                    "a newer release is available."
+            } else {
+                "Auto-update is unavailable in this build, but the preference is preserved " +
+                    "for when you switch to an installed release."
+            },
+            right = {
+                DesignToggle(
+                    checked = settings.autoCheckForUpdates,
+                    onCheckedChange = { onSettingsChange(settings.copy(autoCheckForUpdates = it)) },
+                )
+            },
+        )
+        SettingItem(
             label = "Open source libraries",
             desc = "View third-party licenses bundled with Agent Belay.",
             right = { OutlineButton(text = "View\u2026", onClick = onShowLicenses) },
@@ -336,4 +354,78 @@ private fun NotificationPermissionItem() {
             }
         },
     )
+}
+
+// ── Previews — About section with the auto-update toggle ──────────────────
+
+@androidx.compose.ui.tooling.preview.Preview(widthDp = 380, heightDp = 360)
+@Composable
+private fun PreviewAboutSectionAutoUpdateOn() {
+    com.mikepenz.agentbelay.ui.theme.PreviewScaffold {
+        Column(modifier = androidx.compose.ui.Modifier.padding(16.dp)) {
+            SettingSection(title = "About", desc = "Agent Belay v${com.mikepenz.agentbelay.VERSION}") {
+                UpdateCheckRow(
+                    state = UpdateUiState.Idle,
+                    isSupported = true,
+                    first = true,
+                    onCheck = {},
+                    onDownload = {},
+                    onInstall = {},
+                    onDismissError = {},
+                )
+                SettingItem(
+                    label = "Check for updates automatically",
+                    desc = "Silently check on launch (at most once per 24h) and show a banner when " +
+                        "a newer release is available.",
+                    right = {
+                        DesignToggle(
+                            checked = true,
+                            onCheckedChange = {},
+                        )
+                    },
+                )
+                SettingItem(
+                    label = "Open source libraries",
+                    desc = "View third-party licenses bundled with Agent Belay.",
+                    right = { OutlineButton(text = "View…", onClick = {}) },
+                )
+            }
+        }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(widthDp = 380, heightDp = 360)
+@Composable
+private fun PreviewAboutSectionAutoUpdateOff() {
+    com.mikepenz.agentbelay.ui.theme.PreviewScaffold {
+        Column(modifier = androidx.compose.ui.Modifier.padding(16.dp)) {
+            SettingSection(title = "About", desc = "Agent Belay v${com.mikepenz.agentbelay.VERSION}") {
+                UpdateCheckRow(
+                    state = UpdateUiState.Idle,
+                    isSupported = true,
+                    first = true,
+                    onCheck = {},
+                    onDownload = {},
+                    onInstall = {},
+                    onDismissError = {},
+                )
+                SettingItem(
+                    label = "Check for updates automatically",
+                    desc = "Silently check on launch (at most once per 24h) and show a banner when " +
+                        "a newer release is available.",
+                    right = {
+                        DesignToggle(
+                            checked = false,
+                            onCheckedChange = {},
+                        )
+                    },
+                )
+                SettingItem(
+                    label = "Open source libraries",
+                    desc = "View third-party licenses bundled with Agent Belay.",
+                    right = { OutlineButton(text = "View…", onClick = {}) },
+                )
+            }
+        }
+    }
 }

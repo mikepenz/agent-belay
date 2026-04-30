@@ -119,6 +119,19 @@ interface AppProviders {
 
     @Provides
     @SingleIn(AppScope::class)
+    fun provideAutoUpdateChecker(
+        env: AppEnvironment,
+        updateManager: UpdateManager,
+        stateManager: AppStateManager,
+    ): com.mikepenz.agentbelay.update.AutoUpdateChecker =
+        com.mikepenz.agentbelay.update.AutoUpdateChecker(
+            updateManager = updateManager,
+            stateManager = stateManager,
+            scope = env.appScope,
+        )
+
+    @Provides
+    @SingleIn(AppScope::class)
     fun provideClaudeAnalyzer(stateManager: AppStateManager): ClaudeCliRiskAnalyzer {
         val settings = stateManager.state.value.settings
         return ClaudeCliRiskAnalyzer(

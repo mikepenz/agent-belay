@@ -31,7 +31,7 @@ sealed class UpdateUiState {
  * to a malicious host. SHA-512 verification of the downloaded installer happens
  * inside [NucleusUpdater.downloadUpdate]; the UI never sees the bytes.
  */
-class UpdateManager(private val scope: CoroutineScope) {
+open class UpdateManager(private val scope: CoroutineScope) {
 
     private val updater = NucleusUpdater {
         provider = GitHubProvider(owner = "mikepenz", repo = "agent-belay")
@@ -42,15 +42,15 @@ class UpdateManager(private val scope: CoroutineScope) {
     }
 
     private val _state = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
-    val state: StateFlow<UpdateUiState> = _state.asStateFlow()
+    open val state: StateFlow<UpdateUiState> = _state.asStateFlow()
 
     private var inFlight: Job? = null
 
-    val isSupported: Boolean get() = updater.isUpdateSupported()
+    open val isSupported: Boolean get() = updater.isUpdateSupported()
 
     val currentVersion: String get() = VERSION
 
-    fun check() {
+    open fun check() {
         val current = _state.value
         if (current is UpdateUiState.Checking || current is UpdateUiState.Downloading) return
         inFlight?.cancel()
@@ -118,5 +118,35 @@ class UpdateManager(private val scope: CoroutineScope) {
     fun reset() {
         inFlight?.cancel()
         _state.value = UpdateUiState.Idle
+    }
+
+    /**
+     * Dev-mode-only: drives the state flow into [UpdateUiState.Available]
+     * with a fake [UpdateInfo] so the in-app banner can be exercised
+     * without an actual GitHub release. The associated [UpdateInfo] has no
+     * downloadable file, so calling [downloadAvailable] from this state
+     * will fail at the network layer — the intent is purely to verify the
+     * banner UI and dismiss/install plumbing.
+     *
+     * Gated by callers (Main.kt fires it only when `--dev` is set); the
+     * function itself does no checks so tests can drive it directly too.
+     */
+    fun simulateAvailable(version: String) {
+        inFlight?.cancel()
+        _state.value = UpdateUiState.Available(
+            version = version,
+            info = UpdateInfo(
+                version = version,
+                releaseDate = "1970-01-01",
+                files = emptyList(),
+                currentFile = io.github.kdroidfilter.nucleus.updater.UpdateFile(
+                    url = "https://example.invalid/$version",
+                    sha512 = "0".repeat(128),
+                    size = 0L,
+                    blockMapSize = null,
+                    fileName = "AgentBelay-$version",
+                ),
+            ),
+        )
     }
 }

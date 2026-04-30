@@ -78,4 +78,18 @@ data class AppSettings(
      * Toggleable at runtime via the Diagnostics section in Settings.
      */
     val verboseLogging: Boolean = false,
+    /**
+     * When true, the app silently checks for new releases on startup,
+     * subject to a 24h throttle keyed off [lastUpdateCheckEpochMillis].
+     * When an update is found, a banner is rendered above the tabs.
+     * Disabled platforms (non-installed builds) ignore this flag —
+     * `UpdateManager.isSupported` is false there regardless.
+     */
+    val autoCheckForUpdates: Boolean = true,
+    /**
+     * Wall-clock epoch millis of the most recent successful update check.
+     * Updated by `AutoUpdateChecker` after a check completes (Available,
+     * UpToDate, or Failed). Default 0 means "never checked".
+     */
+    val lastUpdateCheckEpochMillis: Long = 0L,
 )

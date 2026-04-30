@@ -89,6 +89,17 @@ fun main(args: Array<String>) {
         hookRegistry = DefaultHookRegistry,
     )
 
+    // Fire a silent update check on startup (subject to user preference and
+    // a 24h throttle). Result lands in UpdateManager.state and is surfaced by
+    // the in-app banner; callers don't await it.
+    graph.autoUpdateChecker.runIfDue()
+
+    // Dev-mode UI scaffolding: jvmRun builds aren't installed packages, so
+    // `UpdateManager.isSupported` is false and the auto-check skips. Drive a
+    // fake `Available` state so the banner is visible for design / QA work.
+    // Production builds never enter this branch.
+    if (devMode) graph.updateManager.simulateAvailable("dev-${System.currentTimeMillis() / 1000}")
+
     application {
         AgentBelayShell(graph = graph, devMode = devMode, exitApplication = ::exitApplication)
     }
