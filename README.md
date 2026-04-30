@@ -52,24 +52,28 @@ cd agent-belay
 
 ### 2. Connect Your Agent
 
-Agent Belay integrates via [hooks](https://docs.anthropic.com/en/docs/claude-code/hooks) — lightweight HTTP callbacks that AI agents fire before executing tools. The app registers two types of hooks:
+Agent Belay integrates via hooks, bridge scripts, and agent-native plugins/extensions that call back to its local HTTP server before tools execute. Depending on the agent, Belay can install these interception surfaces:
 
-| Hook | Purpose | Claude Code | GitHub Copilot |
-|------|---------|:-----------:|:--------------:|
-| **PreToolUse** | Runs the Protection Engine to block or modify dangerous requests _before_ the agent acts | Supported | Supported |
-| **PermissionRequest** | Presents the request in the Approval UI for interactive human review | Supported | Supported¹ |
+| Surface | Purpose | Claude Code | GitHub Copilot | OpenCode | Pi |
+|------|---------|:-----------:|:--------------:|:--------:|:--:|
+| **PreToolUse** | Runs the Protection Engine to block or modify dangerous requests _before_ the agent acts | Supported | Supported | - | - |
+| **PermissionRequest / tool gate** | Presents the request in the Approval UI for interactive human review | Supported | Supported¹ | Supported | Supported |
 
 ¹ Requires GitHub Copilot CLI **v1.0.16 or later** (added the `permissionRequest` hook event) and **v0.0.422 or later** for user-scoped hook loading from `~/.copilot/hooks/`.
 
-Both Claude Code and GitHub Copilot now support the full interactive approval flow plus `PreToolUse` Protection Engine pre-checks.
+Claude Code and GitHub Copilot support the full interactive approval flow plus `PreToolUse` Protection Engine pre-checks. OpenCode and Pi use plugin/extension tool gates for interactive review.
 
 **Claude Code** — In Settings > Integrations, click **Register Hooks** to add both hook entries to `~/.claude/settings.json`.
 
 **GitHub Copilot** — In Settings > Integrations, click **Register** under GitHub Copilot. This installs the bridge scripts under `~/.agent-belay/` and writes both hook entries (`permissionRequest` + `preToolUse`) into a single user-scoped `~/.copilot/hooks/agent-belay.json` — no per-project setup needed.
 
+**OpenCode** — In Settings > Integrations, click **Register** under OpenCode. This writes `~/.config/opencode/plugin/agent-belay.ts`.
+
+**Pi** — In Settings > Integrations, click **Register** under Pi. This writes `~/.pi/agent/extensions/agent-belay.ts`.
+
 ### 3. Review & Approve
 
-When Claude Code requests permission to use a tool:
+When a connected agent requests permission to use a tool:
 
 1. The request hits Agent Belay's local HTTP server
 2. The **Protection Engine** evaluates it against built-in safety rules — dangerous requests are blocked or modified automatically

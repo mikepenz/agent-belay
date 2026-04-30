@@ -2,6 +2,7 @@ package com.mikepenz.agentbelay.harness
 
 import com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeHarness
 import com.mikepenz.agentbelay.harness.copilot.CopilotHarness
+import com.mikepenz.agentbelay.harness.pi.PiHarness
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.HookInput
 import com.mikepenz.agentbelay.model.Source
@@ -118,5 +119,19 @@ class HarnessCapabilitiesTest {
         // No updatedPermissions field (Copilot doesn't support write-through).
         assertNull(obj["updatedPermissions"])
         assertEquals("allow", obj["behavior"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `Pi advertises extension-backed deny but no rewriting or redaction`() {
+        val h = PiHarness()
+        assertFalse(h.capabilities.supportsArgRewriting)
+        assertFalse(h.capabilities.supportsAlwaysAllowWriteThrough)
+        assertFalse(h.capabilities.supportsOutputRedaction)
+        assertTrue(h.capabilities.supportsInterruptOnDeny)
+
+        val response = h.adapter.buildPermissionDenyResponse(fakeRequest(Source.PI), "blocked")
+        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
+        assertEquals("deny", obj["behavior"]!!.jsonPrimitive.content)
+        assertEquals("blocked", obj["message"]!!.jsonPrimitive.content)
     }
 }

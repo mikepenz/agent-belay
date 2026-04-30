@@ -346,6 +346,7 @@ fun SourceTag(
         Source.CLAUDE_CODE -> "Claude Code"
         Source.COPILOT -> "Copilot"
         Source.OPENCODE -> "OpenCode"
+        Source.PI -> "Pi"
     }
     val dotColor = sourceColor(source)
 

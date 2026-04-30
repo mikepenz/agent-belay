@@ -1,0 +1,10 @@
+{
+  "_fixture": {
+    "harness": "pi",
+    "scenario": "malformed permission request"
+  },
+  "toolInput": {
+    "command": "ls"
+  },
+  "cwd": "/tmp/project"
+}

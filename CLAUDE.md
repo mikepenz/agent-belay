@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agent Belay is a Kotlin Multiplatform (JVM-only) desktop application built with Compose Multiplatform. It acts as a hook server for AI coding agents (Claude Code, GitHub Copilot CLI, OpenCode, with Codex / Cline / Cursor / Gemini coming via the `harness/` abstraction) — receiving permission-request and pre-tool-use hook events over HTTP, displaying them in a UI for human review, and responding with allow/deny decisions. PostToolUse output redaction (Claude Code) scrubs secrets from tool responses before the agent reads them.
+Agent Belay is a Kotlin Multiplatform (JVM-only) desktop application built with Compose Multiplatform. It acts as a hook server for AI coding agents (Claude Code, GitHub Copilot CLI, OpenCode, Pi, with Codex / Cline / Cursor / Gemini coming via the `harness/` abstraction) — receiving permission-request and pre-tool-use hook events over HTTP, displaying them in a UI for human review, and responding with allow/deny decisions. PostToolUse output redaction (Claude Code) scrubs secrets from tool responses before the agent reads them.
 
 ## Build & Test Commands
 
@@ -27,9 +27,9 @@ Single module project: `:composeApp` with `commonMain` (shared models) and `jvmM
 
 ### Core Flow
 
-1. **HTTP Server** (`server/ApprovalServer.kt`) — Ktor/Netty on port 19532 (configurable). Iterates a `List<Harness>` and mounts permission-request + pre-tool-use routes per harness via the generic handlers in `server/HarnessRoutes.kt`. Endpoint paths come from `harness.transport.endpoints()` (e.g. `/approve` for Claude, `/approve-copilot` for Copilot, `/approve-opencode` for OpenCode). PostToolUse is Claude-only today (the only harness whose post-tool hook can return `updatedToolOutput`).
+1. **HTTP Server** (`server/ApprovalServer.kt`) — Ktor/Netty on port 19532 (configurable). Iterates a `List<Harness>` and mounts permission-request + pre-tool-use routes per harness via the generic handlers in `server/HarnessRoutes.kt`. Endpoint paths come from `harness.transport.endpoints()` (e.g. `/approve` for Claude, `/approve-copilot` for Copilot, `/approve-opencode` for OpenCode, `/approve-pi` for Pi). PostToolUse is Claude-only today (the only harness whose post-tool hook can return `updatedToolOutput`).
 2. **Harness composition** (`harness/`) — Each integration implements four pluggable axes: `HarnessAdapter` (parses incoming JSON + builds outgoing envelope), `HarnessRegistrar` (writes config files / shim scripts to install the integration on the user's machine), `HarnessTransport` (declares HTTP route paths per `HookEvent`), and `HarnessCapabilities` (feature flags driving runtime branching + UI gating). See "Adding a new harness" below.
-3. **Adapters** (`server/{ClaudeCode,Copilot,OpenCode}Adapter.kt`) — Each implements `HarnessAdapter`. Per-harness envelope variation (Claude wraps under `hookSpecificOutput.decision`; Copilot uses flat `{permissionDecision, ...}`; future harnesses do their own thing) lives entirely in the adapter; the route handlers stay generic.
+3. **Adapters** (`harness/{claudecode,copilot,opencode,pi}/*Adapter.kt`) — Each implements `HarnessAdapter`. Per-harness envelope variation (Claude wraps under `hookSpecificOutput.decision`; Copilot uses flat `{permissionDecision, ...}`; plugin-backed agents use simple `{behavior, message}` envelopes) lives entirely in the adapter; the route handlers stay generic.
 4. **State** (`state/AppStateManager.kt`) — Single `MutableStateFlow<AppState>` is the source of truth. Pending approvals are added to state and a `CompletableDeferred<ApprovalResult>` suspends the HTTP handler coroutine until the user acts or timeout fires. `attachRedactionHits` updates an existing history row when PostToolUse redaction fires after the original PermissionRequest already persisted.
 5. **Protection Engine** (`protection/ProtectionEngine.kt`) — 13 modules of pattern-matched rules that run on PreToolUse. Modes: `AUTO_BLOCK`, `ASK_AUTO_BLOCK`, `ASK`, `LOG_ONLY`, `DISABLED`.
 6. **Redaction Engine** (`redaction/RedactionEngine.kt`) — Mirrors `ProtectionEngine` but operates on PostToolUse output. Built-ins: API keys, env vars, private keys, JWTs. `ToolOutputShape` preserves Bash / Read / WebFetch response schemas.
@@ -48,14 +48,14 @@ Single module project: `:composeApp` with `commonMain` (shared models) and `jvmM
 | Package | Purpose |
 |---------|---------|
 | `model/` | Serializable data models (shared in `commonMain`) |
-| `harness/` | Per-agent integration composition: `Harness` + `HarnessAdapter` + `HarnessRegistrar` + `HarnessTransport` + `HarnessCapabilities` + `HarnessResponse` + `HarnessRouteDeps`. Sub-packages per agent (`claudecode/`, `copilot/`, `opencode/`, …) — each owns the agent's `*Harness.kt`, `*Registrar.kt`, `*Transport.kt`, and `*Adapter.kt`. |
+| `harness/` | Per-agent integration composition: `Harness` + `HarnessAdapter` + `HarnessRegistrar` + `HarnessTransport` + `HarnessCapabilities` + `HarnessResponse` + `HarnessRouteDeps`. Sub-packages per agent (`claudecode/`, `copilot/`, `opencode/`, `pi/`, …) — each owns the agent's `*Harness.kt`, `*Registrar.kt`, `*Transport.kt`, and `*Adapter.kt`. |
 | `server/` | Ktor HTTP server (`ApprovalServer`), generic harness route handlers (`HarnessRoutes.kt`), `PostToolUseRoute` (Claude-only redaction), `CapabilityRoute`. |
 | `state/` | Reactive state management via StateFlow |
 | `storage/` | SQLite persistence (history) + JSON file persistence (settings) |
 | `protection/` | 13 pattern-matched protection modules + `ProtectionEngine` (PreToolUse) |
 | `redaction/` | Output redaction engine + 4 modules (api-keys, env-vars, private-keys, jwt) + `ToolOutputShape` (PostToolUse) |
 | `risk/` | AI-powered risk analysis via CLI subprocess |
-| `hook/` | Lower-level hook-installation helpers wrapped by harness `Registrar` implementations (`HookRegistrar` for Claude, `CopilotBridgeInstaller` for Copilot) |
+| `hook/` | Lower-level hook-installation helpers wrapped by harness `Registrar` implementations (`HookRegistrar` for Claude, bridge/plugin/extension installers for Copilot, OpenCode, and Pi) |
 | `capability/` | Optional context-injection features (response compression, Socratic thinking) |
 | `platform/` | OS-specific features (tray, startup, icons) |
 | `ui/` | Compose UI components organized by tab |

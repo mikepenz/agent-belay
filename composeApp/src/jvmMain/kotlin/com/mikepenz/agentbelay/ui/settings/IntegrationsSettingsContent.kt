@@ -40,6 +40,7 @@ fun IntegrationsSettingsContent(
     isHookRegistered: Boolean,
     isCopilotRegistered: Boolean,
     isOpenCodeRegistered: Boolean = false,
+    isPiRegistered: Boolean = false,
     onSettingsChange: (AppSettings) -> Unit,
     onRegisterHook: () -> Unit,
     onUnregisterHook: () -> Unit,
@@ -47,6 +48,8 @@ fun IntegrationsSettingsContent(
     onUnregisterCopilot: () -> Unit,
     onRegisterOpenCode: () -> Unit = {},
     onUnregisterOpenCode: () -> Unit = {},
+    onRegisterPi: () -> Unit = {},
+    onUnregisterPi: () -> Unit = {},
 ) {
     SettingSection(
         title = "Integrations",
@@ -87,6 +90,16 @@ fun IntegrationsSettingsContent(
                 registered = isOpenCodeRegistered,
                 onRegister = onRegisterOpenCode,
                 onUnregister = onUnregisterOpenCode,
+            ),
+            IntegrationItemData(
+                id = "pi",
+                name = "Pi",
+                desc = "Extension in ~/.pi/agent/extensions/agent-belay.ts " +
+                    "(tool_call gate, fail-open)",
+                color = Color(0xFFF59E0B),
+                registered = isPiRegistered,
+                onRegister = onRegisterPi,
+                onUnregister = onUnregisterPi,
             ),
         )
         items.forEachIndexed { idx, it -> IntegrationRow(item = it, first = idx == 0) }

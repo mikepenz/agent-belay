@@ -9,6 +9,7 @@ import com.mikepenz.agentbelay.di.AppScope
 import com.mikepenz.agentbelay.hook.CopilotBridge
 import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.OpenCodeBridge
+import com.mikepenz.agentbelay.hook.PiBridge
 import com.mikepenz.agentbelay.hook.RegistrationEvents
 import com.mikepenz.agentbelay.model.AppSettings
 import com.mikepenz.agentbelay.model.CapabilitySettings
@@ -64,6 +65,7 @@ class SettingsViewModel(
     private val stateManager: AppStateManager,
     private val copilotBridge: CopilotBridge,
     private val openCodeBridge: OpenCodeBridge,
+    private val piBridge: PiBridge,
     private val copilotStateHolder: CopilotStateHolder,
     private val ollamaStateHolder: OllamaStateHolder,
     private val riskAnalyzerLifecycle: RiskAnalyzerLifecycle,
@@ -102,6 +104,7 @@ class SettingsViewModel(
     private val isHookRegistered = MutableStateFlow(false)
     private val isCopilotRegistered = MutableStateFlow(false)
     private val isOpenCodeRegistered = MutableStateFlow(false)
+    private val isPiRegistered = MutableStateFlow(false)
 
     /** Pre-combined Copilot lifecycle state to keep the main `combine` arity reasonable. */
     private val copilotState: kotlinx.coroutines.flow.Flow<Pair<List<Pair<String, String>>, CopilotInitState>> =
@@ -122,15 +125,29 @@ class SettingsViewModel(
     private val hotkeyErrors: kotlinx.coroutines.flow.Flow<Pair<String?, String?>> =
         combine(globalHotkeyManager.approveError, globalHotkeyManager.denyError) { a, d -> a to d }
 
+    private val registrationState: kotlinx.coroutines.flow.Flow<Registrations> = combine(
+        isHookRegistered,
+        isCopilotRegistered,
+        isOpenCodeRegistered,
+        isPiRegistered,
+    ) { hookRegistered, copilotRegistered, openCodeRegistered, piRegistered ->
+        Registrations(hookRegistered, copilotRegistered, openCodeRegistered, piRegistered)
+    }
+
     val uiState: StateFlow<SettingsUiState> = combine(
         combine(
             stateManager.state,
-            isHookRegistered,
-            isCopilotRegistered,
-            isOpenCodeRegistered,
+            registrationState,
             copilotState,
-        ) { state, hookRegistered, copilotRegistered, openCodeRegistered, copilot ->
-            UiBase(state, hookRegistered, copilotRegistered, openCodeRegistered, copilot)
+        ) { state, registrations, copilot ->
+            UiBase(
+                state,
+                registrations.claude,
+                registrations.copilot,
+                registrations.openCode,
+                registrations.pi,
+                copilot,
+            )
         },
         ollamaState,
         hotkeyErrors,
@@ -141,6 +158,7 @@ class SettingsViewModel(
             isHookRegistered = base.hookRegistered,
             isCopilotRegistered = base.copilotRegistered,
             isOpenCodeRegistered = base.openCodeRegistered,
+            isPiRegistered = base.piRegistered,
             copilotModels = base.copilot.first,
             copilotInitState = base.copilot.second,
             ollamaModels = ollama.models,
@@ -160,6 +178,7 @@ class SettingsViewModel(
             isHookRegistered = false,
             isCopilotRegistered = false,
             isOpenCodeRegistered = false,
+            isPiRegistered = false,
             copilotModels = copilotStateHolder.models.value,
             copilotInitState = copilotStateHolder.initState.value,
             ollamaModels = ollamaStateHolder.models.value,
@@ -182,16 +201,18 @@ class SettingsViewModel(
                 .map { it.settings.serverPort }
                 .distinctUntilChanged()
                 .collect { port ->
-                    val (claude, copilot, openCode) = withContext(ioDispatcher) {
-                        Triple(
-                            hookRegistry.isRegistered(port),
-                            copilotBridge.isRegistered(port),
-                            openCodeBridge.isRegistered(port),
+                    val registrations = withContext(ioDispatcher) {
+                        Registrations(
+                            claude = hookRegistry.isRegistered(port),
+                            copilot = copilotBridge.isRegistered(port),
+                            openCode = openCodeBridge.isRegistered(port),
+                            pi = piBridge.isRegistered(port),
                         )
                     }
-                    isHookRegistered.value = claude
-                    isCopilotRegistered.value = copilot
-                    isOpenCodeRegistered.value = openCode
+                    isHookRegistered.value = registrations.claude
+                    isCopilotRegistered.value = registrations.copilot
+                    isOpenCodeRegistered.value = registrations.openCode
+                    isPiRegistered.value = registrations.pi
                 }
         }
 
@@ -369,6 +390,24 @@ class SettingsViewModel(
         }
     }
 
+    fun registerPi() {
+        viewModelScope.launch(writeDispatcher) {
+            val port = stateManager.state.value.settings.serverPort
+            piBridge.register(port)
+            isPiRegistered.value = piBridge.isRegistered(port)
+            registrationEvents.emit()
+        }
+    }
+
+    fun unregisterPi() {
+        viewModelScope.launch(writeDispatcher) {
+            val port = stateManager.state.value.settings.serverPort
+            piBridge.unregister(port)
+            isPiRegistered.value = piBridge.isRegistered(port)
+            registrationEvents.emit()
+        }
+    }
+
     fun clearHistory() {
         viewModelScope.launch(writeDispatcher) {
             stateManager.clearHistory()
@@ -401,6 +440,7 @@ data class SettingsUiState(
     val isHookRegistered: Boolean,
     val isCopilotRegistered: Boolean,
     val isOpenCodeRegistered: Boolean = false,
+    val isPiRegistered: Boolean = false,
     val copilotModels: List<Pair<String, String>>,
     val copilotInitState: CopilotInitState,
     val ollamaModels: List<String> = emptyList(),
@@ -417,5 +457,13 @@ private data class UiBase(
     val hookRegistered: Boolean,
     val copilotRegistered: Boolean,
     val openCodeRegistered: Boolean,
+    val piRegistered: Boolean,
     val copilot: Pair<List<Pair<String, String>>, CopilotInitState>,
+)
+
+private data class Registrations(
+    val claude: Boolean,
+    val copilot: Boolean,
+    val openCode: Boolean,
+    val pi: Boolean,
 )

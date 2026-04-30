@@ -92,17 +92,20 @@ val ToolWebColor = ToolWeb               // oklch(0.78 0.13 48)
 val SourceClaudeColor = Color(0xFFD97757)  // oklch(0.78 0.14 30) — Claude orange
 val SourceCopilotColor = VioletPurple      // oklch(0.74 0.14 290) — design-system violet
 val SourceOpenCodeColor = Color(0xFF10B981) // emerald green — OpenCode
+val SourcePiColor = Color(0xFFF59E0B) // amber - Pi
 
 fun sourceColor(source: com.mikepenz.agentbelay.model.Source): Color = when (source) {
     com.mikepenz.agentbelay.model.Source.CLAUDE_CODE -> SourceClaudeColor
     com.mikepenz.agentbelay.model.Source.COPILOT -> SourceCopilotColor
     com.mikepenz.agentbelay.model.Source.OPENCODE -> SourceOpenCodeColor
+    com.mikepenz.agentbelay.model.Source.PI -> SourcePiColor
 }
 
 fun sourceLabel(source: com.mikepenz.agentbelay.model.Source): String = when (source) {
     com.mikepenz.agentbelay.model.Source.CLAUDE_CODE -> "Claude Code"
     com.mikepenz.agentbelay.model.Source.COPILOT -> "Copilot"
     com.mikepenz.agentbelay.model.Source.OPENCODE -> "OpenCode"
+    com.mikepenz.agentbelay.model.Source.PI -> "Pi"
 }
 
 fun riskColor(risk: Int): Color = when (risk) {

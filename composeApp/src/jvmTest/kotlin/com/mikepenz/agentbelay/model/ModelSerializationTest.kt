@@ -32,6 +32,24 @@ class ModelSerializationTest {
     }
 
     @Test
+    fun piSourceRoundTripUsesStableWireName() {
+        val request = ApprovalRequest(
+            id = "pi-test-id",
+            source = Source.PI,
+            toolType = ToolType.DEFAULT,
+            hookInput = HookInput(sessionId = "session-1", toolName = "Bash"),
+            timestamp = Clock.System.now(),
+            rawRequestJson = "{}",
+        )
+
+        val encoded = json.encodeToString(ApprovalRequest.serializer(), request)
+        val decoded = json.decodeFromString(ApprovalRequest.serializer(), encoded)
+
+        assertEquals(Source.PI, decoded.source)
+        assertEquals(true, encoded.contains(""""source":"PI""""))
+    }
+
+    @Test
     fun approvalResultRoundTrip() {
         val request = ApprovalRequest(
             id = "test-id",

@@ -1,0 +1,14 @@
+{
+  "_fixture": {
+    "harness": "pi",
+    "scenario": "edit permission request"
+  },
+  "toolName": "edit",
+  "toolInput": {
+    "path": "src/main.kt",
+    "content": "hello"
+  },
+  "cwd": "/tmp/project",
+  "sessionId": "pi-session-2",
+  "timestamp": 1704614600000
+}

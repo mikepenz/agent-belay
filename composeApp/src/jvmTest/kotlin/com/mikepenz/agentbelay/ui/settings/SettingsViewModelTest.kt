@@ -6,6 +6,7 @@ import com.mikepenz.agentbelay.capability.modules.SocraticThinkingCapability
 import com.mikepenz.agentbelay.hook.CopilotBridge
 import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.OpenCodeBridge
+import com.mikepenz.agentbelay.hook.PiBridge
 import com.mikepenz.agentbelay.hook.RegistrationEvents
 import com.mikepenz.agentbelay.model.CapabilityModuleSettings
 import com.mikepenz.agentbelay.model.CapabilitySettings
@@ -121,8 +122,29 @@ class SettingsViewModelTest {
         override fun unregisterCapabilityHook(port: Int) { capabilityHookPorts.remove(port) }
     }
 
+    private class FakePiBridge : PiBridge {
+        val registeredPorts: MutableSet<Int> = mutableSetOf()
+        var registerCalls = 0
+        var unregisterCalls = 0
+        var isRegisteredCalls = 0
+
+        override fun isRegistered(port: Int): Boolean {
+            isRegisteredCalls++
+            return port in registeredPorts
+        }
+        override fun register(port: Int) {
+            registerCalls++
+            registeredPorts.add(port)
+        }
+        override fun unregister(port: Int) {
+            unregisterCalls++
+            registeredPorts.remove(port)
+        }
+    }
+
     private fun newVm(
         bridge: FakeCopilotBridge = FakeCopilotBridge(),
+        piBridge: FakePiBridge = FakePiBridge(),
         registry: FakeHookRegistry = FakeHookRegistry(),
         copilotState: CopilotStateHolder = CopilotStateHolder(),
         ollamaState: OllamaStateHolder = OllamaStateHolder(),
@@ -145,6 +167,7 @@ class SettingsViewModelTest {
             stateManager = state,
             copilotBridge = bridge,
             openCodeBridge = FakeOpenCodeBridge(),
+            piBridge = piBridge,
             copilotStateHolder = copilotState,
             ollamaStateHolder = ollamaState,
             riskAnalyzerLifecycle = lifecycle,
@@ -177,6 +200,25 @@ class SettingsViewModelTest {
         runCurrent()
         assertEquals(1, bridge.unregisterCalls)
         assertFalse(vm.uiState.value.isCopilotRegistered)
+    }
+
+    @Test
+    fun `registerPi delegates to bridge and updates uiState`() = runTest {
+        val piBridge = FakePiBridge()
+        val (vm, _, _) = newVm(piBridge = piBridge)
+        runCurrent()
+
+        assertFalse(vm.uiState.value.isPiRegistered)
+
+        vm.registerPi()
+        runCurrent()
+        assertEquals(1, piBridge.registerCalls)
+        assertTrue(vm.uiState.value.isPiRegistered)
+
+        vm.unregisterPi()
+        runCurrent()
+        assertEquals(1, piBridge.unregisterCalls)
+        assertFalse(vm.uiState.value.isPiRegistered)
     }
 
     @Test

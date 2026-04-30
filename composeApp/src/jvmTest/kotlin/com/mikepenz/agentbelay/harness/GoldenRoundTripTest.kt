@@ -2,6 +2,7 @@ package com.mikepenz.agentbelay.harness
 
 import com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeHarness
 import com.mikepenz.agentbelay.harness.copilot.CopilotHarness
+import com.mikepenz.agentbelay.harness.pi.PiHarness
 import com.mikepenz.agentbelay.testutil.GoldenPayloads
 import kotlin.test.Test
 import kotlin.test.assertNotNull
@@ -29,6 +30,11 @@ class GoldenRoundTripTest {
     @Test
     fun `every copilot fixture parses cleanly`() {
         roundTripAll("copilot") { CopilotHarness().adapter.parsePermissionRequest(it) }
+    }
+
+    @Test
+    fun `every pi fixture parses cleanly`() {
+        roundTripAll("pi") { PiHarness().adapter.parsePermissionRequest(it) }
     }
 
     private fun roundTripAll(harness: String, parse: (String) -> Any?) {

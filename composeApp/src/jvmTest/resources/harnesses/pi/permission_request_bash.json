@@ -1,0 +1,13 @@
+{
+  "_fixture": {
+    "harness": "pi",
+    "scenario": "bash permission request"
+  },
+  "toolName": "bash",
+  "toolInput": {
+    "command": "ls -la"
+  },
+  "cwd": "/tmp/project",
+  "sessionId": "pi-session-1",
+  "timestamp": 1704614600000
+}

@@ -8,6 +8,7 @@ import com.mikepenz.agentbelay.di.AppScope
 import com.mikepenz.agentbelay.hook.CopilotBridge
 import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.OpenCodeBridge
+import com.mikepenz.agentbelay.hook.PiBridge
 import com.mikepenz.agentbelay.hook.RegistrationEvents
 import com.mikepenz.agentbelay.state.AppNotice
 import com.mikepenz.agentbelay.state.AppStateManager
@@ -44,6 +45,7 @@ class AppViewModel(
     private val hookRegistry: HookRegistry,
     private val copilotBridge: CopilotBridge,
     private val openCodeBridge: OpenCodeBridge,
+    private val piBridge: PiBridge,
     private val registrationEvents: RegistrationEvents,
     private val updateManager: UpdateManager,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -68,13 +70,15 @@ class AppViewModel(
     private val claudeRegistered = MutableStateFlow(false)
     private val copilotRegistered = MutableStateFlow(false)
     private val openCodeRegistered = MutableStateFlow(false)
+    private val piRegistered = MutableStateFlow(false)
 
     val tabState: StateFlow<TabState> = combine(
         stateManager.state,
         claudeRegistered,
         copilotRegistered,
         openCodeRegistered,
-    ) { state, claude, copilot, openCode ->
+        piRegistered,
+    ) { state, claude, copilot, openCode, pi ->
         TabState(
             pendingCount = state.pendingApprovals.size,
             protectionLogCount = state.preToolUseLog.size,
@@ -86,6 +90,7 @@ class AppViewModel(
                 AgentRegistration("Claude Code", claude),
                 AgentRegistration("GitHub Copilot", copilot),
                 AgentRegistration("OpenCode", openCode),
+                AgentRegistration("Pi", pi),
             ),
         )
     }.stateIn(
@@ -111,16 +116,7 @@ class AppViewModel(
                 .map { it.settings.serverPort }
                 .distinctUntilChanged()
                 .collect { port ->
-                    val (c, cp, oc) = withContext(ioDispatcher) {
-                        Triple(
-                            hookRegistry.isRegistered(port),
-                            copilotBridge.isRegistered(port),
-                            openCodeBridge.isRegistered(port),
-                        )
-                    }
-                    claudeRegistered.value = c
-                    copilotRegistered.value = cp
-                    openCodeRegistered.value = oc
+                    publishRegistrations(readRegistrations(port))
                 }
         }
         // Re-poll when SettingsViewModel registers or unregisters a hook so
@@ -128,18 +124,25 @@ class AppViewModel(
         viewModelScope.launch {
             registrationEvents.changes.collect {
                 val port = stateManager.state.value.settings.serverPort
-                val (c, cp, oc) = withContext(ioDispatcher) {
-                    Triple(
-                        hookRegistry.isRegistered(port),
-                        copilotBridge.isRegistered(port),
-                        openCodeBridge.isRegistered(port),
-                    )
-                }
-                claudeRegistered.value = c
-                copilotRegistered.value = cp
-                openCodeRegistered.value = oc
+                publishRegistrations(readRegistrations(port))
             }
         }
+    }
+
+    private suspend fun readRegistrations(port: Int): AppRegistrations = withContext(ioDispatcher) {
+        AppRegistrations(
+            claude = hookRegistry.isRegistered(port),
+            copilot = copilotBridge.isRegistered(port),
+            openCode = openCodeBridge.isRegistered(port),
+            pi = piBridge.isRegistered(port),
+        )
+    }
+
+    private fun publishRegistrations(registrations: AppRegistrations) {
+        claudeRegistered.value = registrations.claude
+        copilotRegistered.value = registrations.copilot
+        openCodeRegistered.value = registrations.openCode
+        piRegistered.value = registrations.pi
     }
 
     fun selectTab(index: Int) {
@@ -168,3 +171,10 @@ data class TabState(
 )
 
 data class AgentRegistration(val name: String, val registered: Boolean)
+
+private data class AppRegistrations(
+    val claude: Boolean,
+    val copilot: Boolean,
+    val openCode: Boolean,
+    val pi: Boolean,
+)
