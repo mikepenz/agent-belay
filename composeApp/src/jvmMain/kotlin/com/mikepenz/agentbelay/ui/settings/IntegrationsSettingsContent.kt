@@ -1,26 +1,37 @@
 package com.mikepenz.agentbelay.ui.settings
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.mikepenz.agentbelay.ui.theme.PreviewScaffold
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mikepenz.agentbelay.harness.HarnessCapabilities
 import com.mikepenz.agentbelay.model.AppSettings
 import com.mikepenz.agentbelay.ui.components.ColoredIconTile
 import com.mikepenz.agentbelay.ui.components.DecisionStatus
@@ -30,12 +41,49 @@ import com.mikepenz.agentbelay.ui.components.OutlineButton
 import com.mikepenz.agentbelay.ui.components.PrimaryButton
 import com.mikepenz.agentbelay.ui.components.StatusPill
 import com.mikepenz.agentbelay.ui.components.TagSize
+import com.mikepenz.agentbelay.ui.icons.LucideChevronDown
 import com.mikepenz.agentbelay.ui.icons.LucidePlug
 import com.mikepenz.agentbelay.ui.theme.AgentBelayColors
 import com.mikepenz.agentbelay.ui.theme.SourceClaudeColor
 import com.mikepenz.agentbelay.ui.theme.SourceOpenCodeColor
 import com.mikepenz.agentbelay.ui.theme.SourcePiColor
 import com.mikepenz.agentbelay.ui.theme.VioletPurple
+
+private val ClaudeCapabilities = HarnessCapabilities(
+    supportsArgRewriting = true,
+    supportsAlwaysAllowWriteThrough = true,
+    supportsOutputRedaction = true,
+    supportsDefer = false,
+    supportsInterruptOnDeny = true,
+    supportsAdditionalContextInjection = true,
+)
+
+private val CopilotCapabilities = HarnessCapabilities(
+    supportsArgRewriting = true,
+    supportsAlwaysAllowWriteThrough = false,
+    supportsOutputRedaction = false,
+    supportsDefer = false,
+    supportsInterruptOnDeny = true,
+    supportsAdditionalContextInjection = true,
+)
+
+private val OpenCodeCapabilities = HarnessCapabilities(
+    supportsArgRewriting = false,
+    supportsAlwaysAllowWriteThrough = false,
+    supportsOutputRedaction = false,
+    supportsDefer = false,
+    supportsInterruptOnDeny = true,
+    supportsAdditionalContextInjection = true,
+)
+
+private val PiCapabilities = HarnessCapabilities(
+    supportsArgRewriting = false,
+    supportsAlwaysAllowWriteThrough = false,
+    supportsOutputRedaction = false,
+    supportsDefer = false,
+    supportsInterruptOnDeny = true,
+    supportsAdditionalContextInjection = false,
+)
 
 @Composable
 fun IntegrationsSettingsContent(
@@ -65,6 +113,7 @@ fun IntegrationsSettingsContent(
                 desc = "Hook in ~/.claude/settings.json",
                 color = SourceClaudeColor,
                 registered = isHookRegistered,
+                capabilities = ClaudeCapabilities,
                 onRegister = onRegisterHook,
                 onUnregister = onUnregisterHook,
             ),
@@ -72,9 +121,10 @@ fun IntegrationsSettingsContent(
                 id = "copilot",
                 name = "GitHub Copilot",
                 desc = "User-scoped hook in ~/.copilot/hooks/agent-belay.json " +
-                    "(PreToolUse + PermissionRequest, requires Copilot CLI \u2265 v1.0.21)",
+                    "(PreToolUse + PermissionRequest, requires Copilot CLI ≥ v1.0.21)",
                 color = VioletPurple,
                 registered = isCopilotRegistered,
+                capabilities = CopilotCapabilities,
                 onRegister = onRegisterCopilot,
                 onUnregister = onUnregisterCopilot,
                 extra = {
@@ -91,6 +141,7 @@ fun IntegrationsSettingsContent(
                     "(tool.execute.before gate, fail-open)",
                 color = SourceOpenCodeColor,
                 registered = isOpenCodeRegistered,
+                capabilities = OpenCodeCapabilities,
                 onRegister = onRegisterOpenCode,
                 onUnregister = onUnregisterOpenCode,
             ),
@@ -101,6 +152,7 @@ fun IntegrationsSettingsContent(
                     "(tool_call gate, fail-open)",
                 color = SourcePiColor,
                 registered = isPiRegistered,
+                capabilities = PiCapabilities,
                 onRegister = onRegisterPi,
                 onUnregister = onUnregisterPi,
             ),
@@ -115,22 +167,39 @@ private data class IntegrationItemData(
     val desc: String,
     val color: Color,
     val registered: Boolean,
+    val capabilities: HarnessCapabilities,
     val onRegister: () -> Unit,
     val onUnregister: () -> Unit,
     val extra: (@Composable () -> Unit)? = null,
 )
 
+private data class CapabilityBadge(val label: String, val supported: Boolean)
+
+private fun HarnessCapabilities.badges(): List<CapabilityBadge> = listOf(
+    CapabilityBadge("Approvals", true),
+    CapabilityBadge("Arg Rewriting", supportsArgRewriting),
+    CapabilityBadge("Always Allow", supportsAlwaysAllowWriteThrough),
+    CapabilityBadge("Output Redaction", supportsOutputRedaction),
+    CapabilityBadge("Defer", supportsDefer),
+    CapabilityBadge("Interrupt on Deny", supportsInterruptOnDeny),
+    CapabilityBadge("Context Injection", supportsAdditionalContextInjection),
+)
+
 @Composable
 private fun IntegrationRow(item: IntegrationItemData, first: Boolean) {
+    var expanded by remember(item.id) { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         if (!first) {
             HorizontalHairline()
         }
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            // Header row: icon + title/status pill + action button. The action
-            // lives here (not next to the description) so the title row owns
-            // the trailing space and the description below can use the full
-            // card width.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(16.dp),
+        ) {
+            // Header row: icon + title/status pill + action button.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -167,6 +236,14 @@ private fun IntegrationRow(item: IntegrationItemData, first: Boolean) {
                 } else {
                     PrimaryButton(text = "Register", onClick = item.onRegister)
                 }
+                Icon(
+                    imageVector = LucideChevronDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = AgentBelayColors.inkTertiary,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .rotate(if (expanded) 180f else 0f),
+                )
             }
             Spacer(Modifier.height(8.dp))
             Text(
@@ -182,6 +259,26 @@ private fun IntegrationRow(item: IntegrationItemData, first: Boolean) {
             if (item.extra != null && item.registered) {
                 Spacer(Modifier.height(12.dp))
                 item.extra.invoke()
+            }
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                HorizontalHairline()
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    item.capabilities.badges().forEach { badge ->
+                        StatusPill(
+                            status = if (badge.supported) DecisionStatus.APPROVED else DecisionStatus.DENIED,
+                            size = TagSize.SMALL,
+                            text = badge.label,
+                        )
+                    }
+                }
             }
         }
     }

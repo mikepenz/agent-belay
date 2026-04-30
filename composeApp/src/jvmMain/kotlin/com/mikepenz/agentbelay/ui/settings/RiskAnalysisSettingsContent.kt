@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,6 +52,7 @@ import com.mikepenz.agentbelay.risk.OllamaInitState
 import com.mikepenz.agentbelay.risk.OllamaMetrics
 import com.mikepenz.agentbelay.risk.RiskMessageBuilder
 import com.mikepenz.agentbelay.ui.components.DecisionStatus
+import com.mikepenz.agentbelay.ui.components.HorizontalHairline
 import com.mikepenz.agentbelay.ui.components.GhostButton
 import com.mikepenz.agentbelay.ui.components.OutlineButton
 import com.mikepenz.agentbelay.ui.components.DesignToggle
@@ -106,18 +108,48 @@ fun RiskAnalysisSettingsContent(
                 )
             },
         )
-        SettingItem(label = "Backend", right = {
-            PillSegmented(
-                options = listOf(
-                    RiskAnalysisBackend.CLAUDE to "Claude",
-                    RiskAnalysisBackend.COPILOT to "Copilot",
-                    RiskAnalysisBackend.OLLAMA to "Ollama",
-                    RiskAnalysisBackend.OPENAI_API to "OpenAI API",
-                ),
-                selected = settings.riskAnalysisBackend,
-                onSelect = { onSettingsChange(settings.copy(riskAnalysisBackend = it)) },
-            )
-        })
+        HorizontalHairline()
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val pill = @Composable {
+                PillSegmented(
+                    options = listOf(
+                        RiskAnalysisBackend.CLAUDE to "Claude",
+                        RiskAnalysisBackend.COPILOT to "Copilot",
+                        RiskAnalysisBackend.OLLAMA to "Ollama",
+                        RiskAnalysisBackend.OPENAI_API to "OpenAI API",
+                    ),
+                    selected = settings.riskAnalysisBackend,
+                    onSelect = { onSettingsChange(settings.copy(riskAnalysisBackend = it)) },
+                )
+            }
+            if (maxWidth >= 420.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    Text(
+                        text = "Backend",
+                        color = AgentBelayColors.inkPrimary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    pill()
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "Backend",
+                        color = AgentBelayColors.inkPrimary,
+                        fontSize = 13.sp,
+                    )
+                    pill()
+                }
+            }
+        }
         SettingItem(label = "Model", right = {
             ModelPicker(
                 settings = settings,
