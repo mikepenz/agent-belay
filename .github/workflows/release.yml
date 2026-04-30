@@ -70,6 +70,9 @@ jobs:
 
           rm -f "$CERTIFICATE_PATH"
 
+      - name: Regenerate aboutlibraries.json
+        run: ./gradlew :composeApp:exportLibraryDefinitions --stacktrace
+
       - name: Build distributable app
         # writeNucleusExecutableMarker depends on createDistributable and
         # drops `.nucleus-executable-type` into Contents/MacOS BEFORE the
@@ -356,6 +359,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
 
+      - name: Regenerate aboutlibraries.json
+        run: ./gradlew :composeApp:exportLibraryDefinitions --stacktrace
+
       - name: Build MSI
         run: ./gradlew :composeApp:packageMsi --stacktrace
 
@@ -430,6 +436,9 @@ jobs:
 
       - name: Install packaging dependencies
         run: sudo apt-get update && sudo apt-get install -y fakeroot
+
+      - name: Regenerate aboutlibraries.json
+        run: ./gradlew :composeApp:exportLibraryDefinitions --stacktrace
 
       - name: Build DEB and JAR
         run: ./gradlew :composeApp:packageDeb :composeApp:jvmJar --stacktrace
