@@ -261,6 +261,7 @@ fun GeneralSettingsContent(
             onDownload = onDownloadUpdate,
             onInstall = onInstallUpdate,
             onDismissError = onResetUpdateState,
+            themeMode = settings.themeMode,
         )
         SettingItem(
             label = "Check for updates automatically",
