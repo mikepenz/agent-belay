@@ -1,0 +1,12 @@
+{
+  "_fixture": {
+    "harness": "copilot",
+    "harness_version": "1.0.15",
+    "scenario": "Pre-v1.0.21 preToolUse — toolArgs is a JSON STRING that needs a second parse",
+    "expected_outcome": "approved (parsed via toolArgs string fallback)"
+  },
+  "toolName": "bash",
+  "toolArgs": "{\"command\":\"npm test\",\"description\":\"Run tests\"}",
+  "timestamp": 1714500000000,
+  "cwd": "/tmp"
+}

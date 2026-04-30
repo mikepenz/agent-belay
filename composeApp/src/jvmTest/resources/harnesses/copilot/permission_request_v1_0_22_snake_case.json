@@ -1,0 +1,17 @@
+{
+  "_fixture": {
+    "harness": "copilot",
+    "harness_version": "1.0.22",
+    "scenario": "Modern snake_case shape (VS Code-compatible) — identical to Claude's schema",
+    "expected_outcome": "approved"
+  },
+  "session_id": "cop-9a2c-1b3d-4e5f",
+  "cwd": "/Users/dev/project",
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "run_terminal_cmd",
+  "tool_input": {
+    "command": "npm test",
+    "description": "Run the test suite"
+  },
+  "permission_suggestions": []
+}

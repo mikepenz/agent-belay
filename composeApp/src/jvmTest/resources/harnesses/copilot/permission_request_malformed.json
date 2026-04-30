@@ -1,0 +1,10 @@
+{
+  "_fixture": {
+    "harness": "copilot",
+    "scenario": "Missing toolName — adapter must reject (returns null)",
+    "expected_outcome": "parse failure"
+  },
+  "session_id": "cop-broken",
+  "cwd": "/tmp",
+  "tool_input": { "command": "ls" }
+}

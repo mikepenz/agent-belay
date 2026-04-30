@@ -1,0 +1,16 @@
+{
+  "_fixture": {
+    "harness": "claudecode",
+    "harness_version": "2.1.121",
+    "scenario": "Bash ls /tmp — typical low-risk command",
+    "expected_outcome": "approved"
+  },
+  "session_id": "5d8e9b4a-2c3f-4d5e-9a1b-0c1d2e3f4a5b",
+  "cwd": "/tmp",
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "ls /tmp",
+    "description": "list temp"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_fixture": {
+    "harness": "claudecode",
+    "harness_version": "2.1.121",
+    "scenario": "Edit on a project source file — exercises arg-rewriting path",
+    "expected_outcome": "approved with optional updatedInput"
+  },
+  "session_id": "abc123de-f456-7890-abcd-ef0123456789",
+  "cwd": "/Users/dev/project",
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/Users/dev/project/src/main.kt",
+    "old_string": "fun main() {}",
+    "new_string": "fun main() { println(\"hi\") }"
+  }
+}

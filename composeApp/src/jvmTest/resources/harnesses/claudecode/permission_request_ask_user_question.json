@@ -1,0 +1,15 @@
+{
+  "_fixture": {
+    "harness": "claudecode",
+    "harness_version": "2.1.121",
+    "scenario": "AskUserQuestion — should map to ToolType.ASK_USER_QUESTION (infinite-timeout path)",
+    "expected_outcome": "approved (interactive)"
+  },
+  "session_id": "11111111-2222-3333-4444-555555555555",
+  "cwd": "/Users/dev/project",
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "AskUserQuestion",
+  "tool_input": {
+    "question": "Should I continue with the migration?"
+  }
+}

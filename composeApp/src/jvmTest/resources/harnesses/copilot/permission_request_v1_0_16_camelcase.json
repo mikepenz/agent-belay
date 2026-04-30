@@ -1,0 +1,18 @@
+{
+  "_fixture": {
+    "harness": "copilot",
+    "harness_version": "1.0.16",
+    "scenario": "Legacy camelCase permissionRequest — toolInput is a JSON object",
+    "expected_outcome": "approved"
+  },
+  "hookName": "permissionRequest",
+  "sessionId": "cop-legacy-aaaa-bbbb",
+  "toolName": "create_file",
+  "toolInput": {
+    "path": "src/Foo.kt",
+    "content": "class Foo"
+  },
+  "cwd": "/Users/dev/project",
+  "timestamp": 1714500000000,
+  "permissionSuggestions": []
+}
