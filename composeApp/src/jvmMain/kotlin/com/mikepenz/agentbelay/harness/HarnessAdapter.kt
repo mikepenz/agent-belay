@@ -9,7 +9,7 @@ import kotlinx.serialization.json.JsonObject
  * Owns one harness's wire envelope on both ends:
  *
  *  - Parses incoming request JSON into the canonical [ApprovalRequest].
- *  - Builds outgoing response JSON in the harness's native shape.
+ *  - Builds outgoing responses in the harness's native shape.
  *
  * Each harness has its own envelope conventions (Claude Code wraps under
  * `hookSpecificOutput.decision.behavior`, Copilot CLI emits a flat
@@ -18,10 +18,11 @@ import kotlinx.serialization.json.JsonObject
  * differences so callers (route handlers, redaction wiring) work in
  * envelope-agnostic terms.
  *
- * Response builders return [String] (already-serialized JSON) rather than
- * [JsonElement] because some harnesses (Copilot CLI) require the response
- * on a single line — emitting through the implementation lets each adapter
- * pick its serialization policy without leaking that detail upward.
+ * Response builders return [HarnessResponse] — a small wrapper around
+ * the serialized body plus content type. Today every shipped harness
+ * uses already-serialized JSON, but the wrapper reserves room for
+ * future harnesses that need a different content type, structured deny
+ * metadata, or extra headers (see [HarnessResponse]).
  */
 interface HarnessAdapter {
     /** Parses a `PermissionRequest`-style payload (interactive approval). */
@@ -34,25 +35,25 @@ interface HarnessAdapter {
     fun buildPermissionAllowResponse(
         request: ApprovalRequest,
         updatedInput: Map<String, JsonElement>?,
-    ): String
+    ): HarnessResponse
 
     /** Allow response that asks the harness to persist a list of permission suggestions. */
     fun buildPermissionAlwaysAllowResponse(
         request: ApprovalRequest,
         suggestions: List<PermissionSuggestion>,
-    ): String
+    ): HarnessResponse
 
     /** Deny response with a user-facing reason. */
     fun buildPermissionDenyResponse(
         request: ApprovalRequest,
         message: String,
-    ): String
+    ): HarnessResponse
 
     /** Pre-tool-use allow (Protection Engine pass). */
-    fun buildPreToolUseAllowResponse(): String
+    fun buildPreToolUseAllowResponse(): HarnessResponse
 
     /** Pre-tool-use deny (Protection Engine block). */
-    fun buildPreToolUseDenyResponse(reason: String): String
+    fun buildPreToolUseDenyResponse(reason: String): HarnessResponse
 
     /**
      * Post-tool-use response that replaces the tool's output. The
@@ -64,5 +65,5 @@ interface HarnessAdapter {
      * (capability flag off) — callers should pass-through the original
      * response in that case.
      */
-    fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): String?
+    fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): HarnessResponse?
 }

@@ -1,7 +1,8 @@
-package com.mikepenz.agentbelay.server
+package com.mikepenz.agentbelay.harness.copilot
 
 import co.touchlab.kermit.Logger
 import com.mikepenz.agentbelay.harness.HarnessAdapter
+import com.mikepenz.agentbelay.harness.HarnessResponse
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.HookInput
 import com.mikepenz.agentbelay.model.PermissionSuggestion
@@ -196,17 +197,17 @@ class CopilotAdapter : HarnessAdapter {
     override fun buildPermissionAllowResponse(
         request: ApprovalRequest,
         updatedInput: Map<String, JsonElement>?,
-    ): String = buildJsonObject {
+    ): HarnessResponse = HarnessResponse(buildJsonObject {
         put("behavior", "allow")
         // Copilot CLI v1.0.22+ honors `modifiedArgs` on permissionRequest
         // allow responses — the parity with Claude's `updatedInput`.
         if (updatedInput != null) put("modifiedArgs", JsonObject(updatedInput))
-    }.toString()
+    }.toString())
 
     override fun buildPermissionAlwaysAllowResponse(
         request: ApprovalRequest,
         suggestions: List<PermissionSuggestion>,
-    ): String {
+    ): HarnessResponse {
         // Copilot CLI does not support write-through permission persistence
         // via the hook envelope (no `updatedPermissions` analogue). Always-
         // Allow on Copilot collapses to a plain allow; users manage trusted
@@ -217,25 +218,25 @@ class CopilotAdapter : HarnessAdapter {
     override fun buildPermissionDenyResponse(
         request: ApprovalRequest,
         message: String,
-    ): String = buildJsonObject {
+    ): HarnessResponse = HarnessResponse(buildJsonObject {
         put("behavior", "deny")
         put("message", message)
         put("interrupt", true)
-    }.toString()
+    }.toString())
 
-    override fun buildPreToolUseAllowResponse(): String = buildJsonObject {
+    override fun buildPreToolUseAllowResponse(): HarnessResponse = HarnessResponse(buildJsonObject {
         put("permissionDecision", "allow")
-    }.toString()
+    }.toString())
 
-    override fun buildPreToolUseDenyResponse(reason: String): String = buildJsonObject {
+    override fun buildPreToolUseDenyResponse(reason: String): HarnessResponse = HarnessResponse(buildJsonObject {
         put("permissionDecision", "deny")
         put("permissionDecisionReason", reason)
-    }.toString()
+    }.toString())
 
     /**
      * Copilot CLI's `postToolUse` hook does not honor result modification
      * (per the docs.github.com hooks-configuration reference). Returning
      * null tells callers to pass-through the original output untouched.
      */
-    override fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): String? = null
+    override fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): HarnessResponse? = null
 }

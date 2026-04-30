@@ -1,6 +1,7 @@
 package com.mikepenz.agentbelay.server
 
 import com.mikepenz.agentbelay.model.Source
+import com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeAdapter
 import com.mikepenz.agentbelay.model.ToolType
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test

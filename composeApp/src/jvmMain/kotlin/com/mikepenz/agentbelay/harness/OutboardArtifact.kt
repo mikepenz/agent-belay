@@ -45,4 +45,24 @@ sealed interface OutboardArtifact {
         override val path: Path,
         val installSpec: String,
     ) : OutboardArtifact
+
+    /**
+     * Catch-all variant for install artifacts that don't fit the
+     * structured forms above — environment-variable exports appended to
+     * `~/.zshrc`, launchd plists under `~/Library/LaunchAgents/`,
+     * systemd unit files, Windows registry exports, PATH-prepending
+     * shims, etc. The [format] tag is informational (used in UI listing
+     * and uninstall verification) and follows a free-form convention
+     * (e.g. `"plist"`, `"systemd-unit"`, `"reg"`, `"shellrc-fragment"`).
+     *
+     * Prefer one of the structured variants when applicable so the UI
+     * can render a richer description; reach for [GenericFile] when no
+     * existing variant fits.
+     */
+    data class GenericFile(
+        override val path: Path,
+        val contents: String,
+        val executable: Boolean = false,
+        val format: String = "text",
+    ) : OutboardArtifact
 }

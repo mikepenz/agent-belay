@@ -109,7 +109,7 @@ abstract class AbstractHarnessContractTest {
     fun `buildPermissionAllowResponse produces a valid envelope`() {
         val req = harness.adapter.parsePermissionRequest(goldenBashPermissionRequest())!!
         val response = harness.adapter.buildPermissionAllowResponse(req, updatedInput = null)
-        assertPermissionAllowEnvelope(response)
+        assertPermissionAllowEnvelope(response.body)
     }
 
     @Test
@@ -117,7 +117,7 @@ abstract class AbstractHarnessContractTest {
         val req = harness.adapter.parsePermissionRequest(goldenBashPermissionRequest())!!
         val message = "blocked by policy: dangerous rm"
         val response = harness.adapter.buildPermissionDenyResponse(req, message)
-        assertPermissionDenyEnvelope(response, message)
+        assertPermissionDenyEnvelope(response.body, message)
     }
 
     @Test
@@ -126,7 +126,7 @@ abstract class AbstractHarnessContractTest {
         val response = harness.adapter.buildPermissionAlwaysAllowResponse(req, suggestions = emptyList())
         // Whether or not the harness honors `updatedPermissions`, the always-
         // allow path must always be a valid allow at the envelope level.
-        assertPermissionAllowEnvelope(response)
+        assertPermissionAllowEnvelope(response.body)
     }
 
     @Test
@@ -136,9 +136,9 @@ abstract class AbstractHarnessContractTest {
         // guarantees these methods produce *some* JSON without crashing.
         val allow = harness.adapter.buildPreToolUseAllowResponse()
         val deny = harness.adapter.buildPreToolUseDenyResponse("nope")
-        assertTrue(allow.isNotBlank())
-        assertTrue(deny.isNotBlank())
-        assertContains(deny, "nope", message = "deny payload should preserve the reason text somewhere")
+        assertTrue(allow.body.isNotBlank())
+        assertTrue(deny.body.isNotBlank())
+        assertContains(deny.body, "nope", message = "deny payload should preserve the reason text somewhere")
     }
 
     // ─── Capability flag contract ───────────────────────────────────────────
@@ -150,10 +150,10 @@ abstract class AbstractHarnessContractTest {
         val response = harness.adapter.buildPermissionAllowResponse(req, rewritten)
 
         if (harness.capabilities.supportsArgRewriting) {
-            assertContainsUpdatedInput(response, "file_path", "/safe/rewritten/path.kt")
+            assertContainsUpdatedInput(response.body, "file_path", "/safe/rewritten/path.kt")
         } else {
             assertFalse(
-                response.contains("/safe/rewritten/path.kt"),
+                response.body.contains("/safe/rewritten/path.kt"),
                 "harness without supportsArgRewriting must drop updatedInput silently, not embed it",
             )
         }
@@ -168,7 +168,7 @@ abstract class AbstractHarnessContractTest {
 
         if (harness.capabilities.supportsOutputRedaction) {
             assertNotNull(response, "harness with supportsOutputRedaction=true must build a non-null response")
-            assertContains(response, "[REDACTED:test]", message = "redacted payload must be embedded in the response")
+            assertContains(response.body, "[REDACTED:test]", message = "redacted payload must be embedded in the response")
         } else {
             assertNull(
                 response,

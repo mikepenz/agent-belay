@@ -1,7 +1,8 @@
-package com.mikepenz.agentbelay.server
+package com.mikepenz.agentbelay.harness.claudecode
 
 import co.touchlab.kermit.Logger
 import com.mikepenz.agentbelay.harness.HarnessAdapter
+import com.mikepenz.agentbelay.harness.HarnessResponse
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.HookInput
 import com.mikepenz.agentbelay.model.PermissionSuggestion
@@ -73,7 +74,7 @@ class ClaudeCodeAdapter : HarnessAdapter {
     override fun buildPermissionAllowResponse(
         request: ApprovalRequest,
         updatedInput: Map<String, JsonElement>?,
-    ): String = buildJsonObject {
+    ): HarnessResponse = HarnessResponse(buildJsonObject {
         put("hookSpecificOutput", buildJsonObject {
             put("hookEventName", "PermissionRequest")
             put("decision", buildJsonObject {
@@ -83,12 +84,12 @@ class ClaudeCodeAdapter : HarnessAdapter {
                 }
             })
         })
-    }.toString()
+    }.toString())
 
     override fun buildPermissionAlwaysAllowResponse(
         request: ApprovalRequest,
         suggestions: List<PermissionSuggestion>,
-    ): String = buildJsonObject {
+    ): HarnessResponse = HarnessResponse(buildJsonObject {
         put("hookSpecificOutput", buildJsonObject {
             put("hookEventName", "PermissionRequest")
             put("decision", buildJsonObject {
@@ -96,12 +97,12 @@ class ClaudeCodeAdapter : HarnessAdapter {
                 put("updatedPermissions", Json.encodeToJsonElement(suggestions))
             })
         })
-    }.toString()
+    }.toString())
 
     override fun buildPermissionDenyResponse(
         request: ApprovalRequest,
         message: String,
-    ): String = buildJsonObject {
+    ): HarnessResponse = HarnessResponse(buildJsonObject {
         put("hookSpecificOutput", buildJsonObject {
             put("hookEventName", "PermissionRequest")
             put("decision", buildJsonObject {
@@ -109,27 +110,27 @@ class ClaudeCodeAdapter : HarnessAdapter {
                 put("message", message)
             })
         })
-    }.toString()
+    }.toString())
 
-    override fun buildPreToolUseAllowResponse(): String = buildJsonObject {
+    override fun buildPreToolUseAllowResponse(): HarnessResponse = HarnessResponse(buildJsonObject {
         put("hookSpecificOutput", buildJsonObject {
             put("hookEventName", "PreToolUse")
             put("permissionDecision", "allow")
         })
-    }.toString()
+    }.toString())
 
-    override fun buildPreToolUseDenyResponse(reason: String): String = buildJsonObject {
+    override fun buildPreToolUseDenyResponse(reason: String): HarnessResponse = HarnessResponse(buildJsonObject {
         put("hookSpecificOutput", buildJsonObject {
             put("hookEventName", "PreToolUse")
             put("permissionDecision", "deny")
             put("permissionDecisionReason", reason)
         })
-    }.toString()
+    }.toString())
 
-    override fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): String = buildJsonObject {
+    override fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): HarnessResponse = HarnessResponse(buildJsonObject {
         put("hookSpecificOutput", buildJsonObject {
             put("hookEventName", "PostToolUse")
             put("updatedToolOutput", updatedOutput)
         })
-    }.toString()
+    }.toString())
 }

@@ -2,6 +2,9 @@ package com.mikepenz.agentbelay.harness
 
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.Source
+import com.mikepenz.agentbelay.server.harnessApprovalRoute
+import com.mikepenz.agentbelay.server.harnessPreToolUseRoute
+import io.ktor.server.routing.Route
 
 /**
  * Composes the per-axis abstractions ([HarnessRegistrar],
@@ -45,4 +48,35 @@ interface Harness {
      * input — a timeout there would resolve the wrong way.
      */
     fun shouldWaitIndefinitely(request: ApprovalRequest, awayMode: Boolean): Boolean = awayMode
+
+    /**
+     * Mounts this harness's HTTP routes on [routing]. The default
+     * implementation calls the two generic handlers
+     * ([harnessApprovalRoute] + [harnessPreToolUseRoute]) which together
+     * cover every harness shipped today. **Override** when a harness's
+     * protocol doesn't fit the generic shape — for example:
+     *
+     *  - An MCP `Elicitation` event with a non-standard request/response.
+     *  - Gemini CLI's `decision: "ask"` punt-to-native-prompt, which
+     *    needs a third response branch alongside allow/deny.
+     *  - A websocket / stdio-piped harness that doesn't terminate at
+     *    Belay's HTTP server at all.
+     *  - An OAuth callback or registration-completion endpoint.
+     *
+     * Custom overrides can:
+     *  - Call `super.installRoutes(routing, deps)` to keep the standard
+     *    routes and add additional ones.
+     *  - Skip the generic call entirely and install a fully bespoke
+     *    handler graph.
+     *
+     * `installRoutes` is invoked exactly once per server start, inside
+     * Ktor's `routing { }` block, so all the standard routing-DSL
+     * extensions are available.
+     */
+    fun installRoutes(routing: Route, deps: HarnessRouteDeps) {
+        with(routing) {
+            harnessApprovalRoute(this@Harness, deps.stateManager, deps.onNewApproval)
+            harnessPreToolUseRoute(this@Harness, deps.stateManager, deps.protectionEngine, deps.onNewApproval)
+        }
+    }
 }

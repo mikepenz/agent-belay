@@ -49,7 +49,7 @@ class HarnessCapabilitiesTest {
             req,
             updatedInput = mapOf("command" to JsonPrimitive("rm -rf ./build")),
         )
-        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response).jsonObject
+        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
         val decision = obj["hookSpecificOutput"]!!.jsonObject["decision"]!!.jsonObject
         assertEquals("allow", decision["behavior"]!!.jsonPrimitive.content)
         assertNotNull(decision["updatedInput"])
@@ -64,7 +64,7 @@ class HarnessCapabilitiesTest {
             }
         )
         assertNotNull(response)
-        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response).jsonObject
+        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
         assertEquals("PostToolUse", obj["hookSpecificOutput"]!!.jsonObject["hookEventName"]!!.jsonPrimitive.content)
         assertNotNull(obj["hookSpecificOutput"]!!.jsonObject["updatedToolOutput"])
     }
@@ -93,7 +93,7 @@ class HarnessCapabilitiesTest {
     fun `Copilot deny includes interrupt true`() {
         val h = CopilotHarness()
         val response = h.adapter.buildPermissionDenyResponse(fakeRequest(Source.COPILOT), "blocked")
-        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response).jsonObject
+        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
         assertEquals("deny", obj["behavior"]!!.jsonPrimitive.content)
         assertEquals(true, obj["interrupt"]!!.jsonPrimitive.content.toBoolean())
     }
@@ -105,7 +105,7 @@ class HarnessCapabilitiesTest {
             fakeRequest(Source.COPILOT),
             updatedInput = mapOf("command" to JsonPrimitive("rm -rf ./build")),
         )
-        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response).jsonObject
+        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
         assertEquals("allow", obj["behavior"]!!.jsonPrimitive.content)
         assertNotNull(obj["modifiedArgs"])
     }
@@ -114,7 +114,7 @@ class HarnessCapabilitiesTest {
     fun `Copilot always-allow falls back to plain allow`() {
         val h = CopilotHarness()
         val response = h.adapter.buildPermissionAlwaysAllowResponse(fakeRequest(Source.COPILOT), suggestions = emptyList())
-        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response).jsonObject
+        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
         // No updatedPermissions field (Copilot doesn't support write-through).
         assertNull(obj["updatedPermissions"])
         assertEquals("allow", obj["behavior"]!!.jsonPrimitive.content)

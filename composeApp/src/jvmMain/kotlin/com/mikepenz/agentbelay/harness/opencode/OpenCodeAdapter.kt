@@ -1,7 +1,8 @@
-package com.mikepenz.agentbelay.server
+package com.mikepenz.agentbelay.harness.opencode
 
 import co.touchlab.kermit.Logger
 import com.mikepenz.agentbelay.harness.HarnessAdapter
+import com.mikepenz.agentbelay.harness.HarnessResponse
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.HookInput
 import com.mikepenz.agentbelay.model.PermissionSuggestion
@@ -147,14 +148,14 @@ class OpenCodeAdapter : HarnessAdapter {
     override fun buildPermissionAllowResponse(
         request: ApprovalRequest,
         updatedInput: Map<String, JsonElement>?,
-    ): String = buildJsonObject {
+    ): HarnessResponse = HarnessResponse(buildJsonObject {
         put("behavior", "allow")
-    }.toString()
+    }.toString())
 
     override fun buildPermissionAlwaysAllowResponse(
         request: ApprovalRequest,
         suggestions: List<PermissionSuggestion>,
-    ): String {
+    ): HarnessResponse {
         // OpenCode does not support write-through permission persistence
         // via the plugin envelope; collapse to a plain allow.
         return buildPermissionAllowResponse(request, updatedInput = null)
@@ -163,24 +164,24 @@ class OpenCodeAdapter : HarnessAdapter {
     override fun buildPermissionDenyResponse(
         request: ApprovalRequest,
         message: String,
-    ): String = buildJsonObject {
+    ): HarnessResponse = HarnessResponse(buildJsonObject {
         put("behavior", "deny")
         put("message", message)
-    }.toString()
+    }.toString())
 
-    override fun buildPreToolUseAllowResponse(): String = buildJsonObject {
+    override fun buildPreToolUseAllowResponse(): HarnessResponse = HarnessResponse(buildJsonObject {
         put("behavior", "allow")
-    }.toString()
+    }.toString())
 
-    override fun buildPreToolUseDenyResponse(reason: String): String = buildJsonObject {
+    override fun buildPreToolUseDenyResponse(reason: String): HarnessResponse = HarnessResponse(buildJsonObject {
         put("behavior", "deny")
         put("message", reason)
-    }.toString()
+    }.toString())
 
     /**
      * OpenCode's plugin pipeline doesn't expose a post-tool result-mutation
      * hook; returning null tells the route to pass the original output
      * through untouched.
      */
-    override fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): String? = null
+    override fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): HarnessResponse? = null
 }

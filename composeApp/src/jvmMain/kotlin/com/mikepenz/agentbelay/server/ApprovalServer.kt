@@ -3,6 +3,8 @@ package com.mikepenz.agentbelay.server
 import co.touchlab.kermit.Logger
 import com.mikepenz.agentbelay.capability.CapabilityEngine
 import com.mikepenz.agentbelay.harness.Harness
+import com.mikepenz.agentbelay.harness.HarnessRouteDeps
+import com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeAdapter
 import com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeHarness
 import com.mikepenz.agentbelay.harness.copilot.CopilotHarness
 import com.mikepenz.agentbelay.harness.opencode.OpenCodeHarness
@@ -75,12 +77,22 @@ class ApprovalServer(
                         cancelCallOnClose = true
                     }
 
-                    // Per-harness routes, mounted via the generic handlers.
-                    // Each handler is a no-op when the harness's transport
-                    // doesn't declare the corresponding endpoint.
+                    // Per-harness routes — each harness installs its own
+                    // route graph through [Harness.installRoutes]. The
+                    // default implementation calls the generic
+                    // [harnessApprovalRoute] + [harnessPreToolUseRoute]
+                    // handlers; harnesses with non-standard protocols
+                    // (e.g. an MCP elicitation event, websocket transport,
+                    // or a third response branch like Gemini's
+                    // `decision: "ask"`) can override to install bespoke
+                    // routes alongside or instead of the generic ones.
+                    val routeDeps = HarnessRouteDeps(
+                        stateManager = stateManager,
+                        protectionEngine = protectionEngine,
+                        onNewApproval = onNewApproval,
+                    )
                     for (harness in harnesses) {
-                        harnessApprovalRoute(harness, stateManager, onNewApproval)
-                        harnessPreToolUseRoute(harness, stateManager, protectionEngine, onNewApproval)
+                        harness.installRoutes(this, routeDeps)
                     }
 
                     // PostToolUse is Claude Code-only today (Copilot's

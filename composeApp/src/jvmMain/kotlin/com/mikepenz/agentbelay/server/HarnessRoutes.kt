@@ -2,6 +2,7 @@ package com.mikepenz.agentbelay.server
 
 import co.touchlab.kermit.Logger
 import com.mikepenz.agentbelay.harness.Harness
+import com.mikepenz.agentbelay.harness.HarnessResponse
 import com.mikepenz.agentbelay.harness.HookEvent
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.ApprovalResult
@@ -18,6 +19,21 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.Clock
 import kotlin.coroutines.cancellation.CancellationException
+
+/**
+ * Writes a [HarnessResponse] to the call, parsing the harness-provided
+ * content-type string into Ktor's [ContentType]. Defaults to
+ * `application/json` if the content type is unparseable — matches the
+ * behaviour every shipped adapter expects.
+ */
+private suspend fun RoutingCall.respondHarness(response: HarnessResponse) {
+    val contentType = try {
+        ContentType.parse(response.contentType)
+    } catch (_: Exception) {
+        ContentType.Application.Json
+    }
+    respondText(response.body, contentType = contentType)
+}
 
 /**
  * Generic permission-request route that works for any [Harness]. Mounts
@@ -54,10 +70,7 @@ fun Route.harnessApprovalRoute(
 
         // Auto-allow non-actionable tools without surfacing a UI card.
         if (request.hookInput.toolName in harness.autoAllowTools) {
-            call.respondText(
-                adapter.buildPermissionAllowResponse(request, updatedInput = null),
-                contentType = ContentType.Application.Json,
-            )
+            call.respondHarness(adapter.buildPermissionAllowResponse(request, updatedInput = null))
             return@post
         }
 
@@ -77,19 +90,19 @@ fun Route.harnessApprovalRoute(
             }
 
             if (result == null) {
-                val responseJson = adapter.buildPermissionDenyResponse(request, "Request timed out")
+                val response = adapter.buildPermissionDenyResponse(request, "Request timed out")
                 stateManager.resolve(
                     requestId = request.id,
                     decision = Decision.TIMEOUT,
                     feedback = "Request timed out",
                     riskAnalysis = null,
-                    rawResponseJson = responseJson,
+                    rawResponseJson = response.body,
                 )
-                call.respondText(responseJson, contentType = ContentType.Application.Json)
+                call.respondHarness(response)
                 return@post
             }
 
-            val responseJson = when (result.decision) {
+            val response: HarnessResponse? = when (result.decision) {
                 Decision.APPROVED, Decision.AUTO_APPROVED -> {
                     val updatedInput = stateManager.getAndClearUpdatedInput(request.id)
                     adapter.buildPermissionAllowResponse(request, updatedInput)
@@ -113,10 +126,10 @@ fun Route.harnessApprovalRoute(
                 }
             }
 
-            if (responseJson != null) {
-                stateManager.updateHistoryRawResponse(request.id, responseJson)
+            if (response != null) {
+                stateManager.updateHistoryRawResponse(request.id, response.body)
                 try {
-                    call.respondText(responseJson, contentType = ContentType.Application.Json)
+                    call.respondHarness(response)
                 } catch (_: Exception) {
                     logger.w { "Failed to send response for ${request.id} — connection already closed" }
                 }
@@ -188,9 +201,9 @@ fun Route.harnessPreToolUseRoute(
 
         when (severity) {
             ProtectionMode.AUTO_BLOCK -> {
-                val responseJson = adapter.buildPreToolUseDenyResponse(combinedMessage)
-                logProtectionHit(stateManager, request, Decision.PROTECTION_BLOCKED, primaryHit, combinedMessage, responseJson)
-                call.respondText(responseJson, contentType = ContentType.Application.Json)
+                val response = adapter.buildPreToolUseDenyResponse(combinedMessage)
+                logProtectionHit(stateManager, request, Decision.PROTECTION_BLOCKED, primaryHit, combinedMessage, response.body)
+                call.respondHarness(response)
             }
 
             ProtectionMode.ASK_AUTO_BLOCK -> {
@@ -220,9 +233,9 @@ fun Route.harnessPreToolUseRoute(
             }
 
             ProtectionMode.LOG_ONLY -> {
-                val responseJson = adapter.buildPreToolUseAllowResponse()
-                logProtectionHit(stateManager, request, Decision.PROTECTION_LOGGED, primaryHit, combinedMessage, responseJson)
-                call.respondText(responseJson, contentType = ContentType.Application.Json)
+                val response = adapter.buildPreToolUseAllowResponse()
+                logProtectionHit(stateManager, request, Decision.PROTECTION_LOGGED, primaryHit, combinedMessage, response.body)
+                call.respondHarness(response)
             }
 
             ProtectionMode.DISABLED -> {
@@ -256,19 +269,19 @@ private suspend fun handleProtectionAskMode(
         }
 
         if (result == null) {
-            val responseJson = adapter.buildPreToolUseDenyResponse(combinedMessage)
+            val response = adapter.buildPreToolUseDenyResponse(combinedMessage)
             stateManager.resolve(
                 requestId = request.id,
                 decision = Decision.PROTECTION_BLOCKED,
                 feedback = combinedMessage,
                 riskAnalysis = null,
-                rawResponseJson = responseJson,
+                rawResponseJson = response.body,
             )
-            call.respondText(responseJson, contentType = ContentType.Application.Json)
+            call.respondHarness(response)
             return
         }
 
-        val responseJson = when (result.decision) {
+        val response: HarnessResponse? = when (result.decision) {
             Decision.APPROVED, Decision.AUTO_APPROVED, Decision.ALWAYS_ALLOWED,
             Decision.PROTECTION_OVERRIDDEN, Decision.PROTECTION_LOGGED ->
                 adapter.buildPreToolUseAllowResponse()
@@ -282,10 +295,10 @@ private suspend fun handleProtectionAskMode(
             Decision.CANCELLED_BY_CLIENT, Decision.RESOLVED_EXTERNALLY -> null
         }
 
-        if (responseJson != null) {
-            stateManager.updateHistoryRawResponse(request.id, responseJson)
+        if (response != null) {
+            stateManager.updateHistoryRawResponse(request.id, response.body)
             try {
-                call.respondText(responseJson, contentType = ContentType.Application.Json)
+                call.respondHarness(response)
             } catch (_: Exception) {
                 logger.w { "Failed to send response for ${request.id} — connection already closed" }
             }

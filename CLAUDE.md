@@ -48,8 +48,8 @@ Single module project: `:composeApp` with `commonMain` (shared models) and `jvmM
 | Package | Purpose |
 |---------|---------|
 | `model/` | Serializable data models (shared in `commonMain`) |
-| `harness/` | Per-agent integration composition: `Harness` + `HarnessAdapter` + `HarnessRegistrar` + `HarnessTransport` + `HarnessCapabilities`. Sub-packages per agent (`claudecode/`, `copilot/`, `opencode/`, …). |
-| `server/` | Ktor HTTP server (`ApprovalServer`), generic harness route handlers (`HarnessRoutes.kt`), per-harness adapters (`*Adapter.kt`), `PostToolUseRoute` (Claude-only redaction), `CapabilityRoute`. |
+| `harness/` | Per-agent integration composition: `Harness` + `HarnessAdapter` + `HarnessRegistrar` + `HarnessTransport` + `HarnessCapabilities` + `HarnessResponse` + `HarnessRouteDeps`. Sub-packages per agent (`claudecode/`, `copilot/`, `opencode/`, …) — each owns the agent's `*Harness.kt`, `*Registrar.kt`, `*Transport.kt`, and `*Adapter.kt`. |
+| `server/` | Ktor HTTP server (`ApprovalServer`), generic harness route handlers (`HarnessRoutes.kt`), `PostToolUseRoute` (Claude-only redaction), `CapabilityRoute`. |
 | `state/` | Reactive state management via StateFlow |
 | `storage/` | SQLite persistence (history) + JSON file persistence (settings) |
 | `protection/` | 13 pattern-matched protection modules + `ProtectionEngine` (PreToolUse) |
@@ -73,10 +73,9 @@ a small, mechanical PR. **You should not need to write a new route file.**
 composeApp/src/jvmMain/kotlin/com/mikepenz/agentbelay/
 ├── harness/<name>/
 │   ├── <Name>Harness.kt        # composes the four pieces below
+│   ├── <Name>Adapter.kt        # parsePermissionRequest / parsePreToolUse / build*Response (returns HarnessResponse)
 │   ├── <Name>Registrar.kt      # writes the agent's config file(s) + bridge artifacts
 │   └── <Name>Transport.kt      # endpoints() per HookEvent
-├── server/
-│   └── <Name>Adapter.kt        # parsePermissionRequest / parsePreToolUse / build*Response
 └── (optional) hook/<Name>Bridge.kt   # if the registrar needs an OS-level installer wrapper
 ```
 
@@ -102,6 +101,14 @@ composeApp/src/jvmMain/kotlin/com/mikepenz/agentbelay/
 #### Rule of thumb
 
 If you find yourself writing a new `*Route.kt` file, stop — you're probably duplicating logic that already lives in `server/HarnessRoutes.kt`. Add a method to `HarnessAdapter` or a new flag on `Harness` instead.
+
+#### Escape hatches for fully-custom harnesses
+
+The defaults above cover every harness shipped today and the four planned for Phase 2. For agents that don't fit:
+
+- **Custom routes** — override `Harness.installRoutes(routing, deps)` to replace or extend the default route graph. Useful for MCP `Elicitation` events, websocket transports, OAuth callbacks, or third response branches like Gemini CLI's `decision: "ask"` punt-to-native. Call `super.installRoutes(routing, deps)` first to keep the standard handlers and add bespoke ones, or skip entirely to install a fully custom graph.
+- **Custom response shape** — `HarnessResponse` (returned by every adapter `build*` method) carries the body string plus a content type. Override the content type for harnesses that don't speak JSON. Future fields (extra headers, structured deny codes, retry-after hints) can be added additively without breaking existing adapters.
+- **Custom install artifacts** — `OutboardArtifact.GenericFile(path, contents, executable, format)` covers anything the structured `ShellScript` / `JsonFile` / `TomlFile` / `NpmPlugin` variants don't (env-var fragments, launchd plists, systemd units, Windows registry exports, PATH-prepending shims). Reach for this when no structured variant fits.
 
 ### Design System & Previews
 

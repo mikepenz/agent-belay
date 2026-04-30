@@ -250,7 +250,7 @@ class DatabaseStorageTest {
     fun toolInputRoundTripFromCopilotAdapter() {
         // Simulate the exact Copilot flow: parse camelCase permissionRequest,
         // create ApprovalResult, store in DB, load back, verify command is present.
-        val adapter = com.mikepenz.agentbelay.server.CopilotAdapter()
+        val adapter = com.mikepenz.agentbelay.harness.copilot.CopilotAdapter()
         val rawJson = """
             {
                 "hookName": "permissionRequest",
@@ -296,7 +296,7 @@ class DatabaseStorageTest {
     @Test
     fun toolInputRoundTripFromClaudeCodeAdapter() {
         // Simulate the Claude Code flow
-        val adapter = com.mikepenz.agentbelay.server.ClaudeCodeAdapter()
+        val adapter = com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeAdapter()
         val rawJson = """
             {
                 "session_id": "28777844-8497-45d3-99be-e50c85cb7e97",

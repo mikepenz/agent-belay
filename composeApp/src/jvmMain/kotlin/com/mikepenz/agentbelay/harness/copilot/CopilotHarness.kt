@@ -6,7 +6,6 @@ import com.mikepenz.agentbelay.harness.HarnessCapabilities
 import com.mikepenz.agentbelay.harness.HarnessRegistrar
 import com.mikepenz.agentbelay.harness.HarnessTransport
 import com.mikepenz.agentbelay.model.Source
-import com.mikepenz.agentbelay.server.CopilotAdapter
 
 class CopilotHarness(
     override val adapter: HarnessAdapter = CopilotAdapter(),

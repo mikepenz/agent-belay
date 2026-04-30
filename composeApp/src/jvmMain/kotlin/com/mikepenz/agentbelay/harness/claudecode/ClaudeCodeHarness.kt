@@ -8,7 +8,6 @@ import com.mikepenz.agentbelay.harness.HarnessTransport
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.Source
 import com.mikepenz.agentbelay.model.ToolType
-import com.mikepenz.agentbelay.server.ClaudeCodeAdapter
 
 /**
  * Composition root for the Claude Code integration. Phase 2 will follow

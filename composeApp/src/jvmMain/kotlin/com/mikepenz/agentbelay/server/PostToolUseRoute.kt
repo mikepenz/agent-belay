@@ -2,6 +2,7 @@ package com.mikepenz.agentbelay.server
 
 import co.touchlab.kermit.Logger
 import com.mikepenz.agentbelay.harness.HarnessAdapter
+import com.mikepenz.agentbelay.harness.HarnessResponse
 import com.mikepenz.agentbelay.model.HookInput
 import com.mikepenz.agentbelay.redaction.RedactionEngine
 import com.mikepenz.agentbelay.state.AppStateManager
@@ -45,7 +46,7 @@ fun Route.postToolUseRoute(
 ) {
     post("/post-tool-use") {
         val rawBody = call.receiveText()
-        var redactedResponse: String? = null
+        var redactedResponse: HarnessResponse? = null
 
         try {
             val rawObj = json.parseToJsonElement(rawBody).jsonObject
@@ -99,8 +100,16 @@ fun Route.postToolUseRoute(
             logger.w(e) { "Failed to handle PostToolUse payload" }
         }
 
-        val responseBody = redactedResponse ?: "{}"
-        call.respondText(responseBody, contentType = ContentType.Application.Json)
+        if (redactedResponse != null) {
+            val contentType = try {
+                ContentType.parse(redactedResponse.contentType)
+            } catch (_: Exception) {
+                ContentType.Application.Json
+            }
+            call.respondText(redactedResponse.body, contentType = contentType)
+        } else {
+            call.respondText("{}", contentType = ContentType.Application.Json)
+        }
     }
 }
 
