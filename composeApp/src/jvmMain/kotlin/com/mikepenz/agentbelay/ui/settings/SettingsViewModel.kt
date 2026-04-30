@@ -20,6 +20,9 @@ import com.mikepenz.agentbelay.protection.ProtectionEngine
 import com.mikepenz.agentbelay.protection.ProtectionModule
 import com.mikepenz.agentbelay.risk.CopilotInitState
 import com.mikepenz.agentbelay.risk.CopilotStateHolder
+import com.mikepenz.agentbelay.risk.OpenaiApiInitState
+import com.mikepenz.agentbelay.risk.OpenaiApiMetrics
+import com.mikepenz.agentbelay.risk.OpenaiApiStateHolder
 import com.mikepenz.agentbelay.risk.OllamaInitState
 import com.mikepenz.agentbelay.risk.OllamaMetrics
 import com.mikepenz.agentbelay.risk.OllamaStateHolder
@@ -66,6 +69,7 @@ class SettingsViewModel(
     private val openCodeBridge: OpenCodeBridge,
     private val copilotStateHolder: CopilotStateHolder,
     private val ollamaStateHolder: OllamaStateHolder,
+    private val openaiApiStateHolder: OpenaiApiStateHolder,
     private val riskAnalyzerLifecycle: RiskAnalyzerLifecycle,
     private val globalHotkeyManager: GlobalHotkeyManager,
     protectionEngine: ProtectionEngine,
@@ -122,6 +126,16 @@ class SettingsViewModel(
     private val hotkeyErrors: kotlinx.coroutines.flow.Flow<Pair<String?, String?>> =
         combine(globalHotkeyManager.approveError, globalHotkeyManager.denyError) { a, d -> a to d }
 
+    /** Pre-combined OpenAI API lifecycle state, same reason. Bundles models, init state, error, metrics. */
+    private val openaiApiState: kotlinx.coroutines.flow.Flow<OpenaiApiSnapshot> = combine(
+        openaiApiStateHolder.models,
+        openaiApiStateHolder.initState,
+        openaiApiStateHolder.lastError,
+        openaiApiStateHolder.lastMetrics,
+    ) { models, state, error, metrics ->
+        OpenaiApiSnapshot(models, state, error, metrics)
+    }
+
     val uiState: StateFlow<SettingsUiState> = combine(
         combine(
             stateManager.state,
@@ -133,8 +147,9 @@ class SettingsViewModel(
             UiBase(state, hookRegistered, copilotRegistered, openCodeRegistered, copilot)
         },
         ollamaState,
+        openaiApiState,
         hotkeyErrors,
-    ) { base, ollama, hotkeys ->
+    ) { base, ollama, openaiApi, hotkeys ->
         SettingsUiState(
             settings = base.state.settings,
             historyCount = base.state.history.size,
@@ -148,6 +163,10 @@ class SettingsViewModel(
             ollamaLastError = ollama.lastError,
             ollamaLastMetrics = ollama.lastMetrics,
             ollamaVersion = ollama.version,
+            openaiApiModels = openaiApi.models,
+            openaiApiInitState = openaiApi.initState,
+            openaiApiLastError = openaiApi.lastError,
+            openaiApiLastMetrics = openaiApi.lastMetrics,
             approveHotkeyError = hotkeys.first,
             denyHotkeyError = hotkeys.second,
         )
@@ -167,6 +186,10 @@ class SettingsViewModel(
             ollamaLastError = ollamaStateHolder.lastError.value,
             ollamaLastMetrics = ollamaStateHolder.lastMetrics.value,
             ollamaVersion = ollamaStateHolder.version.value,
+            openaiApiModels = openaiApiStateHolder.models.value,
+            openaiApiInitState = openaiApiStateHolder.initState.value,
+            openaiApiLastError = openaiApiStateHolder.lastError.value,
+            openaiApiLastMetrics = openaiApiStateHolder.lastMetrics.value,
             approveHotkeyError = globalHotkeyManager.approveError.value,
             denyHotkeyError = globalHotkeyManager.denyError.value,
         ),
@@ -381,6 +404,13 @@ class SettingsViewModel(
             riskAnalyzerLifecycle.refreshOllamaModels()
         }
     }
+
+    /** Re-fetches models from the OpenAI API. */
+    fun refreshOpenaiApiModels() {
+        viewModelScope.launch(ioDispatcher) {
+            riskAnalyzerLifecycle.refreshOpenaiApiModels()
+        }
+    }
 }
 
 private data class OllamaSnapshot(
@@ -389,6 +419,13 @@ private data class OllamaSnapshot(
     val lastError: String?,
     val lastMetrics: OllamaMetrics?,
     val version: String?,
+)
+
+private data class OpenaiApiSnapshot(
+    val models: List<String>,
+    val initState: OpenaiApiInitState,
+    val lastError: String?,
+    val lastMetrics: OpenaiApiMetrics?,
 )
 
 /**
@@ -408,6 +445,10 @@ data class SettingsUiState(
     val ollamaLastError: String? = null,
     val ollamaLastMetrics: OllamaMetrics? = null,
     val ollamaVersion: String? = null,
+    val openaiApiModels: List<String> = emptyList(),
+    val openaiApiInitState: OpenaiApiInitState = OpenaiApiInitState.IDLE,
+    val openaiApiLastError: String? = null,
+    val openaiApiLastMetrics: OpenaiApiMetrics? = null,
     val approveHotkeyError: String? = null,
     val denyHotkeyError: String? = null,
 )

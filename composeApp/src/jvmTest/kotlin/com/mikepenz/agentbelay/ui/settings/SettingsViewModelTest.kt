@@ -15,6 +15,7 @@ import com.mikepenz.agentbelay.model.ProtectionSettings
 import com.mikepenz.agentbelay.protection.ProtectionEngine
 import com.mikepenz.agentbelay.risk.CopilotInitState
 import com.mikepenz.agentbelay.risk.CopilotStateHolder
+import com.mikepenz.agentbelay.risk.OpenaiApiStateHolder
 import com.mikepenz.agentbelay.risk.OllamaStateHolder
 import com.mikepenz.agentbelay.state.AppStateManager
 import kotlinx.coroutines.Dispatchers
@@ -126,6 +127,7 @@ class SettingsViewModelTest {
         registry: FakeHookRegistry = FakeHookRegistry(),
         copilotState: CopilotStateHolder = CopilotStateHolder(),
         ollamaState: OllamaStateHolder = OllamaStateHolder(),
+        openaiApiState: OpenaiApiStateHolder = OpenaiApiStateHolder(),
     ): Triple<SettingsViewModel, AppStateManager, FakeHookRegistry> {
         val state = AppStateManager()
         val engine = ProtectionEngine(modules = emptyList(), settingsProvider = { ProtectionSettings() })
@@ -138,7 +140,7 @@ class SettingsViewModelTest {
             appScope = kotlinx.coroutines.CoroutineScope(mainDispatcher + kotlinx.coroutines.SupervisorJob()),
         )
         val lifecycle = com.mikepenz.agentbelay.app.RiskAnalyzerLifecycle(
-            state, claudeAnalyzer, activeHolder, copilotState, ollamaState, env,
+            state, claudeAnalyzer, activeHolder, copilotState, ollamaState, openaiApiState, env,
         )
         val hotkeyManager = com.mikepenz.agentbelay.app.GlobalHotkeyManager(state, env)
         val vm = SettingsViewModel(
@@ -147,6 +149,7 @@ class SettingsViewModelTest {
             openCodeBridge = FakeOpenCodeBridge(),
             copilotStateHolder = copilotState,
             ollamaStateHolder = ollamaState,
+            openaiApiStateHolder = openaiApiState,
             riskAnalyzerLifecycle = lifecycle,
             globalHotkeyManager = hotkeyManager,
             protectionEngine = engine,
