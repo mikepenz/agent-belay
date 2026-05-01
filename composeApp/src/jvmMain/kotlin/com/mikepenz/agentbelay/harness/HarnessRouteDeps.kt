@@ -1,6 +1,7 @@
 package com.mikepenz.agentbelay.harness
 
 import com.mikepenz.agentbelay.protection.ProtectionEngine
+import com.mikepenz.agentbelay.redaction.RedactionEngine
 import com.mikepenz.agentbelay.state.AppStateManager
 
 /**
@@ -11,5 +12,6 @@ import com.mikepenz.agentbelay.state.AppStateManager
 data class HarnessRouteDeps(
     val stateManager: AppStateManager,
     val protectionEngine: ProtectionEngine,
+    val redactionEngine: RedactionEngine,
     val onNewApproval: () -> Unit,
 )

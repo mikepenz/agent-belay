@@ -7,9 +7,11 @@ import com.mikepenz.agentbelay.harness.HookEvent
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.ApprovalResult
 import com.mikepenz.agentbelay.model.Decision
+import com.mikepenz.agentbelay.model.HookInput
 import com.mikepenz.agentbelay.model.ProtectionHit
 import com.mikepenz.agentbelay.model.ProtectionMode
 import com.mikepenz.agentbelay.protection.ProtectionEngine
+import com.mikepenz.agentbelay.redaction.RedactionEngine
 import com.mikepenz.agentbelay.state.AppStateManager
 import io.ktor.http.*
 import io.ktor.server.request.*
@@ -17,8 +19,12 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import kotlin.time.Clock
 import kotlin.coroutines.cancellation.CancellationException
+
+private val postToolUseJson = Json { ignoreUnknownKeys = true }
 
 /**
  * Writes a [HarnessResponse] to the call, parsing the harness-provided
@@ -312,6 +318,95 @@ private suspend fun handleProtectionAskMode(
             riskAnalysis = null,
             rawResponseJson = null,
         )
+    }
+}
+
+/**
+ * Generic post-tool-use route. Serves two purposes regardless of harness:
+ *
+ *  1. **Race-condition cleanup** — when a PostToolUse fires for a tool
+ *     whose original PermissionRequest is still parked in
+ *     [AppStateManager] (because the harness never closed the HTTP
+ *     connection), we know the tool ran and clear the stale entry.
+ *
+ *  2. **Output redaction** — when the harness's
+ *     [com.mikepenz.agentbelay.harness.HarnessCapabilities.supportsOutputRedaction]
+ *     is true and the [RedactionEngine] finds secret spans, the handler
+ *     returns the harness-specific redacted response so the agent reads
+ *     the scrubbed output instead of the raw one. The wire envelope is
+ *     built by [com.mikepenz.agentbelay.harness.HarnessAdapter.buildPostToolUseRedactedResponse]
+ *     and the source field name is read via [com.mikepenz.agentbelay.harness.HarnessAdapter.extractToolResponse].
+ *
+ * No-op when the harness's transport doesn't declare a
+ * [HookEvent.POST_TOOL_USE] endpoint. Always returns 200 so a malformed
+ * payload or redaction error never blocks tool execution.
+ */
+fun Route.harnessPostToolUseRoute(
+    harness: Harness,
+    stateManager: AppStateManager,
+    redactionEngine: RedactionEngine,
+) {
+    val path = harness.transport.endpoints()[HookEvent.POST_TOOL_USE] ?: return
+    val logger = Logger.withTag("${harness.source.name}PostToolUseRoute")
+    val adapter = harness.adapter
+    val supportsOutputRedaction = harness.capabilities.supportsOutputRedaction
+
+    post(path) {
+        val rawBody = call.receiveText()
+        var redactedResponse: HarnessResponse? = null
+
+        try {
+            val rawObj = postToolUseJson.parseToJsonElement(rawBody).jsonObject
+            val hookInput = postToolUseJson.decodeFromString<HookInput>(rawBody)
+
+            // (1) Race-condition cleanup — independent of redaction.
+            if (hookInput.sessionId.isNotBlank() && hookInput.toolName.isNotBlank()) {
+                val resolved = stateManager.resolveByCorrelationKey(
+                    sessionId = hookInput.sessionId,
+                    toolName = hookInput.toolName,
+                    toolInput = hookInput.toolInput,
+                )
+                if (resolved) {
+                    logger.i {
+                        "PostToolUse cleared stale pending entry: session=${hookInput.sessionId} tool=${hookInput.toolName}"
+                    }
+                }
+            }
+
+            // (2) Redaction pass — only when the harness can honor a
+            // mutated tool result on its post-tool hook.
+            if (supportsOutputRedaction) {
+                val toolResponse = adapter.extractToolResponse(rawObj)
+                val result = redactionEngine.scan(hookInput.toolName, toolResponse)
+
+                if (result.hits.isNotEmpty()) {
+                    val attached = stateManager.attachRedactionHits(
+                        sessionId = hookInput.sessionId,
+                        toolName = hookInput.toolName,
+                        toolInput = hookInput.toolInput,
+                        hits = result.hits,
+                    )
+                    if (!attached) {
+                        logger.i {
+                            "PostToolUse redaction recorded ${result.hits.size} hit(s) without a history row " +
+                                "(session=${hookInput.sessionId} tool=${hookInput.toolName})"
+                        }
+                    }
+                }
+
+                if (result.redactedOutput != null) {
+                    redactedResponse = adapter.buildPostToolUseRedactedResponse(result.redactedOutput)
+                }
+            }
+        } catch (e: Exception) {
+            logger.w(e) { "Failed to handle PostToolUse payload" }
+        }
+
+        if (redactedResponse != null) {
+            call.respondHarness(redactedResponse)
+        } else {
+            call.respondText("{}", contentType = ContentType.Application.Json)
+        }
     }
 }
 

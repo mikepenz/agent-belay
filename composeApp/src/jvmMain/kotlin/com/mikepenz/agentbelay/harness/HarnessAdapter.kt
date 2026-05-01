@@ -66,4 +66,17 @@ interface HarnessAdapter {
      * response in that case.
      */
     fun buildPostToolUseRedactedResponse(updatedOutput: JsonObject): HarnessResponse?
+
+    /**
+     * Extracts the tool's response payload from a post-tool-use webhook
+     * body so the redaction engine can scan it. Each harness sends a
+     * different field name — Claude / Codex use `tool_response` (with
+     * `tool_output` as a legacy alias); Copilot uses `toolResult`.
+     *
+     * The default implementation handles the Claude / Codex shape so
+     * adapters don't need to override it unless their wire format
+     * differs.
+     */
+    fun extractToolResponse(payload: JsonObject): JsonElement? =
+        payload["tool_response"] ?: payload["tool_output"]
 }

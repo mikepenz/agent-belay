@@ -4,8 +4,6 @@ import co.touchlab.kermit.Logger
 import com.mikepenz.agentbelay.capability.CapabilityEngine
 import com.mikepenz.agentbelay.harness.Harness
 import com.mikepenz.agentbelay.harness.HarnessRouteDeps
-import com.mikepenz.agentbelay.harness.HookEvent
-import com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeAdapter
 import com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeHarness
 import com.mikepenz.agentbelay.harness.codex.CodexHarness
 import com.mikepenz.agentbelay.harness.copilot.CopilotHarness
@@ -47,10 +45,6 @@ class ApprovalServer(
         PiHarness(),
         CodexHarness(),
     )
-
-    private val claudeCode = harnesses.first { it is ClaudeCodeHarness }
-    private val claudeAdapter = claudeCode.adapter as ClaudeCodeAdapter
-    private val codex = harnesses.first { it is CodexHarness }
 
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
 
@@ -95,32 +89,13 @@ class ApprovalServer(
                     val routeDeps = HarnessRouteDeps(
                         stateManager = stateManager,
                         protectionEngine = protectionEngine,
+                        redactionEngine = redactionEngine,
                         onNewApproval = onNewApproval,
                     )
                     for (harness in harnesses) {
                         harness.installRoutes(this, routeDeps)
                     }
 
-                    // PostToolUse is Claude Code-only today (Copilot's
-                    // postToolUse cannot modify output and OpenCode has
-                    // no equivalent event). Wire the Claude harness
-                    // directly until/unless another harness gains the
-                    // capability.
-                    postToolUseRoute(
-                        stateManager = stateManager,
-                        adapter = claudeAdapter,
-                        redactionEngine = redactionEngine,
-                        supportsOutputRedaction = claudeCode.capabilities.supportsOutputRedaction,
-                    )
-                    codex.transport.endpoints()[HookEvent.POST_TOOL_USE]?.let { path ->
-                        postToolUseRoute(
-                            stateManager = stateManager,
-                            adapter = codex.adapter,
-                            redactionEngine = redactionEngine,
-                            supportsOutputRedaction = codex.capabilities.supportsOutputRedaction,
-                            path = path,
-                        )
-                    }
                     capabilityRoute(capabilityEngine)
                 }
             },
