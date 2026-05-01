@@ -112,46 +112,59 @@ fun <T> MultiSelectDropdown(
     }
 }
 
+/**
+ * Trigger styled to match PillSegmented MD pixel-for-pixel.
+ *
+ * Outer chrome — `clip(8) + background(surface) + border(1, line1) +
+ * padding(3.dp)` — copies PillSegmented's container. The inner chip then
+ * uses the same `clip(5) + padding(horizontal = 12, vertical = 5)` and
+ * font (12.5 sp medium) as a PillSegmented MD active chip. Matching the
+ * structure (rather than guessing at a fixed height) means the two
+ * controls cannot drift in size as the design tokens move.
+ */
 @Composable
 private fun Trigger(label: String, onClick: () -> Unit, enabled: Boolean) {
     val interactionSource = remember { MutableInteractionSource() }
     val liveHovered by interactionSource.collectIsHoveredAsState()
     val isHovered = LocalPreviewHoverOverride.current ?: liveHovered
 
-    Row(
+    androidx.compose.foundation.layout.Box(
         modifier = Modifier
-            .height(34.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isHovered && enabled) AgentBelayColors.surface2 else AgentBelayColors.surface)
-            .border(
-                1.dp,
-                if (isHovered && enabled) AgentBelayColors.line2 else AgentBelayColors.line1,
-                RoundedCornerShape(8.dp),
-            )
-            .hoverable(interactionSource, enabled = enabled)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                enabled = enabled,
-            ) { onClick() }
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .background(AgentBelayColors.surface)
+            .border(1.dp, AgentBelayColors.line1, RoundedCornerShape(8.dp))
+            .padding(3.dp),
     ) {
-        Text(
-            text = label,
-            color = if (enabled) AgentBelayColors.inkPrimary else AgentBelayColors.inkMuted,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Icon(
-            imageVector = LucideChevronDown,
-            contentDescription = null,
-            tint = AgentBelayColors.inkMuted,
-            modifier = Modifier.size(12.dp),
-        )
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(5.dp))
+                .background(if (isHovered && enabled) AgentBelayColors.surface2 else androidx.compose.ui.graphics.Color.Transparent)
+                .hoverable(interactionSource, enabled = enabled)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                ) { onClick() }
+                .padding(horizontal = 12.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = label,
+                color = if (enabled) AgentBelayColors.inkPrimary else AgentBelayColors.inkMuted,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = (-0.05).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                imageVector = LucideChevronDown,
+                contentDescription = null,
+                tint = AgentBelayColors.inkMuted,
+                modifier = Modifier.size(12.dp),
+            )
+        }
     }
 }
 
