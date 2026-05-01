@@ -225,11 +225,25 @@ private fun SessionList(
                 )
             }
             HorizontalHairline()
-            val listMod = if (fillHeight) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth()
-            LazyColumn(modifier = listMod) {
-                items(sessions) { s ->
-                    SessionRow(s, isSelected = s.sessionId == selected, onClick = { onSelect(s.sessionId) })
-                    HorizontalHairline()
+            // In compact mode the SessionList sits inside a parent
+            // verticalScroll Column — a bare LazyColumn there would receive
+            // infinite max height and crash at measure time. Render rows
+            // inline as a regular Column in that case; only use the
+            // virtualised LazyColumn when we actually have a bounded height
+            // (wide-rail layout).
+            if (fillHeight) {
+                LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    items(sessions) { s ->
+                        SessionRow(s, isSelected = s.sessionId == selected, onClick = { onSelect(s.sessionId) })
+                        HorizontalHairline()
+                    }
+                }
+            } else {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    sessions.forEach { s ->
+                        SessionRow(s, isSelected = s.sessionId == selected, onClick = { onSelect(s.sessionId) })
+                        HorizontalHairline()
+                    }
                 }
             }
             if (sessions.isEmpty()) {
