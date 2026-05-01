@@ -156,6 +156,72 @@ class OpenaiApiRiskAnalyzer(
         }
     }
 
+    /**
+     * Free-form text completion via the same `/v1/chat/completions` endpoint
+     * but without the `response_format` JSON schema. Used by the Optimization
+     * Insights feature to elevate a heuristic finding into a personalized
+     * suggestion. Returns the assistant message content.
+     */
+    override suspend fun analyzeText(systemPrompt: String, userPrompt: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                mutex.withLock {
+                    withTimeout(timeoutMs) {
+                        Result.success(chatRaw(systemPrompt, userPrompt))
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (isConnectionError(e)) {
+                    log.w(e) { "OpenAI API not reachable at $baseUrl" }
+                    Result.failure(RuntimeException("OpenAI API not reachable at $baseUrl", e))
+                } else {
+                    log.e(e) { "analyzeText failed" }
+                    Result.failure(e)
+                }
+            }
+        }
+
+    private suspend fun chatRaw(systemPromptOverride: String, userMessage: String): String {
+        val requestBody = buildJsonObject {
+            put("model", model)
+            put("temperature", 0)
+            putJsonArray("messages") {
+                addJsonObject {
+                    put("role", "system")
+                    put("content", systemPromptOverride)
+                }
+                addJsonObject {
+                    put("role", "user")
+                    put("content", userMessage)
+                }
+            }
+            putJsonObject("options") {
+                if (numCtx > 0) put("n_ctx", numCtx)
+            }
+        }
+        val response: HttpResponse = http.post("$baseUrl/v1/chat/completions") {
+            contentType(ContentType.Application.Json)
+            timeout { requestTimeoutMillis = timeoutMs }
+            setBody(json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), requestBody))
+        }
+        if (!response.status.isSuccess()) {
+            val body = runCatching { response.bodyAsText() }.getOrDefault("")
+            throw RiskAnalyzerException(
+                "OpenAI API returned ${response.status.value}: ${body.take(200)}",
+                rawResponse = body.take(MAX_RAW_RESPONSE_CHARS).ifBlank { null },
+            )
+        }
+        val rawBody = response.bodyAsText()
+        val parsed = json.decodeFromString<ChatResponse>(rawBody)
+        return parsed.choices.firstOrNull()?.message?.content
+            ?: throw RiskAnalyzerException(
+                "No choices[0].message.content in OpenAI response",
+                rawResponse = rawBody.take(MAX_RAW_RESPONSE_CHARS),
+            )
+    }
+
     private fun isConnectionError(e: Throwable): Boolean {
         var current: Throwable? = e
         val visited = mutableSetOf<Throwable>()

@@ -186,6 +186,76 @@ class OllamaRiskAnalyzer(
     }
 
     /**
+     * Free-form text completion over the same `/api/chat` endpoint, but
+     * without the risk-classification JSON schema. Used by the
+     * Optimization Insights feature to elevate a heuristic finding into a
+     * personalized suggestion. Returns the model's raw content text.
+     */
+    override suspend fun analyzeText(systemPrompt: String, userPrompt: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                mutex.withLock {
+                    withTimeout(timeoutMs) {
+                        Result.success(chatRaw(systemPrompt, userPrompt))
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (isConnectionError(e)) {
+                    val msg = "Ollama not reachable at $baseUrl"
+                    log.w(e) { msg }
+                    Result.failure(RuntimeException(msg, e))
+                } else {
+                    log.e(e) { "analyzeText failed" }
+                    Result.failure(e)
+                }
+            }
+        }
+
+    private suspend fun chatRaw(systemPromptOverride: String, userMessage: String): String {
+        val requestBody = buildJsonObject {
+            put("model", model)
+            put("stream", false)
+            put("think", thinking)
+            if (keepAlive.isNotBlank()) put("keep_alive", keepAlive)
+            putJsonArray("messages") {
+                addJsonObject {
+                    put("role", "system")
+                    put("content", systemPromptOverride)
+                }
+                addJsonObject {
+                    put("role", "user")
+                    put("content", userMessage)
+                }
+            }
+            putJsonObject("options") {
+                put("temperature", 0)
+                if (numCtx > 0) put("num_ctx", numCtx)
+            }
+        }
+        val response: HttpResponse = http.post("$baseUrl/api/chat") {
+            contentType(ContentType.Application.Json)
+            timeout { requestTimeoutMillis = timeoutMs }
+            setBody(json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), requestBody))
+        }
+        if (!response.status.isSuccess()) {
+            val body = runCatching { response.bodyAsText() }.getOrDefault("")
+            throw RiskAnalyzerException(
+                "Ollama returned ${response.status.value}: ${body.take(200)}",
+                rawResponse = body.take(MAX_RAW_RESPONSE_CHARS).ifBlank { null },
+            )
+        }
+        val rawBody = response.bodyAsText()
+        val chatResponse = json.decodeFromString<ChatResponse>(rawBody)
+        return chatResponse.message?.content
+            ?: throw RiskAnalyzerException(
+                "No message.content in Ollama response",
+                rawResponse = rawBody.take(MAX_RAW_RESPONSE_CHARS),
+            )
+    }
+
+    /**
      * True for any IOException-class failure that means the daemon is unreachable —
      * connection refused, host unreachable, no route to host, etc. Walks the cause
      * chain because ktor wraps engine errors in [io.ktor.client.network.sockets.ConnectTimeoutException]

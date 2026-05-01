@@ -144,6 +144,74 @@ class CopilotRiskAnalyzer(
         }
     }
 
+    /**
+     * Free-form text completion via the Copilot CLI session API, but with a
+     * caller-supplied system prompt and no JSON-format instruction. Used by
+     * the Optimization Insights feature.
+     */
+    override suspend fun analyzeText(systemPrompt: String, userPrompt: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                analyzeMutex.withLock {
+                    withTimeout(TIMEOUT_MS) {
+                        chatRaw(systemPrompt, userPrompt, retried = false)
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.e(e) { "analyzeText failed" }
+                Result.failure(e)
+            }
+        }
+
+    private suspend fun chatRaw(
+        systemPromptOverride: String,
+        userMessage: String,
+        retried: Boolean,
+    ): Result<String> {
+        try {
+            val c = client ?: run {
+                log.w { "CopilotClient not started, starting now" }
+                start()
+                client ?: throw RuntimeException("CopilotClient failed to start")
+            }
+            val sessionConfig = SessionConfig()
+                .setModel(model)
+                .setStreaming(false)
+                .setTools(emptyList())
+                .setOnPermissionRequest(PermissionHandler.APPROVE_ALL)
+                .setSystemMessage(
+                    SystemMessageConfig()
+                        .setMode(SystemMessageMode.REPLACE)
+                        .setContent(systemPromptOverride)
+                )
+            val session = c.createSession(sessionConfig).await()
+            try {
+                val messageOptions = MessageOptions().setPrompt(userMessage)
+                val event = session.sendAndWait(messageOptions, SEND_TIMEOUT_MS).await()
+                val rawContent = event.data?.content
+                    ?: throw RuntimeException("No content in Copilot response")
+                return Result.success(rawContent)
+            } finally {
+                session.close()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!retried && isStreamError(e)) {
+                log.w { "Copilot CLI stream broken on analyzeText, restarting and retrying..." }
+                val restartResult = runCatching { restartClient() }
+                restartResult.exceptionOrNull()?.let { restartError ->
+                    restartError.addSuppressed(e)
+                    return Result.failure(restartError)
+                }
+                return chatRaw(systemPromptOverride, userMessage, retried = true)
+            }
+            return Result.failure(e)
+        }
+    }
+
     /** Detect errors that indicate the underlying CLI process has died. */
     private fun isStreamError(e: Throwable): Boolean {
         var current: Throwable? = e
