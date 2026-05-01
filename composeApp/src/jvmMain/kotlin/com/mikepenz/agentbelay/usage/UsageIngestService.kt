@@ -60,10 +60,8 @@ class UsageIngestService(
             logger.i { "pricing table loaded with ${pricing.size} models" }
 
             while (isActive) {
-                if (stateManager.state.value.settings.usageTrackingEnabled) {
-                    runCatching { runOnePass() }
-                        .onFailure { logger.w(it) { "scan pass failed: ${it.message}" } }
-                }
+                runCatching { runOnePass() }
+                    .onFailure { logger.w(it) { "scan pass failed: ${it.message}" } }
                 delay(pollInterval)
             }
         }
@@ -81,6 +79,10 @@ class UsageIngestService(
     suspend fun refreshNow(): Int = withContext(Dispatchers.IO) { runOnePass() }
 
     private suspend fun runOnePass(): Int = mutex.withLock {
+        // Single gate honoured by both the polling loop and `refreshNow()`.
+        // When tracking is off, every pass is a no-op — no file reads, no
+        // inserts, no `scans` emission — so the UI stays in its current state.
+        if (!stateManager.state.value.settings.usageTrackingEnabled) return@withLock 0
         var totalInserted = 0
         for (scanner in scanners) {
             val cursors = storage.loadUsageCursors(scanner.source)
