@@ -18,13 +18,17 @@ fun SettingsTabHost(onShowLicenses: () -> Unit) {
     val viewModel: SettingsViewModel = metroViewModel()
     val ui by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
+    val selectedSubTabIndex by viewModel.selectedSubTabIndex.collectAsState()
 
     SettingsTab(
+        selectedSubTabIndex = selectedSubTabIndex,
+        onSubTabSelect = viewModel::selectSubTab,
         settings = ui.settings,
         isHookRegistered = ui.isHookRegistered,
         isCopilotRegistered = ui.isCopilotRegistered,
         isOpenCodeRegistered = ui.isOpenCodeRegistered,
         isPiRegistered = ui.isPiRegistered,
+        isCodexRegistered = ui.isCodexRegistered,
         historyCount = ui.historyCount,
         copilotModels = ui.copilotModels,
         copilotInitState = ui.copilotInitState,
@@ -50,6 +54,8 @@ fun SettingsTabHost(onShowLicenses: () -> Unit) {
         onUnregisterOpenCode = viewModel::unregisterOpenCode,
         onRegisterPi = viewModel::registerPi,
         onUnregisterPi = viewModel::unregisterPi,
+        onRegisterCodex = viewModel::registerCodex,
+        onUnregisterCodex = viewModel::unregisterCodex,
         onClearHistory = viewModel::clearHistory,
         onShowLicenses = onShowLicenses,
         protectionModules = viewModel.protectionModules,

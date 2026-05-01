@@ -78,11 +78,14 @@ private enum class SettingsSubTab(val label: String, val icon: ImageVector) {
 
 @Composable
 fun SettingsTab(
+    selectedSubTabIndex: Int = 0,
+    onSubTabSelect: (Int) -> Unit = {},
     settings: AppSettings,
     isHookRegistered: Boolean,
     isCopilotRegistered: Boolean = false,
     isOpenCodeRegistered: Boolean = false,
     isPiRegistered: Boolean = false,
+    isCodexRegistered: Boolean = false,
     historyCount: Int,
     copilotModels: List<Pair<String, String>> = emptyList(),
     copilotInitState: CopilotInitState = CopilotInitState.IDLE,
@@ -108,6 +111,8 @@ fun SettingsTab(
     onUnregisterOpenCode: () -> Unit = {},
     onRegisterPi: () -> Unit = {},
     onUnregisterPi: () -> Unit = {},
+    onRegisterCodex: () -> Unit = {},
+    onUnregisterCodex: () -> Unit = {},
     onClearHistory: () -> Unit,
     onShowLicenses: () -> Unit = {},
     protectionModules: List<ProtectionModule> = emptyList(),
@@ -123,7 +128,7 @@ fun SettingsTab(
     onInstallUpdate: () -> Unit = {},
     onResetUpdateState: () -> Unit = {},
 ) {
-    var tab by remember { mutableStateOf(SettingsSubTab.General) }
+    val tab = SettingsSubTab.entries.getOrElse(selectedSubTabIndex) { SettingsSubTab.General }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(AgentBelayColors.background)) {
         // Content pane needs ~460dp to render cards comfortably; below this
@@ -136,7 +141,11 @@ fun SettingsTab(
         )
 
         Row(modifier = Modifier.fillMaxSize()) {
-            SettingsSidebar(selected = tab, onSelect = { tab = it }, compact = compactSidebar)
+            SettingsSidebar(
+                selected = tab,
+                onSelect = { onSubTabSelect(SettingsSubTab.entries.indexOf(it)) },
+                compact = compactSidebar,
+            )
             // Use BoxWithConstraints so we know the actual viewport width,
             // then give the Column an explicit width = max(viewport, minWidth).
             // Without this, fillMaxWidth() inside SettingSection expands to
@@ -182,6 +191,7 @@ fun SettingsTab(
                     isCopilotRegistered = isCopilotRegistered,
                     isOpenCodeRegistered = isOpenCodeRegistered,
                     isPiRegistered = isPiRegistered,
+                    isCodexRegistered = isCodexRegistered,
                     onSettingsChange = onSettingsChange,
                     onRegisterHook = onRegisterHook,
                     onUnregisterHook = onUnregisterHook,
@@ -191,6 +201,8 @@ fun SettingsTab(
                     onUnregisterOpenCode = onUnregisterOpenCode,
                     onRegisterPi = onRegisterPi,
                     onUnregisterPi = onUnregisterPi,
+                    onRegisterCodex = onRegisterCodex,
+                    onUnregisterCodex = onUnregisterCodex,
                 )
                 SettingsSubTab.Risk -> RiskAnalysisSettingsContent(
                     settings = settings,
