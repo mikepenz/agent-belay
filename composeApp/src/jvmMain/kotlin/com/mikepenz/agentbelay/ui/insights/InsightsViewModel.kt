@@ -36,7 +36,20 @@ import kotlinx.coroutines.withContext
  * AI calls are completely opt-in (gated by `AppSettings.insightsAiEnabled`)
  * and fired only via [requestAiSuggestion].
  */
+/**
+ * Sort orderings for the Insights session list. Mirrored on the History
+ * 3-pane view so users learn one mental model.
+ */
+enum class SessionSort(val label: String) {
+    Recent("Recent"),
+    Cost("Cost"),
+    Turns("Turns"),
+}
+
 data class InsightsUiState(
+    /** All sessions returned from storage — pre-sort, pre-filter. */
+    val allSessions: List<SessionSummary> = emptyList(),
+    /** Sessions after applying [sortBy] + [harnessFilter]. */
     val sessions: List<SessionSummary> = emptyList(),
     val selectedSessionId: String? = null,
     val insights: List<Insight> = emptyList(),
@@ -46,7 +59,18 @@ data class InsightsUiState(
     val aiInflight: Set<String> = emptySet(),
     val aiErrors: Map<String, String> = emptyMap(),
     val aiEnabled: Boolean = false,
-)
+    val sortBy: SessionSort = SessionSort.Recent,
+    /**
+     * The set of harnesses the user has chosen to keep visible. `null` means
+     * no filter (show all). Empty set is treated identically to `null` to
+     * keep the UI sane when the user toggles every option off.
+     */
+    val harnessFilter: Set<com.mikepenz.agentbelay.model.Source>? = null,
+) {
+    /** Harnesses actually present in the data — drives the filter dropdown options. */
+    val availableHarnesses: List<com.mikepenz.agentbelay.model.Source>
+        get() = allSessions.map { it.harness }.distinct().sortedBy { it.ordinal }
+}
 
 @Inject
 @ViewModelKey
@@ -75,6 +99,19 @@ class InsightsViewModel(
                 _uiState.value = _uiState.value.copy(aiEnabled = state.settings.insightsAiEnabled)
             }
             .launchIn(viewModelScope)
+    }
+
+    fun setSortBy(sort: SessionSort) {
+        if (_uiState.value.sortBy == sort) return
+        _uiState.value = applyFilters(_uiState.value.copy(sortBy = sort))
+    }
+
+    fun setHarnessFilter(filter: Set<com.mikepenz.agentbelay.model.Source>?) {
+        // Treat empty set as null so the UI never ends up with zero rows
+        // by accident (the dropdown can return an empty selection).
+        val normalized = filter?.takeIf { it.isNotEmpty() }
+        if (_uiState.value.harnessFilter == normalized) return
+        _uiState.value = applyFilters(_uiState.value.copy(harnessFilter = normalized))
     }
 
     fun selectSession(sessionId: String) {
@@ -133,15 +170,32 @@ class InsightsViewModel(
                 val sessions = withContext(Dispatchers.IO) {
                     database.listRecentSessions(minTurns = 5)
                 }
-                val selected = _uiState.value.selectedSessionId
-                    ?.takeIf { id -> sessions.any { it.sessionId == id } }
-                    ?: sessions.firstOrNull()?.sessionId
-                _uiState.value = _uiState.value.copy(sessions = sessions, selectedSessionId = selected)
+                val withSort = applyFilters(_uiState.value.copy(allSessions = sessions))
+                val selected = withSort.selectedSessionId
+                    ?.takeIf { id -> withSort.sessions.any { it.sessionId == id } }
+                    ?: withSort.sessions.firstOrNull()?.sessionId
+                _uiState.value = withSort.copy(selectedSessionId = selected)
                 if (selected != null) runDetectors(selected)
             } finally {
                 _uiState.value = _uiState.value.copy(loadingSessions = false)
             }
         }
+    }
+
+    /**
+     * Returns a copy of [state] whose [InsightsUiState.sessions] is the
+     * sorted+filtered view of [InsightsUiState.allSessions]. Centralised so
+     * sort/filter setters and load callbacks stay in sync.
+     */
+    private fun applyFilters(state: InsightsUiState): InsightsUiState {
+        val filter = state.harnessFilter
+        val filtered = state.allSessions.filter { filter == null || it.harness in filter }
+        val sorted = when (state.sortBy) {
+            SessionSort.Recent -> filtered.sortedByDescending { it.lastTsMillis }
+            SessionSort.Cost -> filtered.sortedByDescending { it.totalCostUsd }
+            SessionSort.Turns -> filtered.sortedByDescending { it.turnCount }
+        }
+        return state.copy(sessions = sorted)
     }
 
     private fun runDetectors(sessionId: String) {

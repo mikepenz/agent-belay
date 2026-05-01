@@ -5,6 +5,7 @@ import com.mikepenz.agentbelay.insights.Insight
 import com.mikepenz.agentbelay.insights.InsightDetector
 import com.mikepenz.agentbelay.insights.InsightKind
 import com.mikepenz.agentbelay.insights.InsightSeverity
+import com.mikepenz.agentbelay.insights.SavingsMath
 import com.mikepenz.agentbelay.insights.SessionMetrics
 
 /**
@@ -38,9 +39,7 @@ class WebFetchRunawayDetector(
         // ~3.5k tokens per fetched page is a defensible mean for docs sites.
         val approxFetchTokens = (totalChained * 3_500L).coerceAtLeast(0)
         val savedTokens = approxFetchTokens / 2 // half is recoverable via a scratch-file consolidation
-        val savedUsd = if (session.totalInput > 0)
-            savedTokens.toDouble() * (session.totalCost / (session.totalInput.toDouble() + 1))
-        else 0.0
+        val savedUsd = SavingsMath.tokensToUsd(savedTokens, session)
 
         return listOf(
             Insight(
@@ -57,7 +56,7 @@ class WebFetchRunawayDetector(
                 ),
                 savings = EstimatedSavings(
                     tokens = savedTokens,
-                    usd = savedUsd.takeIf { it > 0.005 },
+                    usd = savedUsd?.takeIf { it > 0.005 },
                 ),
                 harness = session.harness,
                 sessionId = session.sessionId,

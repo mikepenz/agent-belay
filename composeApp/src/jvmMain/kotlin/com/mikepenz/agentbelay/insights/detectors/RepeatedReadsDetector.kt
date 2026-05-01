@@ -5,6 +5,7 @@ import com.mikepenz.agentbelay.insights.Insight
 import com.mikepenz.agentbelay.insights.InsightDetector
 import com.mikepenz.agentbelay.insights.InsightKind
 import com.mikepenz.agentbelay.insights.InsightSeverity
+import com.mikepenz.agentbelay.insights.SavingsMath
 import com.mikepenz.agentbelay.insights.SessionMetrics
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -48,9 +49,7 @@ class RepeatedReadsDetector(
         if (flagged.isEmpty()) return emptyList()
 
         val savedTokens = flagged.sumOf { (_, count) -> (count - 1).toLong() * 1_500L } // ~1.5k per file as a rough mean
-        val savedUsd = if (session.totalInput > 0)
-            savedTokens.toDouble() * (session.totalCost / (session.totalInput.toDouble() + 1))
-        else 0.0
+        val savedUsd = SavingsMath.tokensToUsd(savedTokens, session)
 
         return listOf(
             Insight(
@@ -63,7 +62,7 @@ class RepeatedReadsDetector(
                 evidence = flagged.take(8).map { (path, count) -> "$path · ${count}× Read" },
                 savings = EstimatedSavings(
                     tokens = savedTokens,
-                    usd = savedUsd.takeIf { it > 0.005 },
+                    usd = savedUsd?.takeIf { it > 0.005 },
                 ),
                 harness = session.harness,
                 sessionId = session.sessionId,

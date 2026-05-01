@@ -5,6 +5,7 @@ import com.mikepenz.agentbelay.insights.Insight
 import com.mikepenz.agentbelay.insights.InsightDetector
 import com.mikepenz.agentbelay.insights.InsightKind
 import com.mikepenz.agentbelay.insights.InsightSeverity
+import com.mikepenz.agentbelay.insights.SavingsMath
 import com.mikepenz.agentbelay.insights.SessionMetrics
 
 /**
@@ -27,10 +28,7 @@ class SubagentOverspawnDetector(
 
         // Each Task call carries ~20k bootstrap. That's the ballpark estimate.
         val bootstrapTokens = 20_000L * taskCalls.size
-        val perInputCost = if (session.totalInput > 0)
-            session.totalCost / (session.totalInput.toDouble() + 1)
-        else 0.000003 // fallback to Sonnet-ish
-        val savedUsd = bootstrapTokens.toDouble() * perInputCost
+        val savedUsd = SavingsMath.tokensToUsd(bootstrapTokens, session)
 
         return listOf(
             Insight(
@@ -47,7 +45,7 @@ class SubagentOverspawnDetector(
                 ),
                 savings = EstimatedSavings(
                     tokens = bootstrapTokens,
-                    usd = savedUsd.takeIf { it > 0.01 },
+                    usd = savedUsd?.takeIf { it > 0.01 },
                 ),
                 harness = session.harness,
                 sessionId = session.sessionId,

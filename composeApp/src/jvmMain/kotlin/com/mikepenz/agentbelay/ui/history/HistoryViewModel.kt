@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mikepenz.agentbelay.di.AppEnvironment
 import com.mikepenz.agentbelay.di.AppScope
 import com.mikepenz.agentbelay.model.ApprovalResult
+import com.mikepenz.agentbelay.model.Source
 import com.mikepenz.agentbelay.state.AppStateManager
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -47,10 +48,18 @@ class HistoryViewModel(
     private val _scope = MutableStateFlow(HistoryScope.All)
     private val _sourceFilter = MutableStateFlow(HistorySourceFilter.All)
     private val _query = MutableStateFlow("")
+    private val _sort = MutableStateFlow(HistorySort.Recent)
+    private val _harnessFilter = MutableStateFlow<Set<Source>?>(null)
 
     fun setScope(scope: HistoryScope) { _scope.value = scope }
     fun setSourceFilter(filter: HistorySourceFilter) { _sourceFilter.value = filter }
     fun setQuery(query: String) { _query.value = query }
+    fun setSort(sort: HistorySort) { _sort.value = sort }
+    fun setHarnessFilter(filter: Set<Source>?) {
+        // Empty set behaves like null so the user can't accidentally hide
+        // every row by deselecting everything.
+        _harnessFilter.value = filter?.takeIf { it.isNotEmpty() }
+    }
 
     /**
      * Cached projection. Re-maps only when the source history list itself
@@ -64,18 +73,34 @@ class HistoryViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val uiState: StateFlow<HistoryUiState> = combine(
-        projected,
-        _scope,
-        _sourceFilter,
-        _query,
-    ) { entries, scope, sourceFilter, query ->
+        listOf(projected, _scope, _sourceFilter, _query, _sort, _harnessFilter),
+    ) { array ->
+        @Suppress("UNCHECKED_CAST")
+        val entries = array[0] as List<HistoryEntry>
+        val scope = array[1] as HistoryScope
+        val sourceFilter = array[2] as HistorySourceFilter
+        val query = array[3] as String
+        val sort = array[4] as HistorySort
+        @Suppress("UNCHECKED_CAST")
+        val harnessFilter = array[5] as Set<Source>?
+
         val filtered = entries.filter { e ->
             val scopeMatch = when (scope) {
                 HistoryScope.All -> true
                 HistoryScope.Approvals -> e.status in approvalStatuses
                 HistoryScope.Protections -> e.status in protectionStatuses
             }
-            scopeMatch && e.matchesSource(sourceFilter) && e.matchesQuery(query)
+            scopeMatch &&
+                e.matchesSource(sourceFilter) &&
+                e.matchesHarnessFilter(harnessFilter) &&
+                e.matchesQuery(query)
+        }
+        // `projected` is already most-recent-first (history is loaded
+        // ORDER BY decided_at DESC), so Recent is a no-op pass-through.
+        val sorted = when (sort) {
+            HistorySort.Recent -> filtered
+            HistorySort.Tool -> filtered.sortedBy { it.tool.lowercase() }
+            HistorySort.Source -> filtered.sortedBy { it.source.ordinal }
         }
         val counts = HistoryCounts(
             all = entries.size,
@@ -83,12 +108,15 @@ class HistoryViewModel(
             protections = entries.count { it.status in protectionStatuses },
         )
         HistoryUiState(
-            entries = filtered,
+            entries = sorted,
             total = entries.size,
             counts = counts,
             scope = scope,
             sourceFilter = sourceFilter,
             query = query,
+            sort = sort,
+            harnessFilter = harnessFilter,
+            availableHarnesses = entries.map { it.source }.distinct().sortedBy { it.ordinal },
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HistoryUiState.Empty)
 

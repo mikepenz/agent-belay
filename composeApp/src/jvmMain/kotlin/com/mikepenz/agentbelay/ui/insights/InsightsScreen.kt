@@ -70,6 +70,8 @@ fun InsightsScreen(
     state: InsightsUiState,
     onSelectSession: (String) -> Unit,
     onRequestAi: (Insight) -> Unit,
+    onSortChange: (SessionSort) -> Unit = {},
+    onHarnessFilterChange: (Set<Source>?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize().background(AgentBelayColors.background)) {
@@ -82,7 +84,7 @@ fun InsightsScreen(
                 state.loadingSessions && state.sessions.isEmpty() ->
                     LoadingState("Scanning sessions for token-burn patterns…")
 
-                state.sessions.isEmpty() ->
+                state.allSessions.isEmpty() ->
                     EmptyState()
 
                 isCompact -> {
@@ -93,10 +95,18 @@ fun InsightsScreen(
                             .padding(start = 28.dp, end = 28.dp, top = 18.dp, bottom = 28.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
+                        SessionsToolbar(
+                            sortBy = state.sortBy,
+                            onSortChange = onSortChange,
+                            harnessFilter = state.harnessFilter,
+                            availableHarnesses = state.availableHarnesses,
+                            onHarnessFilterChange = onHarnessFilterChange,
+                        )
                         SessionList(
                             sessions = state.sessions,
                             selected = state.selectedSessionId,
                             onSelect = onSelectSession,
+                            fillHeight = false,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         InsightsList(state, onRequestAi)
@@ -107,12 +117,25 @@ fun InsightsScreen(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 18.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    SessionList(
-                        sessions = state.sessions,
-                        selected = state.selectedSessionId,
-                        onSelect = onSelectSession,
+                    Column(
                         modifier = Modifier.width(280.dp).fillMaxHeight(),
-                    )
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        SessionsToolbar(
+                            sortBy = state.sortBy,
+                            onSortChange = onSortChange,
+                            harnessFilter = state.harnessFilter,
+                            availableHarnesses = state.availableHarnesses,
+                            onHarnessFilterChange = onHarnessFilterChange,
+                        )
+                        SessionList(
+                            sessions = state.sessions,
+                            selected = state.selectedSessionId,
+                            onSelect = onSelectSession,
+                            fillHeight = true,
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                        )
+                    }
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -183,9 +206,15 @@ private fun SessionList(
     selected: String?,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
+    fillHeight: Boolean = false,
 ) {
-    AgentBelayCard(modifier = modifier) {
-        Column {
+    // The card fills its parent in wide mode (so the bottom edge tracks the
+    // parent column) and wraps to content in compact mode (so it doesn't push
+    // the insights list off the screen). Empty trailing space inside the card
+    // was the original "unnecessary spacing on the bottom" complaint.
+    val cardMod = if (fillHeight) modifier.fillMaxHeight() else modifier
+    AgentBelayCard(modifier = cardMod) {
+        Column(modifier = if (fillHeight) Modifier.fillMaxSize() else Modifier) {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
                 Text(
                     text = "SESSIONS",
@@ -196,13 +225,62 @@ private fun SessionList(
                 )
             }
             HorizontalHairline()
-            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)) {
+            val listMod = if (fillHeight) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth()
+            LazyColumn(modifier = listMod) {
                 items(sessions) { s ->
                     SessionRow(s, isSelected = s.sessionId == selected, onClick = { onSelect(s.sessionId) })
                     HorizontalHairline()
                 }
             }
+            if (sessions.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No sessions match this filter.",
+                        color = AgentBelayColors.inkMuted,
+                        fontSize = 12.sp,
+                    )
+                }
+            }
         }
+    }
+}
+
+/**
+ * Sort + harness-filter toolbar pinned above the session list. Only renders
+ * harnesses that actually appear in [availableHarnesses] so we never show
+ * dead options.
+ */
+/**
+ * Sort + filter toolbar above the session list. Stacked vertically so the
+ * 280dp rail can fit the segmented control without wrapping the "Turns"
+ * label across multiple lines.
+ */
+@Composable
+private fun SessionsToolbar(
+    sortBy: SessionSort,
+    onSortChange: (SessionSort) -> Unit,
+    harnessFilter: Set<Source>?,
+    availableHarnesses: List<Source>,
+    onHarnessFilterChange: (Set<Source>?) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        com.mikepenz.agentbelay.ui.components.PillSegmented(
+            options = SessionSort.entries.map { it to it.label },
+            selected = sortBy,
+            onSelect = onSortChange,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        com.mikepenz.agentbelay.ui.components.MultiSelectDropdown(
+            options = availableHarnesses.map { it to displayNameForSource(it) },
+            selected = harnessFilter,
+            onChange = onHarnessFilterChange,
+            allLabel = "All harnesses",
+            leadingDot = ::colorForSource,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -299,28 +377,30 @@ private fun InsightCard(
 ) {
     AgentBelayCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Top row keeps severity / title / savings together so the eye
+            // can scan headlines vertically without the description wrapping
+            // around chips. The description hangs below at full width.
             Row(
-                verticalAlignment = Alignment.Top,
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 SeverityChip(insight.severity)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = insight.title,
-                        color = AgentBelayColors.inkPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = (-0.1).sp,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = insight.description,
-                        color = AgentBelayColors.inkSecondary,
-                        fontSize = 12.5.sp,
-                    )
-                }
+                Text(
+                    text = insight.title,
+                    color = AgentBelayColors.inkPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.1).sp,
+                    modifier = Modifier.weight(1f),
+                )
                 SavingsChip(insight.savings)
             }
+            Text(
+                text = insight.description,
+                color = AgentBelayColors.inkSecondary,
+                fontSize = 12.5.sp,
+                modifier = Modifier.fillMaxWidth(),
+            )
             if (insight.evidence.isNotEmpty()) {
                 Column(
                     modifier = Modifier
@@ -640,6 +720,7 @@ private fun PreviewInsightsScreen() {
     PreviewScaffold {
         InsightsScreen(
             state = InsightsUiState(
+                allSessions = sampleSessions(),
                 sessions = sampleSessions(),
                 selectedSessionId = "sess-1",
                 insights = sampleInsights(),
@@ -665,6 +746,7 @@ private fun PreviewInsightsScreenWithAiSuggestion() {
     PreviewScaffold {
         InsightsScreen(
             state = InsightsUiState(
+                allSessions = sampleSessions(),
                 sessions = sampleSessions(),
                 selectedSessionId = "sess-1",
                 insights = sampleInsights(),
@@ -685,6 +767,7 @@ private fun PreviewInsightsScreenAiInflight() {
     PreviewScaffold {
         InsightsScreen(
             state = InsightsUiState(
+                allSessions = sampleSessions(),
                 sessions = sampleSessions(),
                 selectedSessionId = "sess-1",
                 insights = sampleInsights(),
@@ -704,6 +787,7 @@ private fun PreviewInsightsScreenCompact() {
     PreviewScaffold {
         InsightsScreen(
             state = InsightsUiState(
+                allSessions = sampleSessions(),
                 sessions = sampleSessions(),
                 selectedSessionId = "sess-1",
                 insights = sampleInsights(),
@@ -746,6 +830,7 @@ private fun PreviewInsightsScreenHealthySession() {
     PreviewScaffold {
         InsightsScreen(
             state = InsightsUiState(
+                allSessions = sampleSessions(),
                 sessions = sampleSessions(),
                 selectedSessionId = "sess-3",
                 insights = emptyList(),
@@ -759,10 +844,128 @@ private fun PreviewInsightsScreenHealthySession() {
 
 @Preview(widthDp = 1200, heightDp = 900)
 @Composable
+private fun PreviewInsightsScreenSortedByCost() {
+    PreviewScaffold {
+        InsightsScreen(
+            state = InsightsUiState(
+                allSessions = sampleSessions(),
+                sessions = sampleSessions().sortedByDescending { it.totalCostUsd },
+                selectedSessionId = "sess-1",
+                insights = sampleInsights(),
+                loadingSessions = false,
+                aiEnabled = true,
+                sortBy = SessionSort.Cost,
+            ),
+            onSelectSession = {},
+            onRequestAi = {},
+        )
+    }
+}
+
+@Preview(widthDp = 1200, heightDp = 900)
+@Composable
+private fun PreviewInsightsScreenHarnessFiltered() {
+    PreviewScaffold {
+        InsightsScreen(
+            state = InsightsUiState(
+                allSessions = sampleSessions(),
+                sessions = sampleSessions().filter { it.harness == Source.CODEX },
+                selectedSessionId = "sess-2",
+                insights = emptyList(),
+                loadingSessions = false,
+                aiEnabled = true,
+                harnessFilter = setOf(Source.CODEX),
+            ),
+            onSelectSession = {},
+            onRequestAi = {},
+        )
+    }
+}
+
+@Preview(widthDp = 460, heightDp = 80)
+@Composable
+private fun PreviewSessionsToolbar() {
+    PreviewScaffold {
+        Box(modifier = Modifier.padding(14.dp)) {
+            SessionsToolbar(
+                sortBy = SessionSort.Recent,
+                onSortChange = {},
+                harnessFilter = null,
+                availableHarnesses = listOf(Source.CLAUDE_CODE, Source.CODEX, Source.COPILOT),
+                onHarnessFilterChange = {},
+            )
+        }
+    }
+}
+
+@Preview(widthDp = 460, heightDp = 80)
+@Composable
+private fun PreviewSessionsToolbarFiltered() {
+    PreviewScaffold {
+        Box(modifier = Modifier.padding(14.dp)) {
+            SessionsToolbar(
+                sortBy = SessionSort.Cost,
+                onSortChange = {},
+                harnessFilter = setOf(Source.CLAUDE_CODE, Source.CODEX),
+                availableHarnesses = listOf(Source.CLAUDE_CODE, Source.CODEX, Source.COPILOT),
+                onHarnessFilterChange = {},
+            )
+        }
+    }
+}
+
+@Preview(widthDp = 320, heightDp = 280)
+@Composable
+private fun PreviewMultiSelectDropdownOpen() {
+    // Renders the dropdown in its expanded state so we can eyeball the
+    // checkmarks, harness color dots, and All-row alignment in both themes.
+    PreviewScaffold {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            com.mikepenz.agentbelay.ui.components.MultiSelectDropdown(
+                options = listOf(
+                    Source.CLAUDE_CODE to "Claude Code",
+                    Source.CODEX to "Codex",
+                    Source.COPILOT to "GitHub Copilot",
+                    Source.OPENCODE to "OpenCode",
+                ),
+                selected = setOf(Source.CLAUDE_CODE, Source.CODEX),
+                onChange = {},
+                allLabel = "All harnesses",
+                leadingDot = ::colorForSource,
+                initiallyOpen = true,
+            )
+        }
+    }
+}
+
+@Preview(widthDp = 320, heightDp = 280)
+@Composable
+private fun PreviewMultiSelectDropdownLight() {
+    PreviewScaffold(themeMode = com.mikepenz.agentbelay.model.ThemeMode.LIGHT) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            com.mikepenz.agentbelay.ui.components.MultiSelectDropdown(
+                options = listOf(
+                    Source.CLAUDE_CODE to "Claude Code",
+                    Source.CODEX to "Codex",
+                    Source.COPILOT to "GitHub Copilot",
+                ),
+                selected = null,
+                onChange = {},
+                allLabel = "All harnesses",
+                leadingDot = ::colorForSource,
+                initiallyOpen = true,
+            )
+        }
+    }
+}
+
+@Preview(widthDp = 1200, heightDp = 900)
+@Composable
 private fun PreviewInsightsScreenLight() {
     PreviewScaffold(themeMode = com.mikepenz.agentbelay.model.ThemeMode.LIGHT) {
         InsightsScreen(
             state = InsightsUiState(
+                allSessions = sampleSessions(),
                 sessions = sampleSessions(),
                 selectedSessionId = "sess-1",
                 insights = sampleInsights(),

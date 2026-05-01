@@ -5,6 +5,7 @@ import com.mikepenz.agentbelay.insights.Insight
 import com.mikepenz.agentbelay.insights.InsightDetector
 import com.mikepenz.agentbelay.insights.InsightKind
 import com.mikepenz.agentbelay.insights.InsightSeverity
+import com.mikepenz.agentbelay.insights.SavingsMath
 import com.mikepenz.agentbelay.insights.SessionMetrics
 
 /**
@@ -37,9 +38,7 @@ class LoopWithoutExitDetector(
         // recoverable spend if the cadence stayed inside the TTL.
         val tailInput = lastQuartile.sumOf { it.inputTokens + it.cacheReadTokens }
         val savedTokens = (tailInput * 0.4).toLong().coerceAtLeast(0)
-        val savedUsd = if (session.totalInput > 0)
-            savedTokens.toDouble() * (session.totalCost / (session.totalInput.toDouble() + 1))
-        else 0.0
+        val savedUsd = SavingsMath.tokensToUsd(savedTokens, session)
 
         return listOf(
             Insight(
@@ -58,7 +57,7 @@ class LoopWithoutExitDetector(
                 ),
                 savings = EstimatedSavings(
                     tokens = savedTokens,
-                    usd = savedUsd.takeIf { it > 0.005 },
+                    usd = savedUsd?.takeIf { it > 0.005 },
                 ),
                 harness = session.harness,
                 sessionId = session.sessionId,

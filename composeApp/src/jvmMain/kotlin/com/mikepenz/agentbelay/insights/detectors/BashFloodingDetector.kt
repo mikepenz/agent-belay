@@ -5,6 +5,7 @@ import com.mikepenz.agentbelay.insights.Insight
 import com.mikepenz.agentbelay.insights.InsightDetector
 import com.mikepenz.agentbelay.insights.InsightKind
 import com.mikepenz.agentbelay.insights.InsightSeverity
+import com.mikepenz.agentbelay.insights.SavingsMath
 import com.mikepenz.agentbelay.insights.SessionMetrics
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -43,9 +44,7 @@ class BashFloodingDetector(
         if (matches.size < minMatches) return emptyList()
 
         val savedTokens = matches.sumOf { (_, p) -> p.approxTokens }
-        val savedUsd = if (session.totalInput > 0)
-            savedTokens.toDouble() * (session.totalCost / (session.totalInput.toDouble() + 1))
-        else 0.0
+        val savedUsd = SavingsMath.tokensToUsd(savedTokens, session)
 
         val examples = matches.take(5).map { (cmd, p) ->
             val truncated = if (cmd.length > 80) cmd.substring(0, 77) + "…" else cmd
@@ -63,7 +62,7 @@ class BashFloodingDetector(
                 evidence = examples,
                 savings = EstimatedSavings(
                     tokens = savedTokens,
-                    usd = savedUsd.takeIf { it > 0.005 },
+                    usd = savedUsd?.takeIf { it > 0.005 },
                 ),
                 harness = session.harness,
                 sessionId = session.sessionId,

@@ -13,5 +13,7 @@ fun InsightsTabHost() {
         state = state,
         onSelectSession = viewModel::selectSession,
         onRequestAi = viewModel::requestAiSuggestion,
+        onSortChange = viewModel::setSortBy,
+        onHarnessFilterChange = viewModel::setHarnessFilter,
     )
 }
