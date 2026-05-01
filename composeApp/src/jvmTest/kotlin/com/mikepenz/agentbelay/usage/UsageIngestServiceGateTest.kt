@@ -17,10 +17,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Verifies that the `usageTrackingEnabled` setting actually short-circuits the
- * scan pass — both via the polling loop and via the manual `refreshNow()`
- * path. A regression here would silently leak file reads even after the user
- * disables tracking.
+ * Verifies the contract for the `usageTrackingEnabled` setting:
+ *
+ *  - It gates ONLY the auto-refresh polling loop (not exercised here — the
+ *    loop is started by [UsageIngestService.start] and we don't run it in
+ *    these tests; that path is covered manually / via integration testing).
+ *  - It does NOT gate manual [UsageIngestService.refreshNow] calls. The
+ *    Refresh button on the Usage tab must always trigger a scan, regardless
+ *    of the toggle, so users can fetch fresh data on demand even when they
+ *    have background scanning disabled.
  */
 class UsageIngestServiceGateTest {
 
@@ -85,29 +90,18 @@ class UsageIngestServiceGateTest {
     }
 
     @Test
-    fun refreshNow_short_circuits_when_tracking_disabled() = runBlocking {
+    fun refreshNow_runs_even_when_tracking_disabled() = runBlocking {
+        // The toggle is meant to disable the auto-refresh loop only. A user
+        // who disabled background scanning but clicks Refresh on the Usage
+        // tab still expects fresh data — the button must trigger a scan.
         stateManager.updateSettings(AppSettings(usageTrackingEnabled = false))
         val scanner = CountingScanner(Source.CLAUDE_CODE)
         val service = makeService(scanner)
 
         val inserted = service.refreshNow()
 
-        assertEquals(0, scanner.calls, "scanner must NOT be invoked when tracking is off")
-        assertEquals(0, inserted)
-        assertEquals(0, storage.usageRecordCount())
-    }
-
-    @Test
-    fun toggling_setting_resumes_scanning_without_restart() = runBlocking {
-        val scanner = CountingScanner(Source.CLAUDE_CODE)
-        val service = makeService(scanner)
-
-        stateManager.updateSettings(AppSettings(usageTrackingEnabled = false))
-        service.refreshNow()
-        assertEquals(0, storage.usageRecordCount())
-
-        stateManager.updateSettings(AppSettings(usageTrackingEnabled = true))
-        service.refreshNow()
-        assertEquals(1, storage.usageRecordCount(), "next pass after re-enable must ingest")
+        assertEquals(1, scanner.calls, "manual refreshNow() must always invoke the scanner")
+        assertEquals(1, inserted)
+        assertEquals(1, storage.usageRecordCount())
     }
 }

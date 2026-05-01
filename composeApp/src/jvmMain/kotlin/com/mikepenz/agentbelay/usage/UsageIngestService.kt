@@ -60,8 +60,10 @@ class UsageIngestService(
             logger.i { "pricing table loaded with ${pricing.size} models" }
 
             while (isActive) {
-                runCatching { runOnePass() }
-                    .onFailure { logger.w(it) { "scan pass failed: ${it.message}" } }
+                if (stateManager.state.value.settings.usageTrackingEnabled) {
+                    runCatching { runOnePass() }
+                        .onFailure { logger.w(it) { "scan pass failed: ${it.message}" } }
+                }
                 delay(pollInterval)
             }
         }
@@ -79,10 +81,10 @@ class UsageIngestService(
     suspend fun refreshNow(): Int = withContext(Dispatchers.IO) { runOnePass() }
 
     private suspend fun runOnePass(): Int = mutex.withLock {
-        // Single gate honoured by both the polling loop and `refreshNow()`.
-        // When tracking is off, every pass is a no-op — no file reads, no
-        // inserts, no `scans` emission — so the UI stays in its current state.
-        if (!stateManager.state.value.settings.usageTrackingEnabled) return@withLock 0
+        // No gate here on purpose: the `usageTrackingEnabled` setting only
+        // disables the auto-refresh loop. A user-triggered `refreshNow()`
+        // (e.g. the Usage tab's Refresh button) should always run, even when
+        // background scanning is off.
         var totalInserted = 0
         for (scanner in scanners) {
             val cursors = storage.loadUsageCursors(scanner.source)

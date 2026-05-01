@@ -242,10 +242,11 @@ fun GeneralSettingsContent(
         desc = "Experimental — reads on-disk session files from connected harnesses to compute token usage and cost.",
     ) {
         SettingItem(
-            label = "Track token usage",
+            label = "Auto-refresh token usage",
             desc = "When on, a background scanner walks Claude Code, Codex, Copilot, OpenCode and Pi " +
-                "session files every minute to populate the Usage tab. Pricing is computed from a bundled " +
-                "LiteLLM snapshot, refreshed once per day. Turning this off stops all session-file reads.",
+                "session files every minute to keep the Usage tab fresh. Pricing is computed from a bundled " +
+                "LiteLLM snapshot, refreshed once per day. Turning this off only disables the periodic " +
+                "scan — the Refresh button on the Usage tab still works on demand.",
             first = true,
             right = {
                 DesignToggle(
