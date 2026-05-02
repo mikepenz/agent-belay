@@ -29,10 +29,13 @@ import java.util.UUID
  *  1. `apply_patch` is normalised to `Write` on parse so the rest of Belay
  *     (Protection Engine, UI, history) treats Codex edits the same as
  *     Claude's.
- *  2. Output redaction is unsupported today — Codex's PostToolUse shape
- *     varies per tool and `PostToolUseRoute` is currently Claude-only.
- *     Returns null from [buildPostToolUseRedactedResponse]; capability
- *     flag stays off until the redaction route is generalised.
+ *  2. Output redaction is unsupported upstream — Codex's
+ *     `HookEventAfterToolUse` (`codex-rs/hooks/src/types.rs`) is read-only:
+ *     carries `output_preview` + metadata, and `HookResult` is success /
+ *     failure only with no `updatedToolOutput` analogue. Returns null
+ *     from [buildPostToolUseRedactedResponse]; capability flag stays off.
+ *     The PostToolUse endpoint is still mounted for race-cleanup so
+ *     stale pending entries get resolved.
  */
 class CodexAdapter : HarnessAdapter {
 

@@ -3,6 +3,7 @@ package com.mikepenz.agentbelay.harness
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.Source
 import com.mikepenz.agentbelay.server.harnessApprovalRoute
+import com.mikepenz.agentbelay.server.harnessPostToolUseRoute
 import com.mikepenz.agentbelay.server.harnessPreToolUseRoute
 import io.ktor.server.routing.Route
 
@@ -77,6 +78,7 @@ interface Harness {
         with(routing) {
             harnessApprovalRoute(this@Harness, deps.stateManager, deps.onNewApproval)
             harnessPreToolUseRoute(this@Harness, deps.stateManager, deps.protectionEngine, deps.onNewApproval)
+            harnessPostToolUseRoute(this@Harness, deps.stateManager, deps.redactionEngine)
         }
     }
 }
