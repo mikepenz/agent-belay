@@ -234,6 +234,10 @@ class ApprovalsViewModel(
         stateManager.resolve(requestId, Decision.ALWAYS_ALLOWED, "Always allowed", errorRiskAnalysis(requestId), null)
     }
 
+    fun onDefer(requestId: String) {
+        stateManager.resolve(requestId, Decision.DEFERRED, "Deferred to native approval flow", errorRiskAnalysis(requestId), null)
+    }
+
     fun onDeny(requestId: String, feedback: String) {
         stateManager.resolve(requestId, Decision.DENIED, feedback, errorRiskAnalysis(requestId), null)
     }

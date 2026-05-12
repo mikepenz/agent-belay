@@ -120,6 +120,8 @@ fun Route.harnessApprovalRoute(
                     )
                 Decision.DENIED, Decision.AUTO_DENIED, Decision.TIMEOUT ->
                     adapter.buildPermissionDenyResponse(request, result.feedback ?: "Request denied")
+                Decision.DEFERRED ->
+                    adapter.buildPermissionDeferResponse(request)
                 Decision.CANCELLED_BY_CLIENT, Decision.RESOLVED_EXTERNALLY -> null
                 Decision.PROTECTION_BLOCKED ->
                     adapter.buildPermissionDenyResponse(
@@ -298,7 +300,7 @@ private suspend fun handleProtectionAskMode(
                     result.feedback?.takeIf { it.isNotBlank() } ?: combinedMessage,
                 )
 
-            Decision.CANCELLED_BY_CLIENT, Decision.RESOLVED_EXTERNALLY -> null
+            Decision.CANCELLED_BY_CLIENT, Decision.RESOLVED_EXTERNALLY, Decision.DEFERRED -> null
         }
 
         if (response != null) {

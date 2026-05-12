@@ -15,7 +15,7 @@ data class HarnessCapabilities(
     val supportsAlwaysAllowWriteThrough: Boolean,
     /** PostToolUse can return `updatedToolOutput` to redact tool output before the agent reads it. */
     val supportsOutputRedaction: Boolean,
-    /** PreToolUse `permissionDecision` accepts `defer` (Claude Code v2.1.89+). */
+    /** The harness can hand an approval decision back to its native prompt flow. */
     val supportsDefer: Boolean,
     /** Deny response can interrupt the agent (Copilot `interrupt: true`, Claude `interrupt: true`). */
     val supportsInterruptOnDeny: Boolean,

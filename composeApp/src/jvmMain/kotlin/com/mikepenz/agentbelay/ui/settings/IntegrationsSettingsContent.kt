@@ -88,12 +88,12 @@ private val PiCapabilities = HarnessCapabilities(
 )
 
 private val CodexCapabilities = HarnessCapabilities(
-    supportsArgRewriting = true,
+    supportsArgRewriting = false,
     supportsAlwaysAllowWriteThrough = false,
     supportsOutputRedaction = false,
-    supportsDefer = false,
+    supportsDefer = true,
     supportsInterruptOnDeny = true,
-    supportsAdditionalContextInjection = false,
+    supportsAdditionalContextInjection = true,
 )
 
 @Composable

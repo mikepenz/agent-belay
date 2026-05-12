@@ -28,19 +28,19 @@ class CodexHarness(
     override val source: Source = Source.CODEX
 
     override val capabilities: HarnessCapabilities = HarnessCapabilities(
-        // Codex's PermissionRequest mirrors Claude's `updatedInput`.
-        supportsArgRewriting = true,
+        // Codex reserves `updatedInput`, but currently rejects it.
+        supportsArgRewriting = false,
         // Codex doesn't surface a write-through "always-allow" persistence
         // primitive in its hooks crate today.
         supportsAlwaysAllowWriteThrough = false,
         // PostToolUse is mounted, but redaction output mutation is not.
         // Flip to true once the Codex output schema is wired through.
         supportsOutputRedaction = false,
-        // No `defer` analogue.
-        supportsDefer = false,
+        // Empty PermissionRequest output defers to Codex's native approval flow.
+        supportsDefer = true,
         // Deny on PreToolUse halts the tool call.
         supportsInterruptOnDeny = true,
-        // SessionStart context injection unverified — leave off for v1.
-        supportsAdditionalContextInjection = false,
+        // SessionStart / UserPromptSubmit can inject `additionalContext`.
+        supportsAdditionalContextInjection = true,
     )
 }

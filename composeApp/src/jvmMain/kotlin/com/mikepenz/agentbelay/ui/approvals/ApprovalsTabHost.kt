@@ -28,6 +28,7 @@ fun ApprovalsTabHost(
         settings = settings,
         onApprove = viewModel::onApprove,
         onAlwaysAllow = viewModel::onAlwaysAllow,
+        onDefer = viewModel::onDefer,
         onDeny = viewModel::onDeny,
         onApproveWithInput = viewModel::onApproveWithInput,
         onDismiss = viewModel::onDismiss,

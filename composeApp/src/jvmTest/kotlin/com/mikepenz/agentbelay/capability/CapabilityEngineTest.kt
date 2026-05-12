@@ -71,6 +71,19 @@ class CapabilityEngineTest {
     }
 
     @Test
+    fun `injection is produced for Codex target when enabled`() {
+        val e = engine(
+            CapabilitySettings(
+                modules = mapOf(
+                    ResponseCompressionCapability.id to CapabilityModuleSettings(enabled = true)
+                )
+            )
+        )
+        val text = e.injectionFor(HookEvent.USER_PROMPT_SUBMIT, AgentTarget.CODEX)
+        assertFalse(text.isBlank())
+    }
+
+    @Test
     fun `socratic module enabled reports SESSION_START in required events`() {
         val e = engine(
             CapabilitySettings(

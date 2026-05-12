@@ -101,6 +101,17 @@ class RouteHandlerTest {
     }
 
     @Test
+    fun codexApproveRouteReturnsEmptyObjectOnDefer() {
+        val body = claudeCodeBody("Bash", """{"command":"ls"}""")
+        val response = httpPostWithResolve("/approve-codex", body) { requestId ->
+            stateManager.resolve(requestId, Decision.DEFERRED, "Deferred to Codex", null, null)
+        }
+
+        assertEquals("{}", extractBody(response))
+        assertEquals(Decision.DEFERRED, stateManager.state.value.history.first().decision)
+    }
+
+    @Test
     fun approveRouteReturnsBadRequestForInvalidJson() {
         val response = httpPost("/approve", "not json at all")
         assertTrue(response.contains("400"), "Expected 400 status, got: ${response.lineSequence().firstOrNull()}")
@@ -212,6 +223,12 @@ class RouteHandlerTest {
     fun capabilityCopilotRouteReturnsEmptyWhenNoModules() {
         val response = httpPost("/capability/inject-copilot", "{}")
         assertTrue(extractBody(response) == "{}")
+    }
+
+    @Test
+    fun capabilityCodexRoutesReturnEmptyWhenNoModules() {
+        assertEquals("{}", extractBody(httpPost("/capability/inject-codex", "{}")))
+        assertEquals("{}", extractBody(httpPost("/capability/session-start-codex", "{}")))
     }
 
     // ---- Server shutdown tests ----

@@ -18,9 +18,9 @@ class SocraticThinkingCapabilityTest {
     }
 
     @Test
-    fun `supports both Claude Code and Copilot CLI`() {
+    fun `supports configured context-injection targets`() {
         assertEquals(
-            setOf(AgentTarget.CLAUDE_CODE, AgentTarget.COPILOT_CLI, AgentTarget.OPENCODE),
+            setOf(AgentTarget.CLAUDE_CODE, AgentTarget.COPILOT_CLI, AgentTarget.OPENCODE, AgentTarget.CODEX),
             SocraticThinkingCapability.supportedTargets,
         )
     }

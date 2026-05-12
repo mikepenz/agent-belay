@@ -1,6 +1,7 @@
 package com.mikepenz.agentbelay.model
 
 import kotlin.time.Instant
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -25,7 +26,19 @@ data class ApprovalResult(
 
 @Serializable
 enum class Decision {
-    APPROVED, DENIED, TIMEOUT, AUTO_APPROVED, AUTO_DENIED, ALWAYS_ALLOWED, CANCELLED_BY_CLIENT, RESOLVED_EXTERNALLY, PROTECTION_BLOCKED, PROTECTION_LOGGED, PROTECTION_OVERRIDDEN
+    APPROVED,
+    DENIED,
+    TIMEOUT,
+    AUTO_APPROVED,
+    AUTO_DENIED,
+    ALWAYS_ALLOWED,
+    CANCELLED_BY_CLIENT,
+    RESOLVED_EXTERNALLY,
+    PROTECTION_BLOCKED,
+    PROTECTION_LOGGED,
+    PROTECTION_OVERRIDDEN,
+    @SerialName("DEFERRED")
+    DEFERRED,
 }
 
 @Serializable

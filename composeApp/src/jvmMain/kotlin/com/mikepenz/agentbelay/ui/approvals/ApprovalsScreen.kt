@@ -98,12 +98,16 @@ data class ApprovalQueueItem(
     val request: ApprovalRequest? = null,
 )
 
+private val ApprovalQueueItem.canDefer: Boolean
+    get() = source == Source.CODEX && toolType == ToolType.DEFAULT
+
 @Composable
 fun ApprovalsScreen(
     items: List<ApprovalQueueItem>,
     modifier: Modifier = Modifier,
     onApprove: (id: String) -> Unit = {},
     onAlwaysAllow: (id: String) -> Unit = {},
+    onDefer: (id: String) -> Unit = {},
     onDeny: (id: String) -> Unit = {},
     onApproveWithInput: (id: String, updatedInput: Map<String, JsonElement>) -> Unit = { _, _ -> },
     onDenyWithFeedback: (id: String, feedback: String) -> Unit = { _, _ -> },
@@ -153,6 +157,7 @@ fun ApprovalsScreen(
                     modifier = Modifier.fillMaxSize(),
                     onApprove = onApprove,
                     onAlwaysAllow = onAlwaysAllow,
+                    onDefer = onDefer,
                     onDeny = onDeny,
                     onApproveWithInput = onApproveWithInput,
                     onDenyWithFeedback = onDenyWithFeedback,
@@ -171,6 +176,7 @@ fun ApprovalsScreen(
                         modifier = Modifier.fillMaxSize(),
                         onApprove = onApprove,
                         onAlwaysAllow = onAlwaysAllow,
+                        onDefer = onDefer,
                         onDeny = onDeny,
                         onApproveWithInput = onApproveWithInput,
                         onDenyWithFeedback = onDenyWithFeedback,
@@ -187,6 +193,7 @@ fun ApprovalsScreen(
                                 onClick = { mediumDetailId = item.id },
                                 onApprove = onApprove,
                                 onAlwaysAllow = onAlwaysAllow,
+                                onDefer = onDefer,
                                 onDeny = onDeny,
                             )
                             if (idx < items.lastIndex) {
@@ -427,6 +434,7 @@ private fun MediumQueueRow(
     onClick: () -> Unit,
     onApprove: (id: String) -> Unit = {},
     onAlwaysAllow: (id: String) -> Unit = {},
+    onDefer: (id: String) -> Unit = {},
     onDeny: (id: String) -> Unit = {},
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -522,6 +530,15 @@ private fun MediumQueueRow(
                     modifier = Modifier.weight(1f),
                     onClick = { onAlwaysAllow(item.id) },
                 )
+                if (item.canDefer) {
+                    MediumActionButton(
+                        text = "Defer",
+                        icon = LucideChevronRight,
+                        primary = false,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onDefer(item.id) },
+                    )
+                }
                 MediumActionButton(
                     text = "Allow",
                     icon = LucideCheck,
@@ -575,6 +592,7 @@ private fun MediumDetailView(
     modifier: Modifier = Modifier,
     onApprove: (id: String) -> Unit = {},
     onAlwaysAllow: (id: String) -> Unit = {},
+    onDefer: (id: String) -> Unit = {},
     onDeny: (id: String) -> Unit = {},
     onApproveWithInput: (id: String, updatedInput: Map<String, JsonElement>) -> Unit = { _, _ -> },
     onDenyWithFeedback: (id: String, feedback: String) -> Unit = { _, _ -> },
@@ -611,6 +629,7 @@ private fun MediumDetailView(
             modifier = Modifier.weight(1f),
             onApprove = onApprove,
             onAlwaysAllow = onAlwaysAllow,
+            onDefer = onDefer,
             onDeny = onDeny,
             onApproveWithInput = onApproveWithInput,
             onDenyWithFeedback = onDenyWithFeedback,
@@ -628,6 +647,7 @@ private fun ApprovalDetail(
     modifier: Modifier = Modifier,
     onApprove: (id: String) -> Unit = {},
     onAlwaysAllow: (id: String) -> Unit = {},
+    onDefer: (id: String) -> Unit = {},
     onDeny: (id: String) -> Unit = {},
     onApproveWithInput: (id: String, updatedInput: Map<String, JsonElement>) -> Unit = { _, _ -> },
     onDenyWithFeedback: (id: String, feedback: String) -> Unit = { _, _ -> },
@@ -830,6 +850,9 @@ private fun ApprovalDetail(
                         ActionButton(text = "Deny", variant = ButtonVariant.Outline, leadingIcon = LucideX, onClick = { onDeny(item.id) })
                         Spacer(Modifier.weight(1f))
                         ActionButton(text = "Always allow", variant = ButtonVariant.Secondary, onClick = { onAlwaysAllow(item.id) })
+                        if (item.canDefer) {
+                            ActionButton(text = "Defer", variant = ButtonVariant.Secondary, onClick = { onDefer(item.id) })
+                        }
                         ActionButton(text = "Allow", variant = ButtonVariant.Primary, leadingIcon = LucideCheck, onClick = { onApprove(item.id) })
                     }
                 }

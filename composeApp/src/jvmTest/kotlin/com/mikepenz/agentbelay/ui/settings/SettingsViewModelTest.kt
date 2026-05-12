@@ -145,9 +145,19 @@ class SettingsViewModelTest {
 
     private class FakeCodexBridge : com.mikepenz.agentbelay.hook.CodexBridge {
         val registeredPorts: MutableSet<Int> = mutableSetOf()
+        val capabilityHookPorts: MutableSet<Int> = mutableSetOf()
+        var lastCapabilityUserPromptSubmit: Boolean? = null
+        var lastCapabilitySessionStart: Boolean? = null
         override fun isRegistered(port: Int): Boolean = port in registeredPorts
         override fun register(port: Int) { registeredPorts.add(port) }
         override fun unregister(port: Int) { registeredPorts.remove(port) }
+        override fun isCapabilityHookRegistered(port: Int): Boolean = port in capabilityHookPorts
+        override fun registerCapabilityHook(port: Int, userPromptSubmit: Boolean, sessionStart: Boolean) {
+            capabilityHookPorts.add(port)
+            lastCapabilityUserPromptSubmit = userPromptSubmit
+            lastCapabilitySessionStart = sessionStart
+        }
+        override fun unregisterCapabilityHook(port: Int) { capabilityHookPorts.remove(port) }
     }
 
     private fun newVm(
@@ -449,15 +459,17 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `enabling a capability registers capability hooks on both agents`() = runTest {
+    fun `enabling a capability registers capability hooks on supported agents`() = runTest {
         val registry = FakeHookRegistry()
         val bridge = FakeCopilotBridge()
-        val (vm, state, _) = newVm(bridge = bridge, registry = registry)
+        val codexBridge = FakeCodexBridge()
+        val (vm, state, _) = newVm(bridge = bridge, codexBridge = codexBridge, registry = registry)
         runCurrent()
 
         // Startup reconcile with no enabled capabilities must unregister.
         assertFalse(registry.capabilityHookPorts.contains(state.state.value.settings.serverPort))
         assertFalse(bridge.capabilityHookPorts.contains(state.state.value.settings.serverPort))
+        assertFalse(codexBridge.capabilityHookPorts.contains(state.state.value.settings.serverPort))
 
         vm.updateCapabilitySettings(
             CapabilitySettings(
@@ -469,13 +481,17 @@ class SettingsViewModelTest {
         val port = state.state.value.settings.serverPort
         assertTrue(registry.capabilityHookPorts.contains(port))
         assertTrue(bridge.capabilityHookPorts.contains(port))
+        assertTrue(codexBridge.capabilityHookPorts.contains(port))
+        assertEquals(true, codexBridge.lastCapabilityUserPromptSubmit)
+        assertEquals(false, codexBridge.lastCapabilitySessionStart)
     }
 
     @Test
-    fun `disabling the last capability unregisters capability hooks on both agents`() = runTest {
+    fun `disabling the last capability unregisters capability hooks on supported agents`() = runTest {
         val registry = FakeHookRegistry()
         val bridge = FakeCopilotBridge()
-        val (vm, state, _) = newVm(bridge = bridge, registry = registry)
+        val codexBridge = FakeCodexBridge()
+        val (vm, state, _) = newVm(bridge = bridge, codexBridge = codexBridge, registry = registry)
         runCurrent()
 
         vm.updateCapabilitySettings(
@@ -496,13 +512,15 @@ class SettingsViewModelTest {
 
         assertFalse(registry.capabilityHookPorts.contains(port))
         assertFalse(bridge.capabilityHookPorts.contains(port))
+        assertFalse(codexBridge.capabilityHookPorts.contains(port))
     }
 
     @Test
     fun `port change re-registers capability hooks at the new port`() = runTest {
         val registry = FakeHookRegistry()
         val bridge = FakeCopilotBridge()
-        val (vm, state, _) = newVm(bridge = bridge, registry = registry)
+        val codexBridge = FakeCodexBridge()
+        val (vm, state, _) = newVm(bridge = bridge, codexBridge = codexBridge, registry = registry)
         runCurrent()
 
         vm.updateCapabilitySettings(
@@ -522,5 +540,6 @@ class SettingsViewModelTest {
         // be present — that's the bit the reconcile flow guarantees.
         assertTrue(registry.capabilityHookPorts.contains(20000))
         assertTrue(bridge.capabilityHookPorts.contains(20000))
+        assertTrue(codexBridge.capabilityHookPorts.contains(20000))
     }
 }
