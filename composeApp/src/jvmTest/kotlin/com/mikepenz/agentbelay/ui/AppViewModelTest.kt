@@ -90,6 +90,9 @@ class AppViewModelTest {
         override fun isRegistered(port: Int): Boolean = registered
         override fun register(port: Int) {}
         override fun unregister(port: Int) {}
+        override fun isCapabilityHookRegistered(port: Int): Boolean = false
+        override fun registerCapabilityHook(port: Int, userPromptSubmit: Boolean, sessionStart: Boolean) {}
+        override fun unregisterCapabilityHook(port: Int) {}
     }
 
     private fun fakeUpdateManager() = UpdateManager(scope = CoroutineScope(SupervisorJob()))

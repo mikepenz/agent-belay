@@ -56,6 +56,8 @@ internal fun ApprovalResult.toHistoryEntry(now: Instant): HistoryEntry {
         ?: when (decision) {
             Decision.RESOLVED_EXTERNALLY ->
                 "Resolved externally (decided in harness or harness exited)"
+            Decision.DEFERRED ->
+                "Deferred to native approval flow"
             else -> null
         }
     val assessmentText = riskAnalysis?.let {
@@ -100,7 +102,7 @@ private fun Decision.toStatus(): DecisionStatus = when (this) {
     Decision.AUTO_APPROVED -> DecisionStatus.AUTO_APPROVED
     Decision.DENIED, Decision.CANCELLED_BY_CLIENT -> DecisionStatus.DENIED
     Decision.AUTO_DENIED -> DecisionStatus.AUTO_DENIED
-    Decision.RESOLVED_EXTERNALLY -> DecisionStatus.RESOLVED_EXT
+    Decision.RESOLVED_EXTERNALLY, Decision.DEFERRED -> DecisionStatus.RESOLVED_EXT
     Decision.PROTECTION_BLOCKED -> DecisionStatus.PROTECTION_BLOCKED
     Decision.PROTECTION_LOGGED, Decision.PROTECTION_OVERRIDDEN -> DecisionStatus.PROTECTION_LOGGED
     Decision.TIMEOUT -> DecisionStatus.TIMEOUT

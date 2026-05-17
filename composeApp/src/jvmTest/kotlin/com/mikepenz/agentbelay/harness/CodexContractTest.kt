@@ -9,6 +9,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 
 /**
@@ -46,9 +47,10 @@ class CodexContractTest : AbstractHarnessContractTest() {
 
     override fun assertContainsUpdatedInput(responseJson: String, key: String, value: String) {
         val decision = decisionObject(responseJson)
-        val updatedInput = decision["updatedInput"]?.jsonObject
-        assertNotNull(updatedInput, "Codex allow-with-rewrite must surface updatedInput")
-        assertEquals(value, updatedInput[key]!!.jsonPrimitive.content)
+        assertFalse(
+            decision.containsKey("updatedInput"),
+            "Codex currently rejects updatedInput, so the adapter must not emit it",
+        )
     }
 
     private fun decisionObject(responseJson: String): JsonObject {

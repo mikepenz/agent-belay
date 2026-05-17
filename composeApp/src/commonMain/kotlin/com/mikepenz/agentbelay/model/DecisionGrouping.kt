@@ -35,6 +35,7 @@ fun Decision.group(): DecisionGroup = when (this) {
     Decision.PROTECTION_LOGGED -> DecisionGroup.PROTECTION_LOG
     Decision.TIMEOUT -> DecisionGroup.TIMEOUT
     Decision.RESOLVED_EXTERNALLY -> DecisionGroup.EXTERNAL
+    Decision.DEFERRED -> DecisionGroup.EXTERNAL
     Decision.CANCELLED_BY_CLIENT -> DecisionGroup.OTHER
 }
 

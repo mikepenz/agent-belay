@@ -54,4 +54,20 @@ class CodexBridgeInstallerTest {
         assertTrue(block.contains("type = \"command\""))
         assertTrue(block.contains("timeout = 300"))
     }
+
+    @Test
+    fun `managed block can include Codex capability hooks`() {
+        val block = CodexBridgeInstaller.buildManagedBlock(
+            port = 24680,
+            includePermissionHooks = false,
+            includeUserPromptSubmit = true,
+            includeSessionStart = true,
+        )
+
+        assertFalse(block.contains("[[hooks.PermissionRequest]]"))
+        assertTrue(block.contains("[[hooks.UserPromptSubmit]]"))
+        assertTrue(block.contains("[[hooks.SessionStart]]"))
+        assertTrue(block.contains("codex-user-prompt-submit.sh"))
+        assertTrue(block.contains("codex-session-start.sh"))
+    }
 }

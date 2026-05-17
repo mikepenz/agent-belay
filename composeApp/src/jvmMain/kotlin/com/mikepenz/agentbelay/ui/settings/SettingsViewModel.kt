@@ -324,11 +324,10 @@ class SettingsViewModel(
 
     /**
      * Updates capability settings and, as a side effect, reconciles each
-     * agent's capability hook registration — Claude Code's `UserPromptSubmit`
-     * entry and Copilot CLI's `sessionStart` entry. The capability hook is
+     * supported agent's capability hook registration. The capability hook is
      * installed iff at least one capability is enabled.
      *
-     * Reconciliation is unconditional: it updates both agents' capability
+     * Reconciliation is unconditional: it updates capability
      * hook entries based purely on capability state, independent of whether
      * the main approval hooks are registered.
      */
@@ -341,7 +340,7 @@ class SettingsViewModel(
     }
 
     /**
-     * Writes or removes the capability hook entries for both agents based on
+     * Writes or removes the capability hook entries for supported agents based on
      * whether any capability module is enabled. Unconditional — no gating on
      * whether the main approval hooks are present, because capability and
      * approval hooks are independent features and the user may want one
@@ -369,10 +368,16 @@ class SettingsViewModel(
         if (requiredEvents.isNotEmpty()) {
             copilotBridge.registerCapabilityHook(port, copilotFailClosed)
             openCodeBridge.registerCapabilityHook(port)
+            codexBridge.registerCapabilityHook(
+                port = port,
+                userPromptSubmit = HookEvent.USER_PROMPT_SUBMIT in requiredEvents,
+                sessionStart = HookEvent.SESSION_START in requiredEvents,
+            )
         } else {
             hookRegistry.unregisterCapabilityHook(port)
             copilotBridge.unregisterCapabilityHook(port)
             openCodeBridge.unregisterCapabilityHook(port)
+            codexBridge.unregisterCapabilityHook(port)
         }
     }
 

@@ -116,13 +116,14 @@ class HarnessCapabilitiesTest {
     }
 
     @Test
-    fun `Codex advertises arg rewriting but not output redaction`() {
+    fun `Codex advertises defer and context but not arg rewriting or output redaction`() {
         val h = CodexHarness()
-        assertTrue(h.capabilities.supportsArgRewriting)
+        assertFalse(h.capabilities.supportsArgRewriting)
         assertFalse(h.capabilities.supportsAlwaysAllowWriteThrough)
         assertFalse(h.capabilities.supportsOutputRedaction)
-        assertFalse(h.capabilities.supportsDefer)
+        assertTrue(h.capabilities.supportsDefer)
         assertTrue(h.capabilities.supportsInterruptOnDeny)
+        assertTrue(h.capabilities.supportsAdditionalContextInjection)
     }
 
     @Test
@@ -137,7 +138,7 @@ class HarnessCapabilitiesTest {
     }
 
     @Test
-    fun `Codex allow with updatedInput mirrors Claude's hookSpecificOutput shape`() {
+    fun `Codex allow drops updatedInput because Codex rejects argument rewriting`() {
         val h = CodexHarness()
         val response = h.adapter.buildPermissionAllowResponse(
             fakeRequest(Source.CODEX),
@@ -146,7 +147,14 @@ class HarnessCapabilitiesTest {
         val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
         val decision = obj["hookSpecificOutput"]!!.jsonObject["decision"]!!.jsonObject
         assertEquals("allow", decision["behavior"]!!.jsonPrimitive.content)
-        assertNotNull(decision["updatedInput"])
+        assertNull(decision["updatedInput"])
+    }
+
+    @Test
+    fun `Codex defer returns an empty no-op response`() {
+        val h = CodexHarness()
+        val response = h.adapter.buildPermissionDeferResponse(fakeRequest(Source.CODEX))
+        assertEquals("{}", response.body)
     }
 
     @Test

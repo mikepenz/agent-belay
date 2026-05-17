@@ -115,4 +115,40 @@ fun Route.capabilityRoute(engine: CapabilityEngine) {
         call.respondText(body, contentType = ContentType.Application.Json)
         logger.v { "Served capability injection (${text.length} chars) to OpenCode" }
     }
+
+    post("/capability/inject-codex") {
+        runCatching { call.receiveText() }
+
+        val text = engine.injectionFor(HookEvent.USER_PROMPT_SUBMIT, AgentTarget.CODEX)
+        if (text.isBlank()) {
+            call.respondText("{}", contentType = ContentType.Application.Json)
+            return@post
+        }
+        val body = buildJsonObject {
+            put("hookSpecificOutput", buildJsonObject {
+                put("hookEventName", "UserPromptSubmit")
+                put("additionalContext", text)
+            })
+        }.toString()
+        call.respondText(body, contentType = ContentType.Application.Json)
+        logger.v { "Served UserPromptSubmit capability injection (${text.length} chars) to Codex" }
+    }
+
+    post("/capability/session-start-codex") {
+        runCatching { call.receiveText() }
+
+        val text = engine.injectionFor(HookEvent.SESSION_START, AgentTarget.CODEX)
+        if (text.isBlank()) {
+            call.respondText("{}", contentType = ContentType.Application.Json)
+            return@post
+        }
+        val body = buildJsonObject {
+            put("hookSpecificOutput", buildJsonObject {
+                put("hookEventName", "SessionStart")
+                put("additionalContext", text)
+            })
+        }.toString()
+        call.respondText(body, contentType = ContentType.Application.Json)
+        logger.v { "Served SessionStart capability injection (${text.length} chars) to Codex" }
+    }
 }

@@ -29,13 +29,10 @@ import java.util.UUID
  *  1. `apply_patch` is normalised to `Write` on parse so the rest of Belay
  *     (Protection Engine, UI, history) treats Codex edits the same as
  *     Claude's.
- *  2. Output redaction is unsupported upstream — Codex's
- *     `HookEventAfterToolUse` (`codex-rs/hooks/src/types.rs`) is read-only:
- *     carries `output_preview` + metadata, and `HookResult` is success /
- *     failure only with no `updatedToolOutput` analogue. Returns null
- *     from [buildPostToolUseRedactedResponse]; capability flag stays off.
- *     The PostToolUse endpoint is still mounted for race-cleanup so
- *     stale pending entries get resolved.
+ *  2. Codex currently rejects `updatedInput`, `updatedPermissions`, and
+ *     tool-output replacement fields. The adapter therefore returns only
+ *     fields Codex can honor and leaves redaction output mutation disabled.
+ *     PostToolUse remains mounted for cleanup/observability.
  */
 class CodexAdapter : HarnessAdapter {
 
@@ -93,9 +90,6 @@ class CodexAdapter : HarnessAdapter {
             put("hookEventName", "PermissionRequest")
             put("decision", buildJsonObject {
                 put("behavior", "allow")
-                if (updatedInput != null) {
-                    put("updatedInput", JsonObject(updatedInput))
-                }
             })
         })
     }.toString())
@@ -117,6 +111,9 @@ class CodexAdapter : HarnessAdapter {
             })
         })
     }.toString())
+
+    override fun buildPermissionDeferResponse(request: ApprovalRequest): HarnessResponse =
+        HarnessResponse("{}")
 
     override fun buildPreToolUseAllowResponse(): HarnessResponse = HarnessResponse("{}")
 

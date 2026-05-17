@@ -19,7 +19,7 @@ object ResponseCompressionCapability : CapabilityModule {
         "Cut output tokens by instructing the agent to respond tersely. Code, commands, paths, and URLs are preserved verbatim."
 
     override val supportedTargets: Set<AgentTarget> =
-        setOf(AgentTarget.CLAUDE_CODE, AgentTarget.COPILOT_CLI, AgentTarget.OPENCODE)
+        setOf(AgentTarget.CLAUDE_CODE, AgentTarget.COPILOT_CLI, AgentTarget.OPENCODE, AgentTarget.CODEX)
 
     override val requiredHookEvents: Set<HookEvent> = setOf(HookEvent.USER_PROMPT_SUBMIT)
 

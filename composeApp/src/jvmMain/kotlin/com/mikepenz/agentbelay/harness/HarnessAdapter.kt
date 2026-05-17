@@ -49,6 +49,10 @@ interface HarnessAdapter {
         message: String,
     ): HarnessResponse
 
+    /** Permission response that hands the decision back to the harness's native approval flow. */
+    fun buildPermissionDeferResponse(request: ApprovalRequest): HarnessResponse =
+        buildPermissionDenyResponse(request, "Deferred to native approval flow")
+
     /** Pre-tool-use allow (Protection Engine pass). */
     fun buildPreToolUseAllowResponse(): HarnessResponse
 
