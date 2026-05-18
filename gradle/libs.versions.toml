@@ -1,7 +1,7 @@
 [versions]
-kotlinx-coroutines = "1.10.2"
+kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
-kotlinx-datetime = "0.7.1-0.6.x-compat"
+kotlinx-datetime = "0.8.0-0.6.x-compat"
 ktor = "3.4.3"
 kermit = "2.1.0"
 markdown-renderer = "0.40.2"
