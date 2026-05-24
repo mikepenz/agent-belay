@@ -2,6 +2,7 @@ package com.mikepenz.agentbelay.ui
 
 import com.mikepenz.agentbelay.di.AppEnvironment
 import com.mikepenz.agentbelay.hook.CodexBridge
+import com.mikepenz.agentbelay.hook.AntigravityBridge
 import com.mikepenz.agentbelay.hook.CopilotBridge
 import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.OpenCodeBridge
@@ -95,6 +96,15 @@ class AppViewModelTest {
         override fun unregisterCapabilityHook(port: Int) {}
     }
 
+    private class FakeAntigravityBridge(private val registered: Boolean = false) : AntigravityBridge {
+        override fun isRegistered(port: Int): Boolean = registered
+        override fun register(port: Int) {}
+        override fun unregister(port: Int) {}
+        override fun isCapabilityHookRegistered(port: Int): Boolean = false
+        override fun registerCapabilityHook(port: Int, userPromptSubmit: Boolean, sessionStart: Boolean) {}
+        override fun unregisterCapabilityHook(port: Int) {}
+    }
+
     private fun fakeUpdateManager() = UpdateManager(scope = CoroutineScope(SupervisorJob()))
 
     private fun newRequest(id: String = "r-1") = ApprovalRequest(
@@ -117,6 +127,7 @@ class AppViewModelTest {
             FakeOpenCodeBridge,
             FakePiBridge,
             FakeCodexBridge(),
+            FakeAntigravityBridge(),
             RegistrationEvents(),
             fakeUpdateManager(),
         )
@@ -148,6 +159,7 @@ class AppViewModelTest {
             FakeOpenCodeBridge,
             FakePiBridge,
             FakeCodexBridge(),
+            FakeAntigravityBridge(),
             RegistrationEvents(),
             fakeUpdateManager(),
         )
@@ -168,6 +180,7 @@ class AppViewModelTest {
             FakeOpenCodeBridge,
             FakePiBridge,
             FakeCodexBridge(),
+            FakeAntigravityBridge(),
             RegistrationEvents(),
             fakeUpdateManager(),
         )
@@ -205,6 +218,7 @@ class AppViewModelTest {
             FakeOpenCodeBridge,
             FakePiBridge,
             FakeCodexBridge(registered = true),
+            FakeAntigravityBridge(),
             RegistrationEvents(),
             fakeUpdateManager(),
         )

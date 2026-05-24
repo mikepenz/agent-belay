@@ -1,0 +1,13 @@
+{
+  "_fixture": {
+    "harness": "antigravity",
+    "scenario": "bash permission request"
+  },
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "bash",
+  "tool_input": {
+    "command": "ls -la"
+  },
+  "session_id": "antigravity-session-1",
+  "timestamp": "2026-05-24T12:00:00Z"
+}

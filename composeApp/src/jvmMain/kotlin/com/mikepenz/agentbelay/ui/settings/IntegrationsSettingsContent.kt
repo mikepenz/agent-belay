@@ -96,6 +96,15 @@ private val CodexCapabilities = HarnessCapabilities(
     supportsAdditionalContextInjection = true,
 )
 
+private val AntigravityCapabilities = HarnessCapabilities(
+    supportsArgRewriting = false,
+    supportsAlwaysAllowWriteThrough = false,
+    supportsOutputRedaction = false,
+    supportsDefer = false,
+    supportsInterruptOnDeny = true,
+    supportsAdditionalContextInjection = false,
+)
+
 @Composable
 fun IntegrationsSettingsContent(
     settings: AppSettings,
@@ -104,6 +113,7 @@ fun IntegrationsSettingsContent(
     isOpenCodeRegistered: Boolean = false,
     isPiRegistered: Boolean = false,
     isCodexRegistered: Boolean = false,
+    isAntigravityRegistered: Boolean = false,
     onSettingsChange: (AppSettings) -> Unit,
     onRegisterHook: () -> Unit,
     onUnregisterHook: () -> Unit,
@@ -115,6 +125,8 @@ fun IntegrationsSettingsContent(
     onUnregisterPi: () -> Unit = {},
     onRegisterCodex: () -> Unit = {},
     onUnregisterCodex: () -> Unit = {},
+    onRegisterAntigravity: () -> Unit = {},
+    onUnregisterAntigravity: () -> Unit = {},
 ) {
     SettingSection(
         title = "Integrations",
@@ -181,6 +193,17 @@ fun IntegrationsSettingsContent(
                 onRegister = onRegisterCodex,
                 onUnregister = onUnregisterCodex,
                 experimental = true,
+            ),
+            IntegrationItemData(
+                id = "antigravity",
+                name = "Antigravity",
+                desc = "Settings in ~/.antigravitycli/settings.json " +
+                    "(Protection only — HITL approval via ASK protection rules)",
+                color = Color(0xFF9061F9),
+                registered = isAntigravityRegistered,
+                capabilities = AntigravityCapabilities,
+                onRegister = onRegisterAntigravity,
+                onUnregister = onUnregisterAntigravity,
             ),
         )
         items.forEachIndexed { idx, it -> IntegrationRow(item = it, first = idx == 0) }

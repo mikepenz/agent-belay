@@ -67,6 +67,7 @@ class ClaudeMdBloatDetector(
         Source.COPILOT -> 5_000
         Source.OPENCODE -> 5_000
         Source.PI -> 4_000
+        Source.ANTIGRAVITY -> 5_000
     }
 
     companion object {

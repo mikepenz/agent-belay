@@ -6,6 +6,7 @@ import com.mikepenz.agentbelay.VERSION
 import com.mikepenz.agentbelay.di.AppEnvironment
 import com.mikepenz.agentbelay.di.AppScope
 import com.mikepenz.agentbelay.hook.CodexBridge
+import com.mikepenz.agentbelay.hook.AntigravityBridge
 import com.mikepenz.agentbelay.hook.CopilotBridge
 import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.OpenCodeBridge
@@ -48,6 +49,7 @@ class AppViewModel(
     private val openCodeBridge: OpenCodeBridge,
     private val piBridge: PiBridge,
     private val codexBridge: CodexBridge,
+    private val antigravityBridge: AntigravityBridge,
     private val registrationEvents: RegistrationEvents,
     private val updateManager: UpdateManager,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -74,20 +76,29 @@ class AppViewModel(
     private val openCodeRegistered = MutableStateFlow(false)
     private val piRegistered = MutableStateFlow(false)
     private val codexRegistered = MutableStateFlow(false)
+    private val antigravityRegistered = MutableStateFlow(false)
+
+    private val piCodexAntigravityRegistered = combine(
+        piRegistered,
+        codexRegistered,
+        antigravityRegistered,
+    ) { pi, codex, antigravity ->
+        Triple(pi, codex, antigravity)
+    }
 
     private val registrations = combine(
         claudeRegistered,
         copilotRegistered,
         openCodeRegistered,
-        piRegistered,
-        codexRegistered,
-    ) { claude, copilot, openCode, pi, codex ->
+        piCodexAntigravityRegistered,
+    ) { claude, copilot, openCode, extra ->
         AppRegistrations(
             claude = claude,
             copilot = copilot,
             openCode = openCode,
-            pi = pi,
-            codex = codex,
+            pi = extra.first,
+            codex = extra.second,
+            antigravity = extra.third,
         )
     }
 
@@ -108,6 +119,7 @@ class AppViewModel(
                 AgentRegistration("OpenCode", registrations.openCode),
                 AgentRegistration("Pi", registrations.pi),
                 AgentRegistration("Codex", registrations.codex),
+                AgentRegistration("Antigravity", registrations.antigravity),
             ),
         )
     }.stateIn(
@@ -153,6 +165,7 @@ class AppViewModel(
             openCode = openCodeBridge.isRegistered(port),
             pi = piBridge.isRegistered(port),
             codex = codexBridge.isRegistered(port),
+            antigravity = antigravityBridge.isRegistered(port),
         )
     }
 
@@ -162,6 +175,7 @@ class AppViewModel(
         openCodeRegistered.value = registrations.openCode
         piRegistered.value = registrations.pi
         codexRegistered.value = registrations.codex
+        antigravityRegistered.value = registrations.antigravity
     }
 
     fun selectTab(index: Int) {
@@ -197,4 +211,5 @@ private data class AppRegistrations(
     val openCode: Boolean,
     val pi: Boolean,
     val codex: Boolean,
+    val antigravity: Boolean,
 )

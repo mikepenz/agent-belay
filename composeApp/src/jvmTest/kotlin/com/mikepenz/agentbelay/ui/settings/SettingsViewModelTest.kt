@@ -160,10 +160,28 @@ class SettingsViewModelTest {
         override fun unregisterCapabilityHook(port: Int) { capabilityHookPorts.remove(port) }
     }
 
+    private class FakeAntigravityBridge : com.mikepenz.agentbelay.hook.AntigravityBridge {
+        val registeredPorts: MutableSet<Int> = mutableSetOf()
+        val capabilityHookPorts: MutableSet<Int> = mutableSetOf()
+        var lastCapabilityUserPromptSubmit: Boolean? = null
+        var lastCapabilitySessionStart: Boolean? = null
+        override fun isRegistered(port: Int): Boolean = port in registeredPorts
+        override fun register(port: Int) { registeredPorts.add(port) }
+        override fun unregister(port: Int) { registeredPorts.remove(port) }
+        override fun isCapabilityHookRegistered(port: Int): Boolean = port in capabilityHookPorts
+        override fun registerCapabilityHook(port: Int, userPromptSubmit: Boolean, sessionStart: Boolean) {
+            capabilityHookPorts.add(port)
+            lastCapabilityUserPromptSubmit = userPromptSubmit
+            lastCapabilitySessionStart = sessionStart
+        }
+        override fun unregisterCapabilityHook(port: Int) { capabilityHookPorts.remove(port) }
+    }
+
     private fun newVm(
         bridge: FakeCopilotBridge = FakeCopilotBridge(),
         piBridge: FakePiBridge = FakePiBridge(),
         codexBridge: FakeCodexBridge = FakeCodexBridge(),
+        antigravityBridge: FakeAntigravityBridge = FakeAntigravityBridge(),
         registry: FakeHookRegistry = FakeHookRegistry(),
         copilotState: CopilotStateHolder = CopilotStateHolder(),
         ollamaState: OllamaStateHolder = OllamaStateHolder(),
@@ -189,6 +207,7 @@ class SettingsViewModelTest {
             openCodeBridge = FakeOpenCodeBridge(),
             piBridge = piBridge,
             codexBridge = codexBridge,
+            antigravityBridge = antigravityBridge,
             copilotStateHolder = copilotState,
             ollamaStateHolder = ollamaState,
             openaiApiStateHolder = openaiApiState,
@@ -241,6 +260,25 @@ class SettingsViewModelTest {
         runCurrent()
         assertEquals(1, piBridge.unregisterCalls)
         assertFalse(vm.uiState.value.isPiRegistered)
+    }
+
+    @Test
+    fun `registerAntigravity delegates to bridge and updates uiState`() = runTest {
+        val antigravityBridge = FakeAntigravityBridge()
+        val (vm, _, _) = newVm(antigravityBridge = antigravityBridge)
+        runCurrent()
+
+        assertFalse(vm.uiState.value.isAntigravityRegistered)
+
+        vm.registerAntigravity()
+        runCurrent()
+        assertTrue(antigravityBridge.registeredPorts.isNotEmpty())
+        assertTrue(vm.uiState.value.isAntigravityRegistered)
+
+        vm.unregisterAntigravity()
+        runCurrent()
+        assertTrue(antigravityBridge.registeredPorts.isEmpty())
+        assertFalse(vm.uiState.value.isAntigravityRegistered)
     }
 
     @Test
