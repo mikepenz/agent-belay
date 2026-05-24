@@ -225,6 +225,22 @@ fun GeneralSettingsContent(
             right = { OutlineButton(text = "Export JSON", onClick = {}) },
         )
         SettingItem(
+            label = "Max history entries",
+            desc = "Maximum number of decisions kept in memory and shown in the history list.",
+            right = {
+                SettingsTextInput(
+                    value = settings.maxHistoryEntries.toString(),
+                    onChange = { raw ->
+                        raw.toIntOrNull()?.takeIf { it > 0 }?.let { max ->
+                            onSettingsChange(settings.copy(maxHistoryEntries = max))
+                        }
+                    },
+                    mono = true,
+                    width = 140.dp,
+                )
+            },
+        )
+        SettingItem(
             label = "Clear history",
             desc = "Permanently removes all recorded decisions and protections.",
             right = {
