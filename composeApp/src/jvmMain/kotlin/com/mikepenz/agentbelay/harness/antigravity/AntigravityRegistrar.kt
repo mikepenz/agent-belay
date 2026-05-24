@@ -14,11 +14,11 @@ class AntigravityRegistrar : HarnessRegistrar {
 
     override fun describeArtifacts(port: Int): List<OutboardArtifact> {
         val home = System.getProperty("user.home")
-        val configFile = File(home, ".antigravitycli/settings.json")
+        val configFile = File(home, ".gemini/antigravity-cli/hooks.json")
         return listOf(
             OutboardArtifact.JsonFile(
                 path = configFile.toPath(),
-                contents = "(BeforeTool command hook in ${configFile.absolutePath} pointing to bridge script)",
+                contents = "(PreToolUse command hook in ${configFile.absolutePath} pointing to bridge script)",
             ),
         )
     }

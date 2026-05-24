@@ -197,8 +197,8 @@ fun IntegrationsSettingsContent(
             IntegrationItemData(
                 id = "antigravity",
                 name = "Antigravity",
-                desc = "Settings in ~/.antigravitycli/settings.json " +
-                    "(Protection only — HITL approval via ASK protection rules)",
+                desc = "Hooks in ~/.gemini/antigravity-cli/hooks.json " +
+                    "(PreToolUse gate — HITL approval via ASK protection rules)",
                 color = Color(0xFF9061F9),
                 registered = isAntigravityRegistered,
                 capabilities = AntigravityCapabilities,

@@ -38,6 +38,15 @@ class AntigravityAdapterTest {
     }
 
     @Test
+    fun parsePayloadWithoutSessionIdSucceeds() {
+        val json = """{"hook_event_name":"PreToolUse","tool_name":"bash","tool_input":{"command":"npm test"}}"""
+        val result = adapter.parsePreToolUse(json)
+        assertNotNull(result)
+        assertEquals("Bash", result.hookInput.toolName)
+        assertTrue(result.hookInput.sessionId.isNotEmpty())
+    }
+
+    @Test
     fun buildPreToolUseAllowResponseShape() {
         val response = adapter.buildPreToolUseAllowResponse()
         val obj = Json.parseToJsonElement(response.body).jsonObject

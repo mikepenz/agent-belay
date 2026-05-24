@@ -36,14 +36,15 @@ class AntigravityAdapter : HarnessAdapter {
     private fun parse(rawJson: String): ApprovalRequest? {
         return try {
             val payload = json.decodeFromString<AntigravityPayload>(rawJson)
-            if (payload.sessionId.isBlank()) {
-                logger.w { "Missing session_id" }
-                return null
-            }
             if (payload.toolName.isBlank()) {
                 logger.w { "Missing tool_name" }
                 return null
             }
+
+            val sessionId = payload.sessionId.takeIf { it.isNotBlank() }
+                ?: System.getenv("ANTIGRAVITY_SESSION_ID")?.takeIf { it.isNotBlank() }
+                ?: System.getenv("GEMINI_SESSION_ID")?.takeIf { it.isNotBlank() }
+                ?: UUID.randomUUID().toString()
 
             val canonicalToolName = TOOL_NAME_MAP[payload.toolName] ?: payload.toolName
 
@@ -54,7 +55,7 @@ class AntigravityAdapter : HarnessAdapter {
             }
 
             val hookInput = HookInput(
-                sessionId = payload.sessionId,
+                sessionId = sessionId,
                 toolName = canonicalToolName,
                 toolInput = payload.toolInput,
                 hookEventName = payload.hookEventName,

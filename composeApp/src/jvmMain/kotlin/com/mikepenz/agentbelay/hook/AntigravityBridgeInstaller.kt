@@ -4,10 +4,7 @@ import co.touchlab.kermit.Logger
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -24,12 +21,25 @@ private val json = Json {
     ignoreUnknownKeys = true
     prettyPrint = true
     explicitNulls = false
+    encodeDefaults = true
 }
 
 @Serializable
-private data class AntigravityHookDef(
-    val matcher: String = ".*",
+private data class AntigravityHook(
+    val type: String = "command",
     val command: String
+)
+
+@Serializable
+private data class AntigravityHookEntry(
+    val matcher: String = ".*",
+    val hooks: List<AntigravityHook>
+)
+
+@Serializable
+private data class AntigravityHookGroup(
+    val enabled: Boolean = true,
+    @SerialName("PreToolUse") val preToolUse: List<AntigravityHookEntry>
 )
 
 object AntigravityBridgeInstaller {
@@ -47,13 +57,13 @@ object AntigravityBridgeInstaller {
 
     private fun configFile(): File {
         val home = System.getProperty("user.home")
-        return File(home, ".antigravitycli/settings.json")
+        return File(home, ".gemini/antigravity-cli/hooks.json")
     }
 
-    // Legacy Gemini files for cleanup/migration
+    // Legacy config files for cleanup/migration (previously pointed to wrong path)
     private fun legacyConfigFile(): File {
         val home = System.getProperty("user.home")
-        return File(home, ".gemini/settings.json")
+        return File(home, ".gemini/config/hooks.json")
     }
 
     private fun legacyScriptFile1(): File {
@@ -77,10 +87,17 @@ object AntigravityBridgeInstaller {
             val text = config.readText()
             if (text.isBlank()) return false
             val root = json.parseToJsonElement(text).jsonObject
-            val beforeTool = root["BeforeTool"]?.jsonArray ?: return false
-            beforeTool.any { entry ->
-                val command = entry.jsonObject["command"]?.jsonPrimitive?.content ?: ""
-                command == preToolUseScriptPath()
+            val group = root["agent-belay"]?.jsonObject ?: return false
+            val enabled = group["enabled"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: true
+            if (!enabled) return false
+
+            val preToolUse = group["PreToolUse"]?.jsonArray ?: return false
+            preToolUse.any { entry ->
+                val hooks = entry.jsonObject["hooks"]?.jsonArray ?: return@any false
+                hooks.any { hook ->
+                    val command = hook.jsonObject["command"]?.jsonPrimitive?.content ?: ""
+                    command == preToolUseScriptPath()
+                }
             } && script.readText().contains("localhost:$port")
         } catch (e: Exception) {
             logger.w(e) { "Failed to read ${config.absolutePath}" }
@@ -107,36 +124,31 @@ object AntigravityBridgeInstaller {
         withFileLock(config) {
             val root = if (config.exists()) {
                 try {
-                    json.parseToJsonElement(config.readText()).jsonObject
+                    json.parseToJsonElement(config.readText()).jsonObject.toMutableMap()
                 } catch (e: Exception) {
-                    logger.w(e) { "Corrupt settings.json — overwriting" }
-                    JsonObject(emptyMap())
+                    logger.w(e) { "Corrupt antigravity-cli/hooks.json — overwriting" }
+                    mutableMapOf()
                 }
             } else {
-                JsonObject(emptyMap())
+                mutableMapOf()
             }
 
-            val existingBeforeTool = root["BeforeTool"]?.jsonArray?.toMutableList() ?: mutableListOf()
-            val alreadyRegistered = existingBeforeTool.any { entry ->
-                entry.jsonObject["command"]?.jsonPrimitive?.content == preToolUseScriptPath()
-            }
-
-            if (!alreadyRegistered) {
-                val newEntry = json.encodeToJsonElement(
-                    AntigravityHookDef.serializer(),
-                    AntigravityHookDef(matcher = ".*", command = preToolUseScriptPath())
+            val hookGroup = AntigravityHookGroup(
+                enabled = true,
+                preToolUse = listOf(
+                    AntigravityHookEntry(
+                        matcher = ".*",
+                        hooks = listOf(
+                            AntigravityHook(command = preToolUseScriptPath())
+                        )
+                    )
                 )
-                existingBeforeTool.add(newEntry)
-            }
+            )
 
-            val updatedRoot = buildJsonObject {
-                root.forEach { (key, value) ->
-                    if (key != "BeforeTool") put(key, value)
-                }
-                put("BeforeTool", JsonArray(existingBeforeTool))
-            }
+            root["agent-belay"] = json.encodeToJsonElement(AntigravityHookGroup.serializer(), hookGroup)
 
-            atomicWrite(config, json.encodeToString(JsonElement.serializer(), updatedRoot))
+            val updatedRoot = JsonObject(root)
+            atomicWrite(config, json.encodeToString(JsonObject.serializer(), updatedRoot))
             logger.i { "Registered Antigravity user-scoped pre-tool hook for port $port" }
         }
     }
@@ -155,39 +167,22 @@ object AntigravityBridgeInstaller {
             var shouldDeleteConfig = false
             withFileLock(config) {
                 val root = try {
-                    json.parseToJsonElement(config.readText()).jsonObject
+                    json.parseToJsonElement(config.readText()).jsonObject.toMutableMap()
                 } catch (e: Exception) {
-                    logger.w(e) { "Corrupt settings.json — deleting" }
+                    logger.w(e) { "Corrupt antigravity-cli/hooks.json — deleting" }
                     shouldDeleteConfig = true
                     return@withFileLock
                 }
 
-                val existingBeforeTool = root["BeforeTool"]?.jsonArray
-                if (existingBeforeTool == null) {
-                    if (root.isEmpty()) {
-                        shouldDeleteConfig = true
-                    }
-                    return@withFileLock
-                }
-                val filteredList = existingBeforeTool.filter { entry ->
-                    entry.jsonObject["command"]?.jsonPrimitive?.content != preToolUseScriptPath()
-                }
+                root.remove("agent-belay")
 
-                val updatedRoot = buildJsonObject {
-                    root.forEach { (key, value) ->
-                        if (key != "BeforeTool") put(key, value)
-                    }
-                    if (filteredList.isNotEmpty()) {
-                        put("BeforeTool", JsonArray(filteredList))
-                    }
-                }
-
+                val updatedRoot = JsonObject(root)
                 val isEmpty = updatedRoot.isEmpty()
                 if (isEmpty) {
                     shouldDeleteConfig = true
                 } else {
-                    atomicWrite(config, json.encodeToString(JsonElement.serializer(), updatedRoot))
-                    logger.i { "Unregistered Antigravity hook from settings.json" }
+                    atomicWrite(config, json.encodeToString(JsonObject.serializer(), updatedRoot))
+                    logger.i { "Unregistered Antigravity hook from hooks.json" }
                 }
             }
 
@@ -211,43 +206,26 @@ object AntigravityBridgeInstaller {
             if (script2.exists()) script2.delete()
             deleteDirectoryIfEmpty(script2.parentFile) // Delete .agent-approver if empty
 
-            // Remove hook from legacy config
+            // Remove hook from legacy config (.gemini/config/hooks.json — the old incorrect path)
             val config = legacyConfigFile()
             var shouldDeleteConfig = false
             if (config.exists()) {
                 withFileLock(config) {
                     val root = try {
-                        json.parseToJsonElement(config.readText()).jsonObject
+                        json.parseToJsonElement(config.readText()).jsonObject.toMutableMap()
                     } catch (e: Exception) {
                         shouldDeleteConfig = true
                         return@withFileLock
                     }
-                    val beforeTool = root["BeforeTool"]?.jsonArray
-                    if (beforeTool != null) {
-                        val filtered = beforeTool.filter { entry ->
-                            val cmd = entry.jsonObject["command"]?.jsonPrimitive?.content ?: ""
-                            !cmd.contains("gemini-pre-tool-use.sh")
-                        }
 
-                        val updated = buildJsonObject {
-                            root.forEach { (key, value) ->
-                                if (key != "BeforeTool") put(key, value)
-                            }
-                            if (filtered.isNotEmpty()) {
-                                put("BeforeTool", JsonArray(filtered))
-                            }
-                        }
+                    root.remove("agent-belay")
 
-                        if (updated.isEmpty()) {
-                            shouldDeleteConfig = true
-                        } else {
-                            atomicWrite(config, json.encodeToString(JsonElement.serializer(), updated))
-                            logger.i { "Migrated/removed Gemini hooks from settings.json" }
-                        }
+                    val updatedRoot = JsonObject(root)
+                    if (updatedRoot.isEmpty()) {
+                        shouldDeleteConfig = true
                     } else {
-                        if (root.isEmpty()) {
-                            shouldDeleteConfig = true
-                        }
+                        atomicWrite(config, json.encodeToString(JsonObject.serializer(), updatedRoot))
+                        logger.i { "Removed agent-belay from legacy .gemini/config/hooks.json" }
                     }
                 }
 
@@ -256,11 +234,11 @@ object AntigravityBridgeInstaller {
                     val lockFile = File(config.parentFile, "${config.name}.lock")
                     if (lockFile.exists()) lockFile.delete()
                     deleteDirectoryIfEmpty(config.parentFile)
-                    logger.i { "Cleaned up empty legacy Gemini config directory" }
+                    logger.i { "Cleaned up empty legacy .gemini/config directory" }
                 }
             }
         }.onFailure { e ->
-            logger.w(e) { "Failed to clean up legacy Gemini files" }
+            logger.w(e) { "Failed to clean up legacy config files" }
         }
     }
 
@@ -276,7 +254,16 @@ object AntigravityBridgeInstaller {
             |URL="http://localhost:$port/$PRE_TOOL_USE_ENDPOINT"
             |INPUT=${'$'}(cat)
             |
-            |RESPONSE=${'$'}(printf '%s' "${'$'}INPUT" | curl -sS --max-time 10 \
+            |# Extract session ID from environment or generate a fallback
+            |SESSION_ID="${'$'}{ANTIGRAVITY_SESSION_ID:-${'$'}{GEMINI_SESSION_ID:-}}"
+            |if [ -z "${'$'}SESSION_ID" ]; then
+            |    SESSION_ID="session_${'$'}(date +%s)_${'$'}RANDOM"
+            |fi
+            |
+            |# Inject session_id into stdin JSON for Agent Belay
+            |INPUT_WITH_SESSION=${'$'}(printf '%s' "${'$'}INPUT" | sed 's/^[[:space:]]*{/{"session_id":"'"${'$'}SESSION_ID"'",/')
+            |
+            |RESPONSE=${'$'}(printf '%s' "${'$'}INPUT_WITH_SESSION" | curl -sS --max-time 10 \
             |    -X POST \
             |    -H "Content-Type: application/json" \
             |    --data-binary @- \

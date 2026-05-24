@@ -36,11 +36,15 @@ class AntigravityBridgeInstallerTest {
         AntigravityBridgeInstaller.register(port)
         assertTrue(AntigravityBridgeInstaller.isRegistered(port))
 
-        // Verify config exists and contains the correct hook
-        val config = File(tempHome, ".antigravitycli/settings.json")
+        // Verify config exists and contains the correct hook nested under "PreToolUse" -> "hooks"
+        val config = File(tempHome, ".gemini/antigravity-cli/hooks.json")
         assertTrue(config.exists())
         val configText = config.readText()
+        println("DEBUG CONFIG TEXT:\n$configText")
         assertTrue(configText.contains("antigravity-pre-tool-use.sh"))
+        assertTrue(configText.contains("\"PreToolUse\""))
+        assertTrue(configText.contains("\"hooks\""))
+        assertTrue(configText.contains("\"type\": \"command\""))
 
         // Verify bridge script exists and is executable
         val script = File(tempHome, ".agent-belay/antigravity-pre-tool-use.sh")
@@ -58,18 +62,26 @@ class AntigravityBridgeInstallerTest {
     fun testMigrationFromLegacyGemini() {
         val port = 19532
         
-        // Setup legacy Gemini config
-        val legacyConfigDir = File(tempHome, ".gemini")
+        // Setup legacy config (previously written to wrong path .gemini/config/hooks.json)
+        val legacyConfigDir = File(tempHome, ".gemini/config")
         legacyConfigDir.mkdirs()
-        val legacyConfig = File(legacyConfigDir, "settings.json")
+        val legacyConfig = File(legacyConfigDir, "hooks.json")
         legacyConfig.writeText("""
             {
-              "BeforeTool": [
-                {
-                  "matcher": ".*",
-                  "command": "${tempHome.absolutePath}/.agent-belay/gemini-pre-tool-use.sh"
-                }
-              ]
+              "agent-belay": {
+                "enabled": true,
+                "PreToolUse": [
+                  {
+                    "matcher": ".*",
+                    "hooks": [
+                      {
+                        "type": "command",
+                        "command": "${tempHome.absolutePath}/.agent-belay/antigravity-pre-tool-use.sh"
+                      }
+                    ]
+                  }
+                ]
+              }
             }
         """.trimIndent())
 
@@ -88,13 +100,13 @@ class AntigravityBridgeInstallerTest {
         // Register Antigravity
         AntigravityBridgeInstaller.register(port)
 
-        // Verify Antigravity is registered
+        // Verify Antigravity is registered at the correct new location
         assertTrue(AntigravityBridgeInstaller.isRegistered(port))
 
-        // Verify legacy Gemini files are cleaned up!
+        // Verify legacy files are cleaned up
         assertFalse(legacyShim1.exists())
         assertFalse(legacyShim2.exists())
-        assertFalse(legacyConfig.exists())
-        assertFalse(legacyConfigDir.exists()) // Directory deleted if empty
+        assertFalse(legacyConfig.exists()) // Deleted because it was the wrong path
+        assertFalse(legacyConfigDir.exists()) // .gemini/config dir deleted (now empty)
     }
 }
