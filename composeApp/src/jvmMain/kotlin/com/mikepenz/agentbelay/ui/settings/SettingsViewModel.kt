@@ -7,6 +7,7 @@ import com.mikepenz.agentbelay.capability.CapabilityModule
 import com.mikepenz.agentbelay.capability.HookEvent
 import com.mikepenz.agentbelay.di.AppScope
 import com.mikepenz.agentbelay.hook.CodexBridge
+import com.mikepenz.agentbelay.hook.AntigravityBridge
 import com.mikepenz.agentbelay.hook.CopilotBridge
 import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.OpenCodeBridge
@@ -72,6 +73,7 @@ class SettingsViewModel(
     private val openCodeBridge: OpenCodeBridge,
     private val piBridge: PiBridge,
     private val codexBridge: CodexBridge,
+    private val antigravityBridge: AntigravityBridge,
     private val copilotStateHolder: CopilotStateHolder,
     private val ollamaStateHolder: OllamaStateHolder,
     private val openaiApiStateHolder: OpenaiApiStateHolder,
@@ -117,10 +119,11 @@ class SettingsViewModel(
     private val isOpenCodeRegistered = MutableStateFlow(false)
     private val isPiRegistered = MutableStateFlow(false)
     private val isCodexRegistered = MutableStateFlow(false)
+    private val isAntigravityRegistered = MutableStateFlow(false)
 
-    /** Pair of (Pi, Codex) registration flags — flattened to keep the main `combine` at arity 5. */
-    private val piAndCodexRegistered: kotlinx.coroutines.flow.Flow<Pair<Boolean, Boolean>> =
-        combine(isPiRegistered, isCodexRegistered) { pi, codex -> pi to codex }
+    /** Triple of (Pi, Codex, Antigravity) registration flags — flattened to keep the main `combine` at arity reasonable. */
+    private val piCodexAntigravityRegistered: kotlinx.coroutines.flow.Flow<Triple<Boolean, Boolean, Boolean>> =
+        combine(isPiRegistered, isCodexRegistered, isAntigravityRegistered) { pi, codex, antigravity -> Triple(pi, codex, antigravity) }
 
     /** Pre-combined Copilot lifecycle state to keep the main `combine` arity reasonable. */
     private val copilotState: kotlinx.coroutines.flow.Flow<Pair<List<Pair<String, String>>, CopilotInitState>> =
@@ -145,9 +148,9 @@ class SettingsViewModel(
         isHookRegistered,
         isCopilotRegistered,
         isOpenCodeRegistered,
-        piAndCodexRegistered,
-    ) { hookRegistered, copilotRegistered, openCodeRegistered, piAndCodex ->
-        Registrations(hookRegistered, copilotRegistered, openCodeRegistered, piAndCodex.first, piAndCodex.second)
+        piCodexAntigravityRegistered,
+    ) { hookRegistered, copilotRegistered, openCodeRegistered, extra ->
+        Registrations(hookRegistered, copilotRegistered, openCodeRegistered, extra.first, extra.second, extra.third)
     }
 
     /** Pre-combined OpenAI API lifecycle state, same reason. Bundles models, init state, error, metrics. */
@@ -173,6 +176,7 @@ class SettingsViewModel(
                 registrations.openCode,
                 registrations.pi,
                 registrations.codex,
+                registrations.antigravity,
                 copilot,
             )
         },
@@ -188,6 +192,7 @@ class SettingsViewModel(
             isOpenCodeRegistered = base.openCodeRegistered,
             isPiRegistered = base.piRegistered,
             isCodexRegistered = base.codexRegistered,
+            isAntigravityRegistered = base.antigravityRegistered,
             copilotModels = base.copilot.first,
             copilotInitState = base.copilot.second,
             ollamaModels = ollama.models,
@@ -213,6 +218,7 @@ class SettingsViewModel(
             isOpenCodeRegistered = false,
             isPiRegistered = false,
             isCodexRegistered = false,
+            isAntigravityRegistered = false,
             copilotModels = copilotStateHolder.models.value,
             copilotInitState = copilotStateHolder.initState.value,
             ollamaModels = ollamaStateHolder.models.value,
@@ -230,10 +236,10 @@ class SettingsViewModel(
     )
 
     init {
-        // Poll both registrations whenever the configured port changes. The
+        // Poll registrations whenever the configured port changes. The
         // first emission of `serverPort` covers app startup; subsequent
         // emissions cover the case where the user edits the port. Always run
-        // on [ioDispatcher] because both backends parse files under ~.
+        // on [ioDispatcher] because backends parse files under ~.
         viewModelScope.launch {
             stateManager.state
                 .map { it.settings.serverPort }
@@ -246,6 +252,7 @@ class SettingsViewModel(
                             openCode = openCodeBridge.isRegistered(port),
                             pi = piBridge.isRegistered(port),
                             codex = codexBridge.isRegistered(port),
+                            antigravity = antigravityBridge.isRegistered(port),
                         )
                     }
                     isHookRegistered.value = snapshot.claude
@@ -253,6 +260,7 @@ class SettingsViewModel(
                     isOpenCodeRegistered.value = snapshot.openCode
                     isPiRegistered.value = snapshot.pi
                     isCodexRegistered.value = snapshot.codex
+                    isAntigravityRegistered.value = snapshot.antigravity
                 }
         }
 
@@ -471,6 +479,24 @@ class SettingsViewModel(
         }
     }
 
+    fun registerAntigravity() {
+        viewModelScope.launch(writeDispatcher) {
+            val port = stateManager.state.value.settings.serverPort
+            antigravityBridge.register(port)
+            isAntigravityRegistered.value = antigravityBridge.isRegistered(port)
+            registrationEvents.emit()
+        }
+    }
+
+    fun unregisterAntigravity() {
+        viewModelScope.launch(writeDispatcher) {
+            val port = stateManager.state.value.settings.serverPort
+            antigravityBridge.unregister(port)
+            isAntigravityRegistered.value = antigravityBridge.isRegistered(port)
+            registrationEvents.emit()
+        }
+    }
+
     fun clearHistory() {
         viewModelScope.launch(writeDispatcher) {
             stateManager.clearHistory()
@@ -519,6 +545,7 @@ data class SettingsUiState(
     val isOpenCodeRegistered: Boolean = false,
     val isPiRegistered: Boolean = false,
     val isCodexRegistered: Boolean = false,
+    val isAntigravityRegistered: Boolean = false,
     val copilotModels: List<Pair<String, String>>,
     val copilotInitState: CopilotInitState,
     val ollamaModels: List<String> = emptyList(),
@@ -541,6 +568,7 @@ private data class UiBase(
     val openCodeRegistered: Boolean,
     val piRegistered: Boolean,
     val codexRegistered: Boolean,
+    val antigravityRegistered: Boolean,
     val copilot: Pair<List<Pair<String, String>>, CopilotInitState>,
 )
 
@@ -550,6 +578,7 @@ private data class Registrations(
     val openCode: Boolean,
     val pi: Boolean,
     val codex: Boolean,
+    val antigravity: Boolean,
 )
 
 private data class RegistrationSnapshot(
@@ -558,4 +587,5 @@ private data class RegistrationSnapshot(
     val openCode: Boolean,
     val pi: Boolean,
     val codex: Boolean,
+    val antigravity: Boolean,
 )

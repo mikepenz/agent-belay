@@ -4,8 +4,10 @@ import com.mikepenz.agentbelay.capability.CapabilityEngine
 import com.mikepenz.agentbelay.capability.modules.ResponseCompressionCapability
 import com.mikepenz.agentbelay.capability.modules.SocraticThinkingCapability
 import com.mikepenz.agentbelay.hook.CodexBridge
+import com.mikepenz.agentbelay.hook.AntigravityBridge
 import com.mikepenz.agentbelay.hook.CopilotBridge
 import com.mikepenz.agentbelay.hook.DefaultCodexBridge
+import com.mikepenz.agentbelay.hook.DefaultAntigravityBridge
 import com.mikepenz.agentbelay.hook.DefaultCopilotBridge
 import com.mikepenz.agentbelay.hook.DefaultHookRegistry
 import com.mikepenz.agentbelay.hook.DefaultOpenCodeBridge
@@ -136,6 +138,10 @@ interface AppProviders {
 
     @Provides
     @SingleIn(AppScope::class)
+    fun provideAntigravityBridge(): AntigravityBridge = DefaultAntigravityBridge
+
+    @Provides
+    @SingleIn(AppScope::class)
     fun provideHookRegistry(): HookRegistry = DefaultHookRegistry
 
     @Provides
@@ -186,6 +192,7 @@ interface AppProviders {
                 com.mikepenz.agentbelay.usage.scanner.CopilotUsageScanner(),
                 com.mikepenz.agentbelay.usage.scanner.OpenCodeUsageScanner(),
                 com.mikepenz.agentbelay.usage.scanner.PiUsageScanner(),
+                com.mikepenz.agentbelay.usage.scanner.AntigravityUsageScanner(),
             ),
             storage = databaseStorage,
             stateManager = stateManager,

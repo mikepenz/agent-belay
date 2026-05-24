@@ -9,6 +9,7 @@ import com.mikepenz.agentbelay.harness.codex.CodexHarness
 import com.mikepenz.agentbelay.harness.copilot.CopilotHarness
 import com.mikepenz.agentbelay.harness.opencode.OpenCodeHarness
 import com.mikepenz.agentbelay.harness.pi.PiHarness
+import com.mikepenz.agentbelay.harness.antigravity.AntigravityHarness
 import com.mikepenz.agentbelay.protection.ProtectionEngine
 import com.mikepenz.agentbelay.redaction.RedactionEngine
 import com.mikepenz.agentbelay.state.AppStateManager
@@ -21,6 +22,7 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 
 class ApprovalServer(
     private val stateManager: AppStateManager,
@@ -44,6 +46,7 @@ class ApprovalServer(
         OpenCodeHarness(),
         PiHarness(),
         CodexHarness(),
+        AntigravityHarness(),
     )
 
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null

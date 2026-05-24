@@ -1,0 +1,14 @@
+{
+  "_fixture": {
+    "harness": "antigravity",
+    "scenario": "edit permission request"
+  },
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "edit",
+  "tool_input": {
+    "path": "src/main.kt",
+    "content": "hello"
+  },
+  "session_id": "antigravity-session-1",
+  "timestamp": "2026-05-24T12:00:00Z"
+}

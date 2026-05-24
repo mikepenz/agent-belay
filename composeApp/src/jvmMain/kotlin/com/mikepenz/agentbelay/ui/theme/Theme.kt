@@ -94,6 +94,7 @@ val SourceCopilotColor = VioletPurple      // oklch(0.74 0.14 290) — design-sy
 val SourceOpenCodeColor = Color(0xFF10B981) // emerald green — OpenCode
 val SourcePiColor = Color(0xFFF59E0B) // amber - Pi
 val SourceCodexColor = Color(0xFF1F6FEB)   // OpenAI blue — Codex CLI
+val SourceAntigravityColor = Color(0xFF9061F9) // vibrant purple — Antigravity CLI
 
 fun sourceColor(source: com.mikepenz.agentbelay.model.Source): Color = when (source) {
     com.mikepenz.agentbelay.model.Source.CLAUDE_CODE -> SourceClaudeColor
@@ -101,6 +102,7 @@ fun sourceColor(source: com.mikepenz.agentbelay.model.Source): Color = when (sou
     com.mikepenz.agentbelay.model.Source.OPENCODE -> SourceOpenCodeColor
     com.mikepenz.agentbelay.model.Source.PI -> SourcePiColor
     com.mikepenz.agentbelay.model.Source.CODEX -> SourceCodexColor
+    com.mikepenz.agentbelay.model.Source.ANTIGRAVITY -> SourceAntigravityColor
 }
 
 fun sourceLabel(source: com.mikepenz.agentbelay.model.Source): String = when (source) {
@@ -109,6 +111,7 @@ fun sourceLabel(source: com.mikepenz.agentbelay.model.Source): String = when (so
     com.mikepenz.agentbelay.model.Source.OPENCODE -> "OpenCode"
     com.mikepenz.agentbelay.model.Source.PI -> "Pi"
     com.mikepenz.agentbelay.model.Source.CODEX -> "Codex"
+    com.mikepenz.agentbelay.model.Source.ANTIGRAVITY -> "Antigravity"
 }
 
 fun riskColor(risk: Int): Color = when (risk) {

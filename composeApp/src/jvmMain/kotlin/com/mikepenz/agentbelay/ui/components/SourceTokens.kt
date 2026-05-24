@@ -22,6 +22,7 @@ fun sourceDisplayName(source: Source): String = when (source) {
     Source.OPENCODE -> "OpenCode"
     Source.PI -> "Pi"
     Source.CODEX -> "Codex"
+    Source.ANTIGRAVITY -> "Antigravity"
 }
 
 fun sourceAccentColor(source: Source): Color = when (source) {
@@ -30,4 +31,5 @@ fun sourceAccentColor(source: Source): Color = when (source) {
     Source.OPENCODE -> InfoBlue
     Source.PI -> VioletPurple
     Source.CODEX -> WarnYellow
+    Source.ANTIGRAVITY -> Color(0xFF9061F9)
 }

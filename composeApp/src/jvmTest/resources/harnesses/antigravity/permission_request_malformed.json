@@ -1,0 +1,7 @@
+{
+  "_fixture": {
+    "harness": "antigravity",
+    "scenario": "malformed request"
+  },
+  "hook_event_name": "PermissionRequest"
+}
