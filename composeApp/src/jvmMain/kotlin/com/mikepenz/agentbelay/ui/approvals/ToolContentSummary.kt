@@ -59,8 +59,29 @@ fun toolSummaryText(toolName: String, toolInput: Map<String, JsonElement>): Stri
             ?.take(3)
             ?.joinToString("\n")
             ?.ifBlank { toolName } ?: toolName
-    else ->
-        toolInput.values.firstOrNull().asStringOrNull()?.take(120) ?: toolName
+    else -> genericToolSummary(toolInput).ifBlank { toolName }
+}
+
+// Picks a useful single-line preview for MCP / unknown tools whose
+// `toolInput` shape we don't recognize. Prefers descriptive string fields
+// (name, title, description, command, query, path, url) so MCP payloads
+// like `{tripId: 1, name: "..."}` show the name rather than "1".
+private fun genericToolSummary(toolInput: Map<String, JsonElement>): String {
+    val preferredKeys = listOf(
+        "name", "title", "description", "summary",
+        "command", "query", "path", "file_path", "url",
+        "text", "content", "message", "prompt",
+    )
+    for (key in preferredKeys) {
+        toolInput[key].asStringOrNull()?.takeIf { it.isNotBlank() }?.let { return it.take(160) }
+    }
+    val rendered = toolInput.entries
+        .mapNotNull { (k, v) ->
+            v.asStringOrNull()?.takeIf { it.isNotBlank() }?.let { "$k=$it" }
+        }
+        .take(4)
+        .joinToString(", ")
+    return rendered.take(160)
 }
 
 fun toolPopOutContent(toolName: String, toolInput: Map<String, JsonElement>): String {
