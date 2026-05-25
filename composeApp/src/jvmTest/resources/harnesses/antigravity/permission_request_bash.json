@@ -1,13 +1,18 @@
 {
   "_fixture": {
     "harness": "antigravity",
-    "scenario": "bash permission request"
+    "scenario": "bash (run_command) permission request — native jetski PreToolHookArgs shape"
   },
-  "hook_event_name": "PermissionRequest",
-  "tool_name": "bash",
-  "tool_input": {
-    "command": "ls -la"
-  },
-  "session_id": "antigravity-session-1",
-  "timestamp": "2026-05-24T12:00:00Z"
+  "conversation_id": "antigravity-session-1",
+  "cwd": "/tmp/workspace",
+  "step_idx": 3,
+  "transcript_path": "/Users/example/.gemini/antigravity-cli/conversations/antigravity-session-1.jsonl",
+  "artifact_directory_path": "/Users/example/.gemini/antigravity-cli/conversations/antigravity-session-1/artifacts",
+  "workspace_paths": ["/tmp/workspace"],
+  "tool_call": {
+    "name": "run_command",
+    "args": {
+      "command": "ls -la"
+    }
+  }
 }
