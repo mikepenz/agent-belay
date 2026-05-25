@@ -243,27 +243,24 @@ object AntigravityBridgeInstaller {
     }
 
     private fun buildBridgeScript(port: Int): String {
+        // Antigravity / agy sends a jetski PreToolHookArgs JSON on stdin
+        // (top-level `conversation_id`, `cwd`, `tool_call.{name,args}`, …).
+        // The Agent Belay adapter reads `conversation_id` directly, so the
+        // bridge no longer needs to splice in a synthetic `session_id` —
+        // any sed-based JSON mutation here is unsafe (whitespace prefixes,
+        // arrays, BOM markers all break it).
         return """
             |#!/usr/bin/env bash
-            |# Agent Belay bridge script for Antigravity CLI
-            |# Reads hook JSON from stdin, POSTs to Agent Belay, returns response.
-            |# Fail-open: if server is unreachable, exits 0 so Antigravity proceeds normally.
+            |# Agent Belay bridge script for Antigravity CLI (agy).
+            |# Reads PreToolHookArgs JSON from stdin, POSTs to Agent Belay,
+            |# writes the response (decision/reason/allow_tool/…) to stdout.
+            |# Fail-open: if the server is unreachable, exits 0 so agy proceeds.
             |
             |set -uo pipefail
             |
             |URL="http://localhost:$port/$PRE_TOOL_USE_ENDPOINT"
-            |INPUT=${'$'}(cat)
             |
-            |# Extract session ID from environment or generate a fallback
-            |SESSION_ID="${'$'}{ANTIGRAVITY_SESSION_ID:-${'$'}{GEMINI_SESSION_ID:-}}"
-            |if [ -z "${'$'}SESSION_ID" ]; then
-            |    SESSION_ID="session_${'$'}(date +%s)_${'$'}RANDOM"
-            |fi
-            |
-            |# Inject session_id into stdin JSON for Agent Belay
-            |INPUT_WITH_SESSION=${'$'}(printf '%s' "${'$'}INPUT" | sed 's/^[[:space:]]*{/{"session_id":"'"${'$'}SESSION_ID"'",/')
-            |
-            |RESPONSE=${'$'}(printf '%s' "${'$'}INPUT_WITH_SESSION" | curl -sS --max-time 10 \
+            |RESPONSE=${'$'}(curl -sS --max-time 10 \
             |    -X POST \
             |    -H "Content-Type: application/json" \
             |    --data-binary @- \

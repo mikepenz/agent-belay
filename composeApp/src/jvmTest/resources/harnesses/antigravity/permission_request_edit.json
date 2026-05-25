@@ -1,14 +1,18 @@
 {
   "_fixture": {
     "harness": "antigravity",
-    "scenario": "edit permission request"
+    "scenario": "edit_file permission request — native jetski PreToolHookArgs shape"
   },
-  "hook_event_name": "PermissionRequest",
-  "tool_name": "edit",
-  "tool_input": {
-    "path": "src/main.kt",
-    "content": "hello"
-  },
-  "session_id": "antigravity-session-1",
-  "timestamp": "2026-05-24T12:00:00Z"
+  "conversation_id": "antigravity-session-1",
+  "cwd": "/tmp/workspace",
+  "step_idx": 5,
+  "transcript_path": "/Users/example/.gemini/antigravity-cli/conversations/antigravity-session-1.jsonl",
+  "workspace_paths": ["/tmp/workspace"],
+  "tool_call": {
+    "name": "edit_file",
+    "args": {
+      "path": "src/main.kt",
+      "content": "hello"
+    }
+  }
 }
