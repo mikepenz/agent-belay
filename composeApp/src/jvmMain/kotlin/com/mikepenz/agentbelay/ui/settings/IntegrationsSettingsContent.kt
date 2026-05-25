@@ -49,6 +49,7 @@ import com.mikepenz.agentbelay.ui.theme.AgentBelayColors
 import com.mikepenz.agentbelay.ui.theme.SourceClaudeColor
 import com.mikepenz.agentbelay.ui.theme.SourceOpenCodeColor
 import com.mikepenz.agentbelay.ui.theme.SourcePiColor
+import com.mikepenz.agentbelay.ui.theme.SourceHermesColor
 import com.mikepenz.agentbelay.ui.theme.VioletPurple
 
 private val ClaudeCapabilities = HarnessCapabilities(
@@ -96,6 +97,15 @@ private val CodexCapabilities = HarnessCapabilities(
     supportsAdditionalContextInjection = true,
 )
 
+private val HermesCapabilities = HarnessCapabilities(
+    supportsArgRewriting = false,
+    supportsAlwaysAllowWriteThrough = false,
+    supportsOutputRedaction = false,
+    supportsDefer = false,
+    supportsInterruptOnDeny = true,
+    supportsAdditionalContextInjection = false,
+)
+
 private val AntigravityCapabilities = HarnessCapabilities(
     supportsArgRewriting = false,
     supportsAlwaysAllowWriteThrough = false,
@@ -114,6 +124,7 @@ fun IntegrationsSettingsContent(
     isPiRegistered: Boolean = false,
     isCodexRegistered: Boolean = false,
     isAntigravityRegistered: Boolean = false,
+    isHermesRegistered: Boolean = false,
     onSettingsChange: (AppSettings) -> Unit,
     onRegisterHook: () -> Unit,
     onUnregisterHook: () -> Unit,
@@ -127,6 +138,8 @@ fun IntegrationsSettingsContent(
     onUnregisterCodex: () -> Unit = {},
     onRegisterAntigravity: () -> Unit = {},
     onUnregisterAntigravity: () -> Unit = {},
+    onRegisterHermes: () -> Unit = {},
+    onUnregisterHermes: () -> Unit = {},
 ) {
     SettingSection(
         title = "Integrations",
@@ -193,6 +206,17 @@ fun IntegrationsSettingsContent(
                 onRegister = onRegisterCodex,
                 onUnregister = onUnregisterCodex,
                 experimental = true,
+            ),
+            IntegrationItemData(
+                id = "hermes",
+                name = "Hermes",
+                desc = "Managed block in ~/.hermes/config.yaml " +
+                    "(PreToolUse, requires Hermes Agent)",
+                color = SourceHermesColor,
+                registered = isHermesRegistered,
+                capabilities = HermesCapabilities,
+                onRegister = onRegisterHermes,
+                onUnregister = onUnregisterHermes,
             ),
             IntegrationItemData(
                 id = "antigravity",
@@ -415,6 +439,7 @@ private fun PreviewIntegrationsSlim() {
                 isOpenCodeRegistered = true,
                 isPiRegistered = false,
                 isCodexRegistered = false,
+                isHermesRegistered = false,
                 onSettingsChange = {},
                 onRegisterHook = {},
                 onUnregisterHook = {},
@@ -437,6 +462,7 @@ private fun PreviewIntegrationsWide() {
                 isOpenCodeRegistered = true,
                 isPiRegistered = false,
                 isCodexRegistered = false,
+                isHermesRegistered = false,
                 onSettingsChange = {},
                 onRegisterHook = {},
                 onUnregisterHook = {},
@@ -459,6 +485,7 @@ private fun PreviewIntegrationsUnregistered() {
                 isOpenCodeRegistered = false,
                 isPiRegistered = false,
                 isCodexRegistered = false,
+                isHermesRegistered = false,
                 onSettingsChange = {},
                 onRegisterHook = {},
                 onUnregisterHook = {},

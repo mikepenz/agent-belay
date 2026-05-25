@@ -1,0 +1,13 @@
+{
+  "_fixture": {
+    "harness": "hermes",
+    "scenario": "bash pre-tool-use request"
+  },
+  "hook_event_name": "pre_tool_call",
+  "tool_name": "bash",
+  "tool_input": {
+    "command": "ls -la"
+  },
+  "session_id": "hermes-session-1",
+  "cwd": "/Users/mikepenz/workspace"
+}

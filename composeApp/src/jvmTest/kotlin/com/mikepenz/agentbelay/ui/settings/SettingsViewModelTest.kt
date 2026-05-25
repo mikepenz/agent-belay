@@ -4,6 +4,7 @@ import com.mikepenz.agentbelay.capability.CapabilityEngine
 import com.mikepenz.agentbelay.capability.modules.ResponseCompressionCapability
 import com.mikepenz.agentbelay.capability.modules.SocraticThinkingCapability
 import com.mikepenz.agentbelay.hook.CopilotBridge
+import com.mikepenz.agentbelay.hook.HermesBridge
 import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.OpenCodeBridge
 import com.mikepenz.agentbelay.hook.PiBridge
@@ -177,11 +178,22 @@ class SettingsViewModelTest {
         override fun unregisterCapabilityHook(port: Int) { capabilityHookPorts.remove(port) }
     }
 
+    private class FakeHermesBridge : HermesBridge {
+        val registeredPorts: MutableSet<Int> = mutableSetOf()
+        override fun isRegistered(port: Int): Boolean = port in registeredPorts
+        override fun register(port: Int) { registeredPorts.add(port) }
+        override fun unregister(port: Int) { registeredPorts.remove(port) }
+        override fun isCapabilityHookRegistered(port: Int): Boolean = false
+        override fun registerCapabilityHook(port: Int, userPromptSubmit: Boolean, sessionStart: Boolean) {}
+        override fun unregisterCapabilityHook(port: Int) {}
+    }
+
     private fun newVm(
         bridge: FakeCopilotBridge = FakeCopilotBridge(),
         piBridge: FakePiBridge = FakePiBridge(),
         codexBridge: FakeCodexBridge = FakeCodexBridge(),
         antigravityBridge: FakeAntigravityBridge = FakeAntigravityBridge(),
+        hermesBridge: FakeHermesBridge = FakeHermesBridge(),
         registry: FakeHookRegistry = FakeHookRegistry(),
         copilotState: CopilotStateHolder = CopilotStateHolder(),
         ollamaState: OllamaStateHolder = OllamaStateHolder(),
@@ -208,6 +220,7 @@ class SettingsViewModelTest {
             piBridge = piBridge,
             codexBridge = codexBridge,
             antigravityBridge = antigravityBridge,
+            hermesBridge = hermesBridge,
             copilotStateHolder = copilotState,
             ollamaStateHolder = ollamaState,
             openaiApiStateHolder = openaiApiState,

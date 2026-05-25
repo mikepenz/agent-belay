@@ -12,6 +12,7 @@ import com.mikepenz.agentbelay.hook.CopilotBridge
 import com.mikepenz.agentbelay.hook.HookRegistry
 import com.mikepenz.agentbelay.hook.OpenCodeBridge
 import com.mikepenz.agentbelay.hook.PiBridge
+import com.mikepenz.agentbelay.hook.HermesBridge
 import com.mikepenz.agentbelay.hook.RegistrationEvents
 import com.mikepenz.agentbelay.model.AppSettings
 import com.mikepenz.agentbelay.model.CapabilitySettings
@@ -74,6 +75,7 @@ class SettingsViewModel(
     private val piBridge: PiBridge,
     private val codexBridge: CodexBridge,
     private val antigravityBridge: AntigravityBridge,
+    private val hermesBridge: HermesBridge,
     private val copilotStateHolder: CopilotStateHolder,
     private val ollamaStateHolder: OllamaStateHolder,
     private val openaiApiStateHolder: OpenaiApiStateHolder,
@@ -120,10 +122,10 @@ class SettingsViewModel(
     private val isPiRegistered = MutableStateFlow(false)
     private val isCodexRegistered = MutableStateFlow(false)
     private val isAntigravityRegistered = MutableStateFlow(false)
+    private val isHermesRegistered = MutableStateFlow(false)
 
-    /** Triple of (Pi, Codex, Antigravity) registration flags — flattened to keep the main `combine` at arity reasonable. */
-    private val piCodexAntigravityRegistered: kotlinx.coroutines.flow.Flow<Triple<Boolean, Boolean, Boolean>> =
-        combine(isPiRegistered, isCodexRegistered, isAntigravityRegistered) { pi, codex, antigravity -> Triple(pi, codex, antigravity) }
+    private val piCodexAntigravityHermesRegistered: kotlinx.coroutines.flow.Flow<Array<Boolean>> =
+        combine(isPiRegistered, isCodexRegistered, isAntigravityRegistered, isHermesRegistered) { args -> args }
 
     /** Pre-combined Copilot lifecycle state to keep the main `combine` arity reasonable. */
     private val copilotState: kotlinx.coroutines.flow.Flow<Pair<List<Pair<String, String>>, CopilotInitState>> =
@@ -148,9 +150,9 @@ class SettingsViewModel(
         isHookRegistered,
         isCopilotRegistered,
         isOpenCodeRegistered,
-        piCodexAntigravityRegistered,
+        piCodexAntigravityHermesRegistered,
     ) { hookRegistered, copilotRegistered, openCodeRegistered, extra ->
-        Registrations(hookRegistered, copilotRegistered, openCodeRegistered, extra.first, extra.second, extra.third)
+        Registrations(hookRegistered, copilotRegistered, openCodeRegistered, extra[0], extra[1], extra[2], extra[3])
     }
 
     /** Pre-combined OpenAI API lifecycle state, same reason. Bundles models, init state, error, metrics. */
@@ -177,6 +179,7 @@ class SettingsViewModel(
                 registrations.pi,
                 registrations.codex,
                 registrations.antigravity,
+                registrations.hermes,
                 copilot,
             )
         },
@@ -193,6 +196,7 @@ class SettingsViewModel(
             isPiRegistered = base.piRegistered,
             isCodexRegistered = base.codexRegistered,
             isAntigravityRegistered = base.antigravityRegistered,
+            isHermesRegistered = base.hermesRegistered,
             copilotModels = base.copilot.first,
             copilotInitState = base.copilot.second,
             ollamaModels = ollama.models,
@@ -219,6 +223,7 @@ class SettingsViewModel(
             isPiRegistered = false,
             isCodexRegistered = false,
             isAntigravityRegistered = false,
+            isHermesRegistered = false,
             copilotModels = copilotStateHolder.models.value,
             copilotInitState = copilotStateHolder.initState.value,
             ollamaModels = ollamaStateHolder.models.value,
@@ -253,6 +258,7 @@ class SettingsViewModel(
                             pi = piBridge.isRegistered(port),
                             codex = codexBridge.isRegistered(port),
                             antigravity = antigravityBridge.isRegistered(port),
+                            hermes = hermesBridge.isRegistered(port),
                         )
                     }
                     isHookRegistered.value = snapshot.claude
@@ -261,6 +267,7 @@ class SettingsViewModel(
                     isPiRegistered.value = snapshot.pi
                     isCodexRegistered.value = snapshot.codex
                     isAntigravityRegistered.value = snapshot.antigravity
+                    isHermesRegistered.value = snapshot.hermes
                 }
         }
 
@@ -381,11 +388,17 @@ class SettingsViewModel(
                 userPromptSubmit = HookEvent.USER_PROMPT_SUBMIT in requiredEvents,
                 sessionStart = HookEvent.SESSION_START in requiredEvents,
             )
+            hermesBridge.registerCapabilityHook(
+                port = port,
+                userPromptSubmit = HookEvent.USER_PROMPT_SUBMIT in requiredEvents,
+                sessionStart = HookEvent.SESSION_START in requiredEvents,
+            )
         } else {
             hookRegistry.unregisterCapabilityHook(port)
             copilotBridge.unregisterCapabilityHook(port)
             openCodeBridge.unregisterCapabilityHook(port)
             codexBridge.unregisterCapabilityHook(port)
+            hermesBridge.unregisterCapabilityHook(port)
         }
     }
 
@@ -497,6 +510,24 @@ class SettingsViewModel(
         }
     }
 
+    fun registerHermes() {
+        viewModelScope.launch(writeDispatcher) {
+            val port = stateManager.state.value.settings.serverPort
+            hermesBridge.register(port)
+            isHermesRegistered.value = hermesBridge.isRegistered(port)
+            registrationEvents.emit()
+        }
+    }
+
+    fun unregisterHermes() {
+        viewModelScope.launch(writeDispatcher) {
+            val port = stateManager.state.value.settings.serverPort
+            hermesBridge.unregister(port)
+            isHermesRegistered.value = hermesBridge.isRegistered(port)
+            registrationEvents.emit()
+        }
+    }
+
     fun clearHistory() {
         viewModelScope.launch(writeDispatcher) {
             stateManager.clearHistory()
@@ -546,6 +577,7 @@ data class SettingsUiState(
     val isPiRegistered: Boolean = false,
     val isCodexRegistered: Boolean = false,
     val isAntigravityRegistered: Boolean = false,
+    val isHermesRegistered: Boolean = false,
     val copilotModels: List<Pair<String, String>>,
     val copilotInitState: CopilotInitState,
     val ollamaModels: List<String> = emptyList(),
@@ -569,6 +601,7 @@ private data class UiBase(
     val piRegistered: Boolean,
     val codexRegistered: Boolean,
     val antigravityRegistered: Boolean,
+    val hermesRegistered: Boolean,
     val copilot: Pair<List<Pair<String, String>>, CopilotInitState>,
 )
 
@@ -579,6 +612,7 @@ private data class Registrations(
     val pi: Boolean,
     val codex: Boolean,
     val antigravity: Boolean,
+    val hermes: Boolean,
 )
 
 private data class RegistrationSnapshot(
@@ -588,4 +622,5 @@ private data class RegistrationSnapshot(
     val pi: Boolean,
     val codex: Boolean,
     val antigravity: Boolean,
+    val hermes: Boolean,
 )

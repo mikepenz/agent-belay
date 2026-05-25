@@ -6,9 +6,11 @@ import com.mikepenz.agentbelay.capability.modules.SocraticThinkingCapability
 import com.mikepenz.agentbelay.hook.CodexBridge
 import com.mikepenz.agentbelay.hook.AntigravityBridge
 import com.mikepenz.agentbelay.hook.CopilotBridge
+import com.mikepenz.agentbelay.hook.HermesBridge
 import com.mikepenz.agentbelay.hook.DefaultCodexBridge
 import com.mikepenz.agentbelay.hook.DefaultAntigravityBridge
 import com.mikepenz.agentbelay.hook.DefaultCopilotBridge
+import com.mikepenz.agentbelay.hook.DefaultHermesBridge
 import com.mikepenz.agentbelay.hook.DefaultHookRegistry
 import com.mikepenz.agentbelay.hook.DefaultOpenCodeBridge
 import com.mikepenz.agentbelay.hook.DefaultPiBridge
@@ -135,6 +137,10 @@ interface AppProviders {
     @Provides
     @SingleIn(AppScope::class)
     fun provideCodexBridge(): CodexBridge = DefaultCodexBridge
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun provideHermesBridge(): HermesBridge = DefaultHermesBridge
 
     @Provides
     @SingleIn(AppScope::class)

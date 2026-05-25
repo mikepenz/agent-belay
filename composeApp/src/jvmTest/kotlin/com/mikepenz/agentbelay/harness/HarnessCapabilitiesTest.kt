@@ -4,6 +4,7 @@ import com.mikepenz.agentbelay.harness.claudecode.ClaudeCodeHarness
 import com.mikepenz.agentbelay.harness.codex.CodexHarness
 import com.mikepenz.agentbelay.harness.copilot.CopilotHarness
 import com.mikepenz.agentbelay.harness.pi.PiHarness
+import com.mikepenz.agentbelay.harness.hermes.HermesHarness
 import com.mikepenz.agentbelay.model.ApprovalRequest
 import com.mikepenz.agentbelay.model.HookInput
 import com.mikepenz.agentbelay.model.Source
@@ -187,6 +188,20 @@ class HarnessCapabilitiesTest {
         val response = h.adapter.buildPermissionDenyResponse(fakeRequest(Source.PI), "blocked")
         val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
         assertEquals("deny", obj["behavior"]!!.jsonPrimitive.content)
+        assertEquals("blocked", obj["message"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `Hermes advertises shell-backed block but no rewriting or redaction`() {
+        val h = HermesHarness()
+        assertFalse(h.capabilities.supportsArgRewriting)
+        assertFalse(h.capabilities.supportsAlwaysAllowWriteThrough)
+        assertFalse(h.capabilities.supportsOutputRedaction)
+        assertTrue(h.capabilities.supportsInterruptOnDeny)
+
+        val response = h.adapter.buildPreToolUseDenyResponse("blocked")
+        val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject
+        assertEquals("block", obj["action"]!!.jsonPrimitive.content)
         assertEquals("blocked", obj["message"]!!.jsonPrimitive.content)
     }
 }

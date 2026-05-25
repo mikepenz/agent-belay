@@ -20,7 +20,7 @@ class SocraticThinkingCapabilityTest {
     @Test
     fun `supports configured context-injection targets`() {
         assertEquals(
-            setOf(AgentTarget.CLAUDE_CODE, AgentTarget.COPILOT_CLI, AgentTarget.OPENCODE, AgentTarget.CODEX),
+            setOf(AgentTarget.CLAUDE_CODE, AgentTarget.COPILOT_CLI, AgentTarget.OPENCODE, AgentTarget.CODEX, AgentTarget.HERMES),
             SocraticThinkingCapability.supportedTargets,
         )
     }
