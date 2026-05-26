@@ -5,6 +5,19 @@ plugins {
     alias(baseLibs.plugins.kotlinSerialization) apply false
     alias(baseLibs.plugins.aboutLibraries) apply false
     alias(libs.plugins.nucleus) apply false
+    alias(libs.plugins.versionCatalogUpdate)
+}
+
+versionCatalogUpdate {
+    sortByKey.set(false)
+    versionCatalogs {
+        create("libs") {
+            catalogFile.set(file("gradle/libs.versions.toml"))
+        }
+    }
+    pin {
+        versions.addAll("nucleus", "composenativetray")
+    }
 }
 
 // Resolves every resolvable configuration across all projects (buildscript + project).
