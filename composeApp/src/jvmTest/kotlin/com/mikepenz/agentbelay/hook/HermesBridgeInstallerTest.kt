@@ -22,7 +22,6 @@ class HermesBridgeInstallerTest {
             port = 19532,
             includeMainHooks = true,
             includeUserPromptSubmit = true,
-            includeSessionStart = true,
         )
         val combined = original + "\n\n" + block + "\n"
 
@@ -31,11 +30,12 @@ class HermesBridgeInstallerTest {
         assertTrue(extracted.contains("pre_tool_call:"))
         assertTrue(extracted.contains("post_tool_call:"))
         assertTrue(extracted.contains("pre_llm_call:"))
-        assertTrue(extracted.contains("on_session_start:"))
+        // on_session_start is intentionally NOT installed — Hermes ignores its
+        // return value, so it cannot inject context.
+        assertFalse(extracted.contains("on_session_start:"))
         assertTrue(extracted.contains("hermes-pre-tool-call.sh"))
         assertTrue(extracted.contains("hermes-post-tool-call.sh"))
         assertTrue(extracted.contains("hermes-user-prompt-submit.sh"))
-        assertTrue(extracted.contains("hermes-session-start.sh"))
 
         val stripped = HermesBridgeInstaller.stripManagedBlock(combined)
         assertFalse(stripped.contains(">>> agent-belay >>>"), "begin marker must be gone")

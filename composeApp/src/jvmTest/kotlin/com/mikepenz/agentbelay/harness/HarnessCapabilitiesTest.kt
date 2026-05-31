@@ -197,7 +197,10 @@ class HarnessCapabilitiesTest {
         assertFalse(h.capabilities.supportsArgRewriting)
         assertFalse(h.capabilities.supportsAlwaysAllowWriteThrough)
         assertFalse(h.capabilities.supportsOutputRedaction)
-        assertTrue(h.capabilities.supportsInterruptOnDeny)
+        // A pre_tool_call block short-circuits only that single tool call (the
+        // message is returned as the tool's error); it does not interrupt the
+        // agent loop.
+        assertFalse(h.capabilities.supportsInterruptOnDeny)
 
         val response = h.adapter.buildPreToolUseDenyResponse("blocked")
         val obj = kotlinx.serialization.json.Json.parseToJsonElement(response.body).jsonObject

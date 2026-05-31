@@ -19,7 +19,13 @@ class HermesHarness(
         supportsAlwaysAllowWriteThrough = false,
         supportsOutputRedaction = false,
         supportsDefer = false,
-        supportsInterruptOnDeny = true,
-        supportsAdditionalContextInjection = false,
+        // A `pre_tool_call` block only short-circuits that single tool call
+        // (the `message` is returned to the model as the tool's error) — the
+        // agent loop keeps running. It is NOT an agent interrupt.
+        supportsInterruptOnDeny = false,
+        // Hermes' `pre_llm_call` hook injects context via `{"context": "..."}`.
+        // (`on_session_start`'s return value is ignored by Hermes, so that
+        // path is not used — see HermesBridgeInstaller.)
+        supportsAdditionalContextInjection = true,
     )
 }

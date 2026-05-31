@@ -4,7 +4,7 @@
     "scenario": "edit pre-tool-use request"
   },
   "hook_event_name": "pre_tool_call",
-  "tool_name": "edit",
+  "tool_name": "write_file",
   "tool_input": {
     "path": "test.txt",
     "content": "hello world"

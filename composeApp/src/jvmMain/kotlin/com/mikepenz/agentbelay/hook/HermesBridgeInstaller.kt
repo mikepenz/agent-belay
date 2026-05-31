@@ -16,12 +16,17 @@ object HermesBridgeInstaller {
     private const val PRE_TOOL_CALL_SCRIPT_NAME = "hermes-pre-tool-call.sh"
     private const val POST_TOOL_CALL_SCRIPT_NAME = "hermes-post-tool-call.sh"
     private const val USER_PROMPT_SUBMIT_SCRIPT_NAME = "hermes-user-prompt-submit.sh"
-    private const val SESSION_START_SCRIPT_NAME = "hermes-session-start.sh"
 
     private const val PRE_TOOL_USE_ENDPOINT = "pre-tool-use-hermes"
     private const val POST_TOOL_USE_ENDPOINT = "post-tool-use-hermes"
+
+    // Context injection is wired to Hermes' `pre_llm_call` hook ONLY. Hermes
+    // also exposes `on_session_start`, but its return value is IGNORED by the
+    // runtime (it cannot inject context), so we do not install it — doing so
+    // was a silent no-op. `pre_llm_call` fires before each model call and its
+    // `{"context": "..."}` return is prepended, which is the correct (and only)
+    // injection point.
     private const val USER_PROMPT_SUBMIT_ENDPOINT = "capability/inject-hermes"
-    private const val SESSION_START_ENDPOINT = "capability/session-start-hermes"
 
     private fun configFile(): File {
         val home = System.getProperty("user.home")
@@ -36,12 +41,10 @@ object HermesBridgeInstaller {
     private fun preToolCallScriptFile(): File = File(scriptDir(), PRE_TOOL_CALL_SCRIPT_NAME)
     private fun postToolCallScriptFile(): File = File(scriptDir(), POST_TOOL_CALL_SCRIPT_NAME)
     private fun userPromptSubmitScriptFile(): File = File(scriptDir(), USER_PROMPT_SUBMIT_SCRIPT_NAME)
-    private fun sessionStartScriptFile(): File = File(scriptDir(), SESSION_START_SCRIPT_NAME)
 
     private fun preToolCallScriptPath(): String = preToolCallScriptFile().absolutePath
     private fun postToolCallScriptPath(): String = postToolCallScriptFile().absolutePath
     private fun userPromptSubmitScriptPath(): String = userPromptSubmitScriptFile().absolutePath
-    private fun sessionStartScriptPath(): String = sessionStartScriptFile().absolutePath
 
     fun isRegistered(port: Int): Boolean {
         val file = configFile()
@@ -68,14 +71,10 @@ object HermesBridgeInstaller {
             val original = if (file.exists()) file.readText() else ""
             val currentBlock = extractManagedBlock(original)
             val includeUserPrompt = currentBlock?.contains(userPromptSubmitScriptPath()) == true
-            val includeSessionStart = currentBlock?.contains(sessionStartScriptPath()) == true
 
             installScripts(port = port)
             if (includeUserPrompt) {
                 atomicWriteExecutable(userPromptSubmitScriptFile(), buildScriptContent(USER_PROMPT_SUBMIT_ENDPOINT, port))
-            }
-            if (includeSessionStart) {
-                atomicWriteExecutable(sessionStartScriptFile(), buildScriptContent(SESSION_START_ENDPOINT, port))
             }
 
             val withoutBlock = stripManagedBlock(original)
@@ -83,7 +82,6 @@ object HermesBridgeInstaller {
                 port = port,
                 includeMainHooks = true,
                 includeUserPromptSubmit = includeUserPrompt,
-                includeSessionStart = includeSessionStart,
             )
             val updated = if (withoutBlock.isEmpty()) {
                 block + "\n"
@@ -112,16 +110,14 @@ object HermesBridgeInstaller {
             val original = file.readText()
             val currentBlock = extractManagedBlock(original) ?: return@withFileLock
             val includeUserPrompt = currentBlock.contains(userPromptSubmitScriptPath())
-            val includeSessionStart = currentBlock.contains(sessionStartScriptPath())
             val stripped = stripManagedBlock(original)
 
-            if (includeUserPrompt || includeSessionStart) {
+            if (includeUserPrompt) {
                 // Re-register ONLY capability hooks
                 val block = buildManagedBlock(
                     port = port,
                     includeMainHooks = false,
                     includeUserPromptSubmit = includeUserPrompt,
-                    includeSessionStart = includeSessionStart,
                 )
                 val updated = if (stripped.isEmpty()) {
                     block + "\n"
@@ -150,18 +146,22 @@ object HermesBridgeInstaller {
         return try {
             val text = file.readText()
             val block = extractManagedBlock(text) ?: return false
-            val scripts = buildList {
-                if (block.contains(userPromptSubmitScriptPath())) add(userPromptSubmitScriptFile())
-                if (block.contains(sessionStartScriptPath())) add(sessionStartScriptFile())
-            }
-            scripts.isNotEmpty() &&
-                scripts.all { it.exists() && it.canExecute() && it.readText().contains("localhost:$port") }
+            block.contains(userPromptSubmitScriptPath()) &&
+                userPromptSubmitScriptFile().let {
+                    it.exists() && it.canExecute() && it.readText().contains("localhost:$port")
+                }
         } catch (e: Exception) {
             false
         }
     }
 
-    fun registerCapabilityHook(port: Int, userPromptSubmit: Boolean, sessionStart: Boolean) {
+    /**
+     * Installs the single context-injection hook (`pre_llm_call`). Hermes'
+     * `on_session_start` cannot inject context (its return is ignored), so
+     * `pre_llm_call` is the only injection point and a single boolean toggle
+     * suffices — there is nothing per-event to select.
+     */
+    fun registerCapabilityHook(port: Int) {
         val file = configFile()
         file.parentFile.mkdirs()
 
@@ -170,26 +170,14 @@ object HermesBridgeInstaller {
             val currentBlock = extractManagedBlock(original)
             val hasMainHooks = currentBlock?.contains(preToolCallScriptPath()) == true
 
-            if (userPromptSubmit) {
-                scriptDir().mkdirs()
-                atomicWriteExecutable(userPromptSubmitScriptFile(), buildScriptContent(USER_PROMPT_SUBMIT_ENDPOINT, port))
-            } else {
-                userPromptSubmitScriptFile().takeIf { it.exists() }?.delete()
-            }
-
-            if (sessionStart) {
-                scriptDir().mkdirs()
-                atomicWriteExecutable(sessionStartScriptFile(), buildScriptContent(SESSION_START_ENDPOINT, port))
-            } else {
-                sessionStartScriptFile().takeIf { it.exists() }?.delete()
-            }
+            scriptDir().mkdirs()
+            atomicWriteExecutable(userPromptSubmitScriptFile(), buildScriptContent(USER_PROMPT_SUBMIT_ENDPOINT, port))
 
             val withoutBlock = stripManagedBlock(original)
             val block = buildManagedBlock(
                 port = port,
                 includeMainHooks = hasMainHooks,
-                includeUserPromptSubmit = userPromptSubmit,
-                includeSessionStart = sessionStart,
+                includeUserPromptSubmit = true,
             )
             val updated = if (withoutBlock.isEmpty()) {
                 block + "\n"
@@ -199,12 +187,12 @@ object HermesBridgeInstaller {
                 withoutBlock + "\n\n" + block + "\n"
             }
             atomicWrite(file, updated)
-            logger.i { "Registered Hermes capability hooks for port $port (userPromptSubmit=$userPromptSubmit, sessionStart=$sessionStart)" }
+            logger.i { "Registered Hermes capability hook (pre_llm_call) for port $port" }
         }
     }
 
     fun unregisterCapabilityHook(port: Int) {
-        listOf(userPromptSubmitScriptFile(), sessionStartScriptFile()).forEach { script ->
+        listOf(userPromptSubmitScriptFile()).forEach { script ->
             if (script.exists()) {
                 script.delete()
                 logger.i { "Removed Hermes capability bridge script ${script.absolutePath}" }
@@ -225,7 +213,6 @@ object HermesBridgeInstaller {
                     port = port,
                     includeMainHooks = true,
                     includeUserPromptSubmit = false,
-                    includeSessionStart = false,
                 )
                 val updated = if (stripped.isEmpty()) {
                     block + "\n"
@@ -252,7 +239,6 @@ object HermesBridgeInstaller {
         port: Int,
         includeMainHooks: Boolean = true,
         includeUserPromptSubmit: Boolean = false,
-        includeSessionStart: Boolean = false,
     ): String = buildString {
         appendLine(BEGIN_MARKER)
         appendLine("# Managed by Agent Belay - do not edit. Re-register in Agent Belay")
@@ -274,11 +260,6 @@ object HermesBridgeInstaller {
         if (includeUserPromptSubmit) {
             appendLine("  pre_llm_call:")
             appendLine("    - command: \"${userPromptSubmitScriptPath()}\"")
-            appendLine("      timeout: 120")
-        }
-        if (includeSessionStart) {
-            appendLine("  on_session_start:")
-            appendLine("    - command: \"${sessionStartScriptPath()}\"")
             appendLine("      timeout: 120")
         }
         append(END_MARKER)

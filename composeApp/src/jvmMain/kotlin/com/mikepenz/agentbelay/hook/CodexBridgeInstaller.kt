@@ -288,6 +288,12 @@ object CodexBridgeInstaller {
         appendLine("# to update the port; unregister to remove. Requires:")
         appendLine("# [features]")
         appendLine("# hooks = true")
+        appendLine("#")
+        appendLine("# IMPORTANT: Codex will NOT run these (non-managed) command hooks")
+        appendLine("# until you review and trust them. On the next Codex run, open the")
+        appendLine("# hook browser with the /hooks command, review the agent-belay")
+        appendLine("# entries, and trust them. Until then the hooks are skipped and")
+        appendLine("# Agent Belay sees no approval requests from Codex.")
         if (includePermissionHooks) {
             appendLine(
                 """
