@@ -166,19 +166,4 @@ fun Route.capabilityRoute(engine: CapabilityEngine) {
         call.respondText(body, contentType = ContentType.Application.Json)
         logger.v { "Served pre_llm_call capability injection (${text.length} chars) to Hermes" }
     }
-
-    post("/capability/session-start-hermes") {
-        runCatching { call.receiveText() }
-
-        val text = engine.injectionFor(HookEvent.SESSION_START, AgentTarget.HERMES)
-        if (text.isBlank()) {
-            call.respondText("{}", contentType = ContentType.Application.Json)
-            return@post
-        }
-        val body = buildJsonObject {
-            put("context", text)
-        }.toString()
-        call.respondText(body, contentType = ContentType.Application.Json)
-        logger.v { "Served on_session_start capability injection (${text.length} chars) to Hermes" }
-    }
 }

@@ -388,11 +388,10 @@ class SettingsViewModel(
                 userPromptSubmit = HookEvent.USER_PROMPT_SUBMIT in requiredEvents,
                 sessionStart = HookEvent.SESSION_START in requiredEvents,
             )
-            hermesBridge.registerCapabilityHook(
-                port = port,
-                userPromptSubmit = HookEvent.USER_PROMPT_SUBMIT in requiredEvents,
-                sessionStart = HookEvent.SESSION_START in requiredEvents,
-            )
+            // Hermes injects via `pre_llm_call` only (its `on_session_start`
+            // return is ignored), so a single hook covers any enabled module
+            // regardless of which event the module nominally targets.
+            hermesBridge.registerCapabilityHook(port)
         } else {
             hookRegistry.unregisterCapabilityHook(port)
             copilotBridge.unregisterCapabilityHook(port)

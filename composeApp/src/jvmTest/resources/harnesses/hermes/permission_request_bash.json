@@ -4,7 +4,7 @@
     "scenario": "bash pre-tool-use request"
   },
   "hook_event_name": "pre_tool_call",
-  "tool_name": "bash",
+  "tool_name": "terminal",
   "tool_input": {
     "command": "ls -la"
   },

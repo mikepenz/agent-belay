@@ -28,7 +28,16 @@ class CodexHarness(
     override val source: Source = Source.CODEX
 
     override val capabilities: HarnessCapabilities = HarnessCapabilities(
-        // Codex reserves `updatedInput`, but currently rejects it.
+        // Codex DOES honor `updatedInput` — but only on a `PreToolUse` response
+        // with `permissionDecision: "allow"` (string `command` for Bash/
+        // apply_patch; args object for MCP tools). On `PermissionRequest` it is
+        // reserved and *fails closed* today. Belay routes interactive arg-
+        // rewriting through the PermissionRequest allow path
+        // (HarnessRoutes.harnessApprovalRoute → buildPermissionAllowResponse),
+        // so emitting `updatedInput` there would make Codex block the call.
+        // Belay's PreToolUse path is Protection-Engine-only and never surfaces
+        // user-edited args. Until arg-rewriting is plumbed onto the PreToolUse
+        // allow response, this stays off — flipping it on would silently deny.
         supportsArgRewriting = false,
         // Codex doesn't surface a write-through "always-allow" persistence
         // primitive in its hooks crate today.

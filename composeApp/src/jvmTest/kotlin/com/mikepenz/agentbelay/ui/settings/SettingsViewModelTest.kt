@@ -180,12 +180,13 @@ class SettingsViewModelTest {
 
     private class FakeHermesBridge : HermesBridge {
         val registeredPorts: MutableSet<Int> = mutableSetOf()
+        val capabilityHookPorts: MutableSet<Int> = mutableSetOf()
         override fun isRegistered(port: Int): Boolean = port in registeredPorts
         override fun register(port: Int) { registeredPorts.add(port) }
         override fun unregister(port: Int) { registeredPorts.remove(port) }
-        override fun isCapabilityHookRegistered(port: Int): Boolean = false
-        override fun registerCapabilityHook(port: Int, userPromptSubmit: Boolean, sessionStart: Boolean) {}
-        override fun unregisterCapabilityHook(port: Int) {}
+        override fun isCapabilityHookRegistered(port: Int): Boolean = port in capabilityHookPorts
+        override fun registerCapabilityHook(port: Int) { capabilityHookPorts.add(port) }
+        override fun unregisterCapabilityHook(port: Int) { capabilityHookPorts.remove(port) }
     }
 
     private fun newVm(

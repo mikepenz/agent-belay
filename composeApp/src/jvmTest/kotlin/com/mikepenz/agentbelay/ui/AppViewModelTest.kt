@@ -111,7 +111,7 @@ class AppViewModelTest {
         override fun register(port: Int) {}
         override fun unregister(port: Int) {}
         override fun isCapabilityHookRegistered(port: Int): Boolean = false
-        override fun registerCapabilityHook(port: Int, userPromptSubmit: Boolean, sessionStart: Boolean) {}
+        override fun registerCapabilityHook(port: Int) {}
         override fun unregisterCapabilityHook(port: Int) {}
     }
 

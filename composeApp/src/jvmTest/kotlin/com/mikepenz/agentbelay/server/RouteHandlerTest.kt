@@ -233,8 +233,9 @@ class RouteHandlerTest {
 
     @Test
     fun capabilityHermesRoutesReturnEmptyWhenNoModules() {
+        // Hermes injects via pre_llm_call only; on_session_start cannot inject
+        // (its return is ignored), so there is no session-start-hermes route.
         assertEquals("{}", extractBody(httpPost("/capability/inject-hermes", "{}")))
-        assertEquals("{}", extractBody(httpPost("/capability/session-start-hermes", "{}")))
     }
 
     // ---- Server shutdown tests ----

@@ -120,6 +120,29 @@ class CopilotBridgeInstallerTest {
     }
 
     @Test
+    fun `hook entries are command-type only — Copilot v1_0_21 has no http hook type`() {
+        // Decompiled @github/copilot v1.0.21 app.js: the hook-entry zod schema
+        // is `type: enum("command")` with bash/powershell/command — there is NO
+        // `http` hook type, no `url` field, no COPILOT_HOOK_ALLOW_LOCALHOST. A
+        // `{"type":"http","url":...}` entry would fail the enum and never fire.
+        // This pins the shim approach until a newer binary is decompiled.
+        CopilotBridgeInstaller.register(port)
+        val raw = hookFile().readText()
+        assertFalse("\"http\"" in raw, "no http hook type in v1.0.21: $raw")
+        assertFalse("\"url\"" in raw, "no url field in v1.0.21 hook entries: $raw")
+
+        val hooks = json.parseToJsonElement(raw).jsonObject["hooks"]!!.jsonObject
+        // camelCase event keys, confirmed present in the v1.0.21 bundle.
+        assertTrue("preToolUse" in hooks.keys)
+        assertTrue("permissionRequest" in hooks.keys)
+        hooks.values.forEach { arr ->
+            arr.jsonArray.forEach { entry ->
+                assertEquals("command", entry.jsonObject["type"]!!.jsonPrimitive.content)
+            }
+        }
+    }
+
+    @Test
     fun `isRegistered returns false when only one script exists`() {
         CopilotBridgeInstaller.register(port)
         assertTrue(CopilotBridgeInstaller.isRegistered(port))

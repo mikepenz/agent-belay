@@ -38,9 +38,16 @@ class HermesAdapter : HarnessAdapter {
                 return null
             }
 
+            // Hermes' built-in tool vocabulary (per the official hooks docs):
+            // terminal, web_search, read_file, write_file, patch, send_message,
+            // delegate_task. Map the ones with a canonical Belay equivalent so
+            // the Protection Engine, UI tool cards, and history treat them like
+            // their Claude-named counterparts. The shell tool is `terminal`
+            // (NOT `bash`) — mapping `bash` was dead code that never matched.
             val normalisedToolName = when (raw.toolName) {
-                "bash" -> "Bash"
-                "edit", "write_file", "patch" -> "Write"
+                "terminal" -> "Bash"
+                "write_file", "patch" -> "Write"
+                "read_file" -> "Read"
                 else -> raw.toolName
             }
             val hookInput = if (normalisedToolName == raw.toolName) raw else raw.copy(toolName = normalisedToolName)

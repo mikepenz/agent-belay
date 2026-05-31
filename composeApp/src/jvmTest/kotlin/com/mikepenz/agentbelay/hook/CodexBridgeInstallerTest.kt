@@ -1,5 +1,8 @@
 package com.mikepenz.agentbelay.hook
 
+import java.io.File
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -7,6 +10,25 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class CodexBridgeInstallerTest {
+
+    private lateinit var fakeHome: File
+    private lateinit var originalHome: String
+
+    @BeforeTest
+    fun setUp() {
+        originalHome = System.getProperty("user.home")
+        fakeHome = File(System.getProperty("java.io.tmpdir"), "codex-bridge-test-${System.nanoTime()}")
+        fakeHome.mkdirs()
+        System.setProperty("user.home", fakeHome.absolutePath)
+    }
+
+    @AfterTest
+    fun tearDown() {
+        System.setProperty("user.home", originalHome)
+        fakeHome.deleteRecursively()
+    }
+
+    private fun configFile() = File(fakeHome, ".codex/config.toml")
 
     @Test
     fun `managed block round-trips through strip`() {
@@ -53,6 +75,39 @@ class CodexBridgeInstallerTest {
         assertFalse(block.contains("url     = "))
         assertTrue(block.contains("type = \"command\""))
         assertTrue(block.contains("timeout = 300"))
+    }
+
+    @Test
+    fun `managed block surfaces the Codex hooks-trust requirement`() {
+        // Codex 0.135.0 (decompiled): non-managed command hooks don't run until
+        // reviewed/trusted via the /hooks command (binary strings: `/hooks`,
+        // `trust_hook`, `review hook`). The block must tell the user that.
+        val block = CodexBridgeInstaller.buildManagedBlock(port = 19532)
+        assertTrue(block.contains("/hooks"), "must point the user at the /hooks trust browser")
+        assertTrue(block.contains("trust", ignoreCase = true))
+    }
+
+    @Test
+    fun `register enables the features hooks flag`() {
+        CodexBridgeInstaller.register(19532)
+        val text = configFile().readText()
+        // Codex gates hooks behind [features] hooks = true.
+        assertTrue(Regex("""(?m)^\s*\[features]\s*$""").containsMatchIn(text), "must write [features] table: $text")
+        assertTrue(Regex("""(?m)^\s*hooks\s*=\s*true\s*$""").containsMatchIn(text), "must set hooks = true: $text")
+    }
+
+    @Test
+    fun `register migrates the deprecated codex_hooks alias to hooks`() {
+        // Pre-seed a config using the deprecated `codex_hooks` feature flag.
+        val cfg = configFile()
+        cfg.parentFile.mkdirs()
+        cfg.writeText("[features]\ncodex_hooks = true\n")
+
+        CodexBridgeInstaller.register(19532)
+
+        val text = cfg.readText()
+        assertFalse(text.contains("codex_hooks"), "deprecated codex_hooks alias must be removed: $text")
+        assertTrue(Regex("""(?m)^\s*hooks\s*=\s*true\s*$""").containsMatchIn(text))
     }
 
     @Test
