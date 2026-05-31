@@ -19,7 +19,7 @@ object SocraticThinkingCapability : CapabilityModule {
             "Forces the model to ask clarifying questions and surface assumptions before answering."
 
     override val supportedTargets: Set<AgentTarget> =
-        setOf(AgentTarget.CLAUDE_CODE, AgentTarget.COPILOT_CLI, AgentTarget.OPENCODE, AgentTarget.CODEX)
+        setOf(AgentTarget.CLAUDE_CODE, AgentTarget.COPILOT_CLI, AgentTarget.OPENCODE, AgentTarget.CODEX, AgentTarget.HERMES)
 
     override val requiredHookEvents: Set<HookEvent> = setOf(HookEvent.SESSION_START)
 

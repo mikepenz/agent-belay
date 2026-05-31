@@ -7,6 +7,7 @@ import com.mikepenz.agentbelay.ui.theme.SourceClaudeColor
 import com.mikepenz.agentbelay.ui.theme.SourceCopilotColor
 import com.mikepenz.agentbelay.ui.theme.VioletPurple
 import com.mikepenz.agentbelay.ui.theme.WarnYellow
+import com.mikepenz.agentbelay.ui.theme.SourceHermesColor
 
 /**
  * Canonical, screen-agnostic mappings from [Source] to its display label
@@ -22,6 +23,7 @@ fun sourceDisplayName(source: Source): String = when (source) {
     Source.OPENCODE -> "OpenCode"
     Source.PI -> "Pi"
     Source.CODEX -> "Codex"
+    Source.HERMES -> "Hermes"
     Source.ANTIGRAVITY -> "Antigravity"
 }
 
@@ -31,5 +33,6 @@ fun sourceAccentColor(source: Source): Color = when (source) {
     Source.OPENCODE -> InfoBlue
     Source.PI -> VioletPurple
     Source.CODEX -> WarnYellow
+    Source.HERMES -> SourceHermesColor
     Source.ANTIGRAVITY -> Color(0xFF9061F9)
 }

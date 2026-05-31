@@ -95,6 +95,7 @@ val SourceOpenCodeColor = Color(0xFF10B981) // emerald green — OpenCode
 val SourcePiColor = Color(0xFFF59E0B) // amber - Pi
 val SourceCodexColor = Color(0xFF1F6FEB)   // OpenAI blue — Codex CLI
 val SourceAntigravityColor = Color(0xFF9061F9) // vibrant purple — Antigravity CLI
+val SourceHermesColor = Color(0xFFE02424) // crimson red — Hermes Agent
 
 fun sourceColor(source: com.mikepenz.agentbelay.model.Source): Color = when (source) {
     com.mikepenz.agentbelay.model.Source.CLAUDE_CODE -> SourceClaudeColor
@@ -102,6 +103,7 @@ fun sourceColor(source: com.mikepenz.agentbelay.model.Source): Color = when (sou
     com.mikepenz.agentbelay.model.Source.OPENCODE -> SourceOpenCodeColor
     com.mikepenz.agentbelay.model.Source.PI -> SourcePiColor
     com.mikepenz.agentbelay.model.Source.CODEX -> SourceCodexColor
+    com.mikepenz.agentbelay.model.Source.HERMES -> SourceHermesColor
     com.mikepenz.agentbelay.model.Source.ANTIGRAVITY -> SourceAntigravityColor
 }
 
@@ -111,6 +113,7 @@ fun sourceLabel(source: com.mikepenz.agentbelay.model.Source): String = when (so
     com.mikepenz.agentbelay.model.Source.OPENCODE -> "OpenCode"
     com.mikepenz.agentbelay.model.Source.PI -> "Pi"
     com.mikepenz.agentbelay.model.Source.CODEX -> "Codex"
+    com.mikepenz.agentbelay.model.Source.HERMES -> "Hermes"
     com.mikepenz.agentbelay.model.Source.ANTIGRAVITY -> "Antigravity"
 }
 

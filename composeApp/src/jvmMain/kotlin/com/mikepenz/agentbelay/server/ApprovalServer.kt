@@ -10,6 +10,7 @@ import com.mikepenz.agentbelay.harness.copilot.CopilotHarness
 import com.mikepenz.agentbelay.harness.opencode.OpenCodeHarness
 import com.mikepenz.agentbelay.harness.pi.PiHarness
 import com.mikepenz.agentbelay.harness.antigravity.AntigravityHarness
+import com.mikepenz.agentbelay.harness.hermes.HermesHarness
 import com.mikepenz.agentbelay.protection.ProtectionEngine
 import com.mikepenz.agentbelay.redaction.RedactionEngine
 import com.mikepenz.agentbelay.state.AppStateManager
@@ -47,6 +48,7 @@ class ApprovalServer(
         PiHarness(),
         CodexHarness(),
         AntigravityHarness(),
+        HermesHarness(),
     )
 
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null

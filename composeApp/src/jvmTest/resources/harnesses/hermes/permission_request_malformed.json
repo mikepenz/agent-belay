@@ -1,0 +1,5 @@
+{
+  "hook_event_name": "pre_tool_call",
+  "tool_name": "",
+  "session_id": ""
+}

@@ -231,6 +231,12 @@ class RouteHandlerTest {
         assertEquals("{}", extractBody(httpPost("/capability/session-start-codex", "{}")))
     }
 
+    @Test
+    fun capabilityHermesRoutesReturnEmptyWhenNoModules() {
+        assertEquals("{}", extractBody(httpPost("/capability/inject-hermes", "{}")))
+        assertEquals("{}", extractBody(httpPost("/capability/session-start-hermes", "{}")))
+    }
+
     // ---- Server shutdown tests ----
 
     @Test

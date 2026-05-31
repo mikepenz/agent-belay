@@ -87,6 +87,7 @@ fun SettingsTab(
     isPiRegistered: Boolean = false,
     isCodexRegistered: Boolean = false,
     isAntigravityRegistered: Boolean = false,
+    isHermesRegistered: Boolean = false,
     historyCount: Int,
     copilotModels: List<Pair<String, String>> = emptyList(),
     copilotInitState: CopilotInitState = CopilotInitState.IDLE,
@@ -116,6 +117,8 @@ fun SettingsTab(
     onUnregisterCodex: () -> Unit = {},
     onRegisterAntigravity: () -> Unit = {},
     onUnregisterAntigravity: () -> Unit = {},
+    onRegisterHermes: () -> Unit = {},
+    onUnregisterHermes: () -> Unit = {},
     onClearHistory: () -> Unit,
     onShowLicenses: () -> Unit = {},
     protectionModules: List<ProtectionModule> = emptyList(),
@@ -196,6 +199,7 @@ fun SettingsTab(
                     isPiRegistered = isPiRegistered,
                     isCodexRegistered = isCodexRegistered,
                     isAntigravityRegistered = isAntigravityRegistered,
+                    isHermesRegistered = isHermesRegistered,
                     onSettingsChange = onSettingsChange,
                     onRegisterHook = onRegisterHook,
                     onUnregisterHook = onUnregisterHook,
@@ -209,6 +213,8 @@ fun SettingsTab(
                     onUnregisterCodex = onUnregisterCodex,
                     onRegisterAntigravity = onRegisterAntigravity,
                     onUnregisterAntigravity = onUnregisterAntigravity,
+                    onRegisterHermes = onRegisterHermes,
+                    onUnregisterHermes = onUnregisterHermes,
                 )
                 SettingsSubTab.Risk -> RiskAnalysisSettingsContent(
                     settings = settings,

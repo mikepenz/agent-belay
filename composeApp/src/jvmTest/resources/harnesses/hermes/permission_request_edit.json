@@ -1,0 +1,14 @@
+{
+  "_fixture": {
+    "harness": "hermes",
+    "scenario": "edit pre-tool-use request"
+  },
+  "hook_event_name": "pre_tool_call",
+  "tool_name": "edit",
+  "tool_input": {
+    "path": "test.txt",
+    "content": "hello world"
+  },
+  "session_id": "hermes-session-1",
+  "cwd": "/Users/mikepenz/workspace"
+}
