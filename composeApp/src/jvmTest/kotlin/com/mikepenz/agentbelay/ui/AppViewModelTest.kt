@@ -141,6 +141,7 @@ class AppViewModelTest {
             FakeHermesBridge(),
             RegistrationEvents(),
             fakeUpdateManager(),
+            ioDispatcher = mainDispatcher,
         )
         runCurrent()
 
@@ -174,6 +175,7 @@ class AppViewModelTest {
             FakeHermesBridge(),
             RegistrationEvents(),
             fakeUpdateManager(),
+            ioDispatcher = mainDispatcher,
         )
         runCurrent()
 
@@ -196,6 +198,7 @@ class AppViewModelTest {
             FakeHermesBridge(),
             RegistrationEvents(),
             fakeUpdateManager(),
+            ioDispatcher = mainDispatcher,
         )
         runCurrent()
         assertTrue(vm.tabState.value.devMode)
@@ -235,6 +238,7 @@ class AppViewModelTest {
             FakeHermesBridge(),
             RegistrationEvents(),
             fakeUpdateManager(),
+            ioDispatcher = mainDispatcher,
         )
         runCurrent()
 
