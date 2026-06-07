@@ -13,7 +13,7 @@ copilot-sdk = "1.0.0-beta-java.4"
 sqlite = "3.53.1.0"
 metro = "1.1.1"
 jetbrains-lifecycle = "2.10.0"
-vico = "3.1.0"
+vico = "3.2.1"
 version-catalog-update = "1.1.0"
 
 [libraries]
