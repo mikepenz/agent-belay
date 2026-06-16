@@ -1,14 +1,14 @@
 package com.mikepenz.agentbelay.risk
 
 import co.touchlab.kermit.Logger
-import com.github.copilot.sdk.CopilotClient
-import com.github.copilot.sdk.SystemMessageMode
-import com.github.copilot.sdk.json.CopilotClientOptions
-import com.github.copilot.sdk.json.MessageOptions
-import com.github.copilot.sdk.json.ModelInfo
-import com.github.copilot.sdk.json.PermissionHandler
-import com.github.copilot.sdk.json.SessionConfig
-import com.github.copilot.sdk.json.SystemMessageConfig
+import com.github.copilot.CopilotClient
+import com.github.copilot.SystemMessageMode
+import com.github.copilot.rpc.CopilotClientOptions
+import com.github.copilot.rpc.MessageOptions
+import com.github.copilot.rpc.ModelInfo
+import com.github.copilot.rpc.PermissionHandler
+import com.github.copilot.rpc.SessionConfig
+import com.github.copilot.rpc.SystemMessageConfig
 import java.io.File
 import com.mikepenz.agentbelay.logging.Logging
 import com.mikepenz.agentbelay.model.HookInput
