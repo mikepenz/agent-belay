@@ -3,7 +3,7 @@ import io.github.kdroidfilter.nucleus.desktop.application.dsl.TargetFormat
 
 buildscript {
     dependencies {
-        classpath("com.mikepenz.convention:convention:0.11.0")
+        classpath("com.mikepenz.convention:convention:0.12.1")
     }
 }
 
